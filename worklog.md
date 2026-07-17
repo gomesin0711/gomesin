@@ -3473,3 +3473,29 @@ Stage Summary:
 - Seller sees "MENUNGGU VERIFIKASI" badge in their dashboard; admin sees count in sidebar "Iklan Baru" and approves/rejects via the existing verification queue.
 - Edit/republish also returns to pending (re-verification) to prevent post-approval abuse.
 - Post-ad success screen now tells user "Iklan menunggu verifikasi admin" (id/en/zh).
+
+---
+Task ID: F-1
+Agent: orchestrator (admin price bug fix)
+Task: Fix admin "Iklan Aktif" table showing "Gratis" for aming's listings when they actually paid Rp 50.000.
+
+Work Log:
+- Root cause: admin view used `l.featured ? "Rp 50.000" : "Gratis"` to display "Harga Pasang Iklan" — this is wrong because `featured` only flags highlight/spotlight packages, NOT the Standard package (key="gratis", price=50000) that aming bought. aming's listings have packageType="gratis" + featured=false, so they showed "Gratis".
+- Same flawed logic in 3 places: IklanTab table cell, IklanTab preview dialog, TransaksiTab adFee().
+- Also found /api/admin/stats used wrong package keys: `pkg === "premium" ? 50000 : pkg === "bisnis" ? 150000 : 0` — keys "premium"/"bisnis" don't exist in DB (actual keys: gratis/sundul/highlight/spotlight), so ALL omzet stats showed 0.
+- Fix 1 (admin.tsx): added shared `usePaketPrices()` hook that fetches /api/admin/paket and provides `priceOf(packageType)` + `formatPrice(packageType)` based on actual DB paket prices.
+- Fix 2 (admin.tsx IklanTab): table cell + preview dialog now use `formatPrice(l.packageType)` instead of `l.featured ? ...`.
+- Fix 3 (admin.tsx TransaksiTab): `adFee` now uses `priceOf(l.packageType)` instead of `l.featured ? 50000 : 0`.
+- Fix 4 (stats/route.ts): `adFee` now uses `getPaketMap()` from DB instead of hardcoded wrong keys.
+- Lint: 0 errors (20 pre-existing warnings).
+- Browser verification (logged in as admin):
+  • Iklan Aktif table: aming's "tes" and "oliver" now show "Rp 50.000" (was "Gratis"). Other listings show correct per-package prices (Rp 50.000 / Rp 99.000 etc).
+  • Preview dialog: shows "Rp 50.000" (was "Gratis").
+  • Dashboard: Total Omset "Rp 2.883.000" (was 0), weekly/monthly omzet all populated.
+  • Transaksi (Riwayat Penjualan) tab: per-listing "Rp 50.000" (was "Gratis").
+  • No console/runtime errors.
+
+Stage Summary:
+- "Harga Pasang Iklan" in admin panel now always reflects the actual paket price from DB (based on packageType), not a featured-flag guess.
+- Dashboard omzet stats now compute real revenue (was always 0 due to wrong package keys).
+- aming's listings correctly show "Rp 50.000" (Standard package) instead of "Gratis".

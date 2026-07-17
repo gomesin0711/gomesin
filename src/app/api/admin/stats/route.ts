@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getPaketMap } from "@/lib/paket";
 
 export async function GET() {
   const now = new Date();
@@ -36,9 +37,12 @@ export async function GET() {
     db.listing.count({ where: { createdAt: { gte: startOfMonth } } }),
   ]);
 
-  // omzet = total biaya pasang iklan (ad posting fees)
-  // Gratis = 0, Premium = 50000, Bisnis = 150000
-  const adFee = (pkg: string) => (pkg === "premium" ? 50000 : pkg === "bisnis" ? 150000 : 0);
+  // omzet = total biaya pasang iklan (ad posting fees).
+  // Harga diambil dari tabel Paket di DB (key: gratis/sundul/highlight/spotlight),
+  // BUKAN hardcoded berdasarkan nama paket lama (premium/bisnis) yang tidak ada
+  // di DB — itu menyebabkan omzet selalu 0.
+  const paketMap = await getPaketMap();
+  const adFee = (pkg: string) => paketMap[pkg]?.price ?? 0;
 
   const [omzetListingsToday, omzetListingsWeek, omzetListingsMonth, allListingsForOmzet] = await Promise.all([
     db.listing.findMany({ where: { createdAt: { gte: startOfToday } }, select: { packageType: true } }),
