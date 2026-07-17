@@ -350,7 +350,7 @@ export function HomeView() {
   });
   const { data: popular } = useQuery({
     queryKey: ["listings", "popular"],
-    queryFn: () => fetchJson("/api/listings?sort=popular&week=1&limit=12"),
+    queryFn: () => fetchJson("/api/listings?sort=popular&limit=12"),
     staleTime: 0,
   });
   const { data: baru } = useQuery({
