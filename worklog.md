@@ -3589,3 +3589,25 @@ Stage Summary:
 - Project Gomesin live di GitHub: https://github.com/gomesin0711/gomesin
 - 159 file terlacak, README lengkap, .env tidak di-track (aman).
 - PAT disimpan di ~/.git-credentials untuk push lanjutan — DISARANKAN user revoke token setelah ini karena pernah di-share di chat.
+
+---
+Task ID: F-4
+Agent: orchestrator (Paling Banyak Dicari fix)
+Task: Fix "Paling Banyak Dicari" section to actually show most-searched + most-chatted listings.
+
+Work Log:
+- Found 3 bugs in /api/listings/most-searched:
+  1. Filtered to last 7 days (week=1) — excluded all popular listings (1857/1532/1344 views were from 2026-06-30, >7 days old).
+  2. Sort was score-based (chat*10+views) BUT only among the 11 week-filtered listings, so 0-view "tes" ads appeared.
+  3. Response didn't include chatCount/views, so frontend couldn't show why each listing ranked.
+- Rewrote route: removed week filter (all active listings), scoring = chatCount*10 + views, response includes chatCount + views per listing.
+- Updated home.tsx "Paling Banyak Dicari" section: custom grid with overlay badges per card — amber "X chat" (MessageCircle) when chatCount>0 + dark "X views" (Eye).
+- i18n (id/en/zh): searchedAdsDesc → "Mesin yang paling banyak dicari dan di-chat pembeli" / "Most searched & chatted machines" / "买家搜索和咨询最多的机械"; added searchBadgeChats/searchBadgeViews.
+- Lint: 0 errors (20 pre-existing warnings).
+- API verification: returns 12 listings ranked by chat+views; top = Heidelberg (1857 views), CNC Router (1532), Bubut WD6150 (1344), Laser CO2 (1126), Digital Printing (1121), Injection Molding (995).
+- Browser verification: section shows 12 cards each with views badge (1857 views, 1532 views, ...). Heading "Paling Banyak Dicari" + desc "Mesin yang paling banyak dicari dan di-chat pembeli". No console/runtime errors.
+- Committed locally (ae1d322). Push to GitHub failed — token ghp_zIQ3... has been revoked (recommended earlier for security). User needs new PAT to push.
+
+Stage Summary:
+- "Paling Banyak Dicari" now ranks by chat count (×10) + views, across ALL active listings (no week filter), with chat/views badges visible on each card.
+- 2 commits pending push to GitHub: most-searched fix + earlier most-viewed fix.
