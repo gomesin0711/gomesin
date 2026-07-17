@@ -23,6 +23,8 @@ import {
   ChevronRight,
   Zap,
   Wrench,
+  MessageCircle,
+  Eye,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -697,8 +699,33 @@ export function HomeView() {
                 </div>
               </div>
             </div>
-            {searchedListings.length > 0 ? (
-              <ListingSection listings={searchedListings} loading={!searched} viewMode={viewMode} />
+            {!searched ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <ListingCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : searchedListings.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+                {searchedListings.map((l: any) => (
+                  <div key={l.id} className="relative">
+                    {/* Badge: chat count + views (overlay di pojok kanan bawah kartu) */}
+                    <div className="pointer-events-none absolute right-1 top-1 z-10 flex flex-col items-end gap-1">
+                      {(l.chatCount ?? 0) > 0 && (
+                        <span className="flex items-center gap-1 rounded-full bg-amber-500/95 px-2 py-0.5 text-[10px] font-bold text-white shadow">
+                          <MessageCircle className="size-3" />
+                          {l.chatCount} {tr("searchBadgeChats")}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+                        <Eye className="size-3" />
+                        {l.views ?? 0} {tr("searchBadgeViews")}
+                      </span>
+                    </div>
+                    <ListingCard listing={l} />
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="rounded-xl border border-dashed border-border bg-card py-10 text-center text-sm text-muted-foreground">
                 Belum ada data.
