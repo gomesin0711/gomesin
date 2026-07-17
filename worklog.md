@@ -3499,3 +3499,27 @@ Stage Summary:
 - "Harga Pasang Iklan" in admin panel now always reflects the actual paket price from DB (based on packageType), not a featured-flag guess.
 - Dashboard omzet stats now compute real revenue (was always 0 due to wrong package keys).
 - aming's listings correctly show "Rp 50.000" (Standard package) instead of "Gratis".
+
+---
+Task ID: R-2
+Agent: orchestrator (package rename)
+Task: Rename ad package display names: Standard→Gold, Highlight→Platinum, Spotlight→Titanium.
+
+Work Log:
+- Updated DB paket table names via Prisma: gratis→"Gold", highlight→"Platinum", spotlight→"Titanium" (Colek unchanged). Verified /api/admin/paket returns new names.
+- src/components/gomesin/package-activate-dialog.tsx: renamed hardcoded PACKAGES array names (Gold/Platinum/Titanium), currentPkgLabel ternary, and comment.
+- src/components/gomesin/views/dashboard.tsx: renamed pkgName ternary (Titanium/Platinum), fallback "Standard"→"Gold" (2 places), comment.
+- src/lib/i18n.ts (id/en/zh): renamed highlight→Platinum, spotlight→Titanium keys; highlightBadge→Platinum, spotlightBadge→Titanium; pkgHighlightFeatures/pkgSpotlightFeatures badge text; dahsyatAdsDesc "paket Highlight"→"paket Platinum".
+- Note: package KEYS (gratis/sundul/highlight/spotlight) unchanged — only display names changed. listing-card.tsx/listing-row.tsx use keys + i18n badge labels, so they auto-updated.
+- seed.ts doesn't create paket records, so no seed change needed.
+- Lint: 0 errors (20 pre-existing warnings).
+- Browser verification (Agent Browser, logged in as admin):
+  • Post-ad package selector: 4 cards show "Gold = Rp 50.000", "Colek = Rp 30.000", "Platinum = Rp 88.000 (POPULER)", "Titanium = Rp 99.000".
+  • Home "Produk Terdahsyat" description: "Mesin pilihan dengan paket Platinum".
+  • Home card badges: "Titanium" and "Platinum" (was Spotlight/Highlight).
+  • Dashboard "Iklan Saya": package badge "Gold", detail "Paket: Gold" field.
+  • No console/runtime errors.
+
+Stage Summary:
+- Package display names fully renamed to Gold/Platinum/Titanium across DB, post-ad selector, dashboard badges, home card belts, and all 3 languages (id/en/zh).
+- Colek (sundul) package name unchanged per request.

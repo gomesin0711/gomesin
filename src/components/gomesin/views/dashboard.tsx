@@ -295,13 +295,13 @@ export function DashboardView() {
               : { color: "bg-emerald-500", text: tr("dashActive"), icon: CheckCircle2 };
             const StatusIcon = statusInfo.icon;
             const specEntries = l.specs ? Object.entries(l.specs) : [];
-            // pkgName/pkgColor: Standard (gratis/simpan) = empty string (no badge shown).
-            // Only Spotlight/Highlight/Sundul show badges.
+            // pkgName/pkgColor: Gold (gratis/simpan) = empty string (no badge shown).
+            // Only Titanium/Platinum/Sundul show badges.
             const pkgName =
               l.packageType === "spotlight"
-                ? "Spotlight"
+                ? "Titanium"
                 : l.packageType === "highlight"
-                ? "Highlight"
+                ? "Platinum"
                 : l.packageType === "sundul"
                 ? "Colek"
                 : "";
@@ -383,7 +383,7 @@ export function DashboardView() {
                       {categoryName(l.category?.name || "", mounted ? lang : "id")}
                     </span>
                     <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-bold", pkgColor)}>
-                      {pkgName || "Standard"}
+                      {pkgName || "Gold"}
                     </span>
                   </div>
                 </div>
@@ -423,7 +423,7 @@ export function DashboardView() {
                       </div>
                       <div className="flex justify-between border-b border-border/50 pb-0.5">
                         <span className="text-muted-foreground">Paket</span>
-                        <span className="font-medium">{pkgName || "Standard"}</span>
+                        <span className="font-medium">{pkgName || "Gold"}</span>
                       </div>
                       <div className="flex justify-between border-b border-border/50 pb-0.5">
                         <span className="text-muted-foreground">Kategori</span>

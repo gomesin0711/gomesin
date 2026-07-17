@@ -37,7 +37,7 @@ const PACKAGES: Array<{
 }> = [
   {
     key: "gratis",
-    name: "Standard",
+    name: "Gold",
     price: 40000,
     duration: "30 hari",
     color: "border-blue-400 bg-blue-50",
@@ -57,7 +57,7 @@ const PACKAGES: Array<{
   },
   {
     key: "highlight",
-    name: "Highlight",
+    name: "Platinum",
     price: 68000,
     duration: "30 hari",
     badge: "Populer",
@@ -68,7 +68,7 @@ const PACKAGES: Array<{
   },
   {
     key: "spotlight",
-    name: "Spotlight",
+    name: "Titanium",
     price: 99000,
     duration: "30 hari",
     color: "border-amber-400 bg-amber-50",
@@ -138,7 +138,7 @@ export function PackageActivateDialog({
   });
   const selectedPkg = packages.find((p) => p.key === selectedPackage) || packages[0];
   // needsPayment = selectedPackage !== "simpan" && price > 0
-  // (all packages including Standard require payment — only "simpan" is free)
+  // (all packages including Gold require payment — only "simpan" is free)
   const needsPayment = selectedPackage !== "simpan" && selectedPkg.price > 0;
 
   // Status info for listing summary
@@ -157,14 +157,14 @@ export function PackageActivateDialog({
   // Current package label for listing summary
   const currentPkgLabel =
     listing.packageType === "spotlight"
-      ? "Spotlight"
+      ? "Titanium"
       : listing.packageType === "highlight"
-      ? "Highlight"
+      ? "Platinum"
       : listing.packageType === "sundul"
       ? "Colek"
       : listing.packageType === "simpan"
       ? "Simpan (Draft)"
-      : "Standard";
+      : "Gold";
 
   // Button label: "Aktifkan Sekarang" if pending, else "Upgrade Paket"
   const buttonLabel = isPending ? "Aktifkan Sekarang" : "Upgrade Paket";
