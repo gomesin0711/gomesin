@@ -58,3 +58,16 @@ chat-service.log
 start-chat-service.sh
 skills/
 .next/
+
+# runtime / daemon files
+.daemon.pid
+.daemon.log
+.zscripts/dev.pid
+.zscripts/*.log
+.zscripts/mini-service-*.log
+
+# extracted upload scratch dir (not part of source)
+upload/
+
+# mini-service deps
+/mini-services/*/node_modules
