@@ -3611,3 +3611,21 @@ Work Log:
 Stage Summary:
 - "Paling Banyak Dicari" now ranks by chat count (×10) + views, across ALL active listings (no week filter), with chat/views badges visible on each card.
 - 2 commits pending push to GitHub: most-searched fix + earlier most-viewed fix.
+
+---
+Task ID: F-5
+Agent: orchestrator (Titanium/Platinum card size fix)
+Task: Fix Titanium & Platinum cards in "Paling Banyak Dicari" rendering small instead of large.
+
+Work Log:
+- Root cause: each card in the "Paling Banyak Dicari" section was wrapped in a <div className="relative"> (for chat/views badge overlay). This wrapper became the direct grid child instead of the ListingCard. CSS Grid `col-span-*` only works on DIRECT grid children — ListingCard's internal col-span-3 (Titanium) and col-span-2 (Platinum) had no effect, so ALL cards rendered at 1-column width (188px).
+- Fix in home.tsx: compute col-span based on packageType and apply to the WRAPPER div (the actual grid child):
+  • spotlight (Titanium): col-span-2 sm:col-span-3 md:col-span-3 → 580px (half grid)
+  • highlight (Platinum): col-span-2 sm:col-span-2 md:col-span-2 → 384px (third grid)
+  • others: no span → 188px (sixth grid)
+- Lint: 0 errors. Browser verified: 12 direct grid children — Titanium cards 580px, Platinum 384px, others 188px. No errors.
+- Committed locally (0736c51). Push failed — token ghp_zAt6... returns "Bad credentials" (revoked). Need new PAT.
+
+Stage Summary:
+- Titanium & Platinum cards now render large in "Paling Banyak Dicari" (col-span applied to wrapper div, not nested ListingCard).
+- 3 commits pending push to GitHub (most-viewed, most-searched, card-size fixes).
