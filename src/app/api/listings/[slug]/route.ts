@@ -77,7 +77,10 @@ export async function PATCH(
       const isPaid = pkgKey === "simpan" || (pkgPrice > 0 && !!paymentMethod);
       data.packageType = pkgKey;
       data.featured = pkgKey === "spotlight" || pkgKey === "highlight";
-      data.status = pkgKey === "simpan" ? "pending" : (isPaid ? "active" : "pending");
+      // Republish/edit SELALU kembali ke 'pending' — harus diverifikasi ulang admin
+      // agar penjual tidak bisa mengakali dengan pasang iklan bersih lalu edit
+      // menambah konten melanggar setelah diverifikasi.
+      data.status = "pending";
       data.paymentStatus = pkgKey === "simpan" ? "unpaid" : (isPaid ? "paid" : "unpaid");
       if (isPaid && pkgDays > 0) {
         const expiryDate = new Date();

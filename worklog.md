@@ -3442,3 +3442,34 @@ Stage Summary:
 - App runs perfectly on :3000 (daemon-managed, auto-restart) with chat-service on :3003.
 - DB pre-seeded (54 listings / 12 categories / admin user) — no re-seed needed.
 - Note: realtime socket push depends on gateway XTransformPort forwarding; chat falls back to REST (messages still persist + load) so chat is fully functional end-to-end.
+
+---
+Task ID: V-1
+Agent: orchestrator (admin verification feature)
+Task: Make new listings require admin verification before going active (not immediately live).
+
+Work Log:
+- Analyzed existing flow: POST /api/listings created listings with status="active" → immediately public. Admin "Iklan Baru" tab + approve/reject UI + dashboard "Menunggu Verifikasi" badge already existed but were unused (no listings ever became pending).
+- Edited src/app/api/listings/route.ts POST: changed `status: "active"` → `status: "pending"` (always, regardless of package). Added explanatory comment. paymentStatus stays "paid" for free packages so that once admin approves, listing is immediately visible.
+- Edited src/app/api/listings/[slug]/route.ts PATCH (edit/republish): changed package-status logic to always set `status: "pending"` on republish — prevents loophole of posting clean ad, getting approved, then editing in violations.
+- Updated i18n success messages (id/en/zh) in src/lib/i18n.ts: postSuccess/postSuccessDesc/adPosted now say "menunggu verifikasi admin" / "pending admin verification" / "等待管理员审核".
+- Lint: 0 errors (20 pre-existing warnings only).
+- API verification (curl/bun script):
+  • POST new listing → HTTP 201, status: "pending", paymentStatus: "unpaid".
+  • Public GET /api/listings?q=<title> → 0 results (pending hidden). Not in /popular either.
+  • GET /api/my-listings → listing visible to owner with status "pending".
+  • GET /api/admin/listings?status=pending → listing in admin queue.
+  • PATCH /api/admin/listings {status:"active"} → status: "active", paymentStatus: "paid".
+  • Public GET after approve → 1 result (now visible).
+- Browser verification (Agent Browser, logged in as admin):
+  • Created pending listing via API, navigated to Dashboard "Iklan Saya" → listing card shows amber "MENUNGGU VERIFIKASI" badge.
+  • Admin sidebar: "Iklan Baru 1" (pending count), "Iklan Aktif 52" (excluded pending).
+  • "Iklan Baru — Perlu Verifikasi (1)" tab shows the listing with "Verifikasi" / "Ditolak" buttons + info "Iklan baru dari user tidak langsung tayang. Admin harus verifikasi terlebih dahulu."
+  • Clicked "Verifikasi" → queue became (0), "Iklan Aktif 53" (approved listing now active), listing now searchable publicly.
+  • No console/runtime errors.
+
+Stage Summary:
+- New ads now ALWAYS start as "pending" — invisible publicly until admin approves.
+- Seller sees "MENUNGGU VERIFIKASI" badge in their dashboard; admin sees count in sidebar "Iklan Baru" and approves/rejects via the existing verification queue.
+- Edit/republish also returns to pending (re-verification) to prevent post-approval abuse.
+- Post-ad success screen now tells user "Iklan menunggu verifikasi admin" (id/en/zh).

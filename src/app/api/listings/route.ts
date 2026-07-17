@@ -171,7 +171,10 @@ export async function POST(req: NextRequest) {
         images: JSON.stringify(images || []),
         specs: JSON.stringify(specs || {}),
         featured: pkgKey === "premium" || pkgKey === "bisnis" || !!featured,
-        status: "active",
+        // Iklan baru SELALU 'pending' — harus diverifikasi admin sebelum tayang.
+        // Admin menyetujui via /api/admin/listings (PATCH status=active) yang juga
+        // mengeset paymentStatus=paid agar langsung muncul di beranda.
+        status: "pending",
         paymentStatus: isPaid ? "paid" : "unpaid",
         paymentExpiry: isPaid ? expiryDate : null,
         categoryId,
