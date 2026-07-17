@@ -3523,3 +3523,28 @@ Work Log:
 Stage Summary:
 - Package display names fully renamed to Gold/Platinum/Titanium across DB, post-ad selector, dashboard badges, home card belts, and all 3 languages (id/en/zh).
 - Colek (sundul) package name unchanged per request.
+
+---
+Task ID: F-2
+Agent: orchestrator (package selection bug fix)
+Task: Fix bug where selecting Titanium package when posting an ad saved the wrong package.
+
+Work Log:
+- Reproduced bug: POST /api/listings with package="spotlight" (Titanium) saved packageType="gratis" (Gold) in DB. Same for all packages — every new ad defaulted to "gratis".
+- Root cause: src/app/api/listings/route.ts POST handler computed `pkgKey = pkg || "gratis"` but NEVER wrote `packageType` to the db.listing.create() call. The Prisma schema default `packageType String @default("gratis")` kicked in, so all new ads became "gratis" regardless of selection.
+- Secondary bug: `featured` field used non-existent keys `pkgKey === "premium" || pkgKey === "bisnis"` (dead code) instead of actual keys "spotlight"/"highlight".
+- Fix in src/app/api/listings/route.ts:
+  • Added `packageType: pkgKey` to the listing.create() data (the core fix).
+  • Changed `featured: pkgKey === "premium" || pkgKey === "bisnis" || !!featured` → `featured: pkgKey === "spotlight" || pkgKey === "highlight"` (server-side source of truth, no longer trusts client `featured` flag).
+- Note: the PATCH /api/listings/[slug] route (edit/activate) already set packageType correctly, so only the initial POST was broken.
+- Lint: 0 errors (20 pre-existing warnings).
+- API verification (all 4 packages): Gold→gratis ✓, Colek→sundul ✓, Platinum→highlight+featured ✓, Titanium→spotlight+featured ✓.
+- Browser verification (Agent Browser, full UI flow):
+  • Opened post-ad form, filled fields, selected Titanium card, picked QRIS payment, uploaded proof, confirmed.
+  • DB record: packageType="spotlight" (Titanium), featured=true ✓.
+  • Dashboard "Iklan Saya": listing shows "Titanium" badge (was "Gold" before fix) + "Menunggu Verifikasi" status.
+  • No console/runtime errors.
+
+Stage Summary:
+- Core bug fixed: packageType is now persisted on ad creation, so selecting Gold/Colek/Platinum/Titanium correctly saves the chosen package (previously all new ads silently became Gold/gratis).
+- Titanium ads now correctly save as Titanium and display the Titanium badge everywhere.

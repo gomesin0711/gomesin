@@ -170,7 +170,8 @@ export async function POST(req: NextRequest) {
         province,
         images: JSON.stringify(images || []),
         specs: JSON.stringify(specs || {}),
-        featured: pkgKey === "premium" || pkgKey === "bisnis" || !!featured,
+        packageType: pkgKey,
+        featured: pkgKey === "spotlight" || pkgKey === "highlight",
         // Iklan baru SELALU 'pending' — harus diverifikasi admin sebelum tayang.
         // Admin menyetujui via /api/admin/listings (PATCH status=active) yang juga
         // mengeset paymentStatus=paid agar langsung muncul di beranda.
