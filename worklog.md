@@ -3570,3 +3570,22 @@ Work Log:
 Stage Summary:
 - "Harga Pasang Iklan" now renders correctly on first paint (realtime) — no more "Gratis until refresh".
 - Single source of truth: adFee computed server-side from Paket table, shipped with listings payload.
+
+---
+Task ID: GH-1
+Agent: orchestrator (GitHub push)
+Task: Push project to https://github.com/gomesin0711/gomesin
+
+Work Log:
+- Repo lokal dibersihkan: untrack upload/ (29MB duplikat), .env, .daemon.pid, .zscripts/dev.pid. .gitignore diperluas (daemon files, upload/, mini-services deps, !.env.example exception).
+- Dibuat README.md (fitur, tech stack, paket, quick start, struktur, akun demo) + .env.example.
+- 2 commit: "cleanup repo for GitHub" + "add .env.example".
+- Remote origin ditambah: https://github.com/gomesin0711/gomesin.git (branch main).
+- Push dengan PAT → sukses: [new branch] main -> main. Semua commit terkirim (verifikasi via GitHub API: commit messages muncul).
+- Credential helper 'store' dikonfigurasi, upstream origin/main diset (git fetch + branch --set-upstream-to).
+- Repo public, default branch main, pushed_at terverifikasi.
+
+Stage Summary:
+- Project Gomesin live di GitHub: https://github.com/gomesin0711/gomesin
+- 159 file terlacak, README lengkap, .env tidak di-track (aman).
+- PAT disimpan di ~/.git-credentials untuk push lanjutan — DISARANKAN user revoke token setelah ini karena pernah di-share di chat.
