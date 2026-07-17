@@ -26,32 +26,13 @@ type Tab = "dashboard" | "iklan" | "iklanbaru" | "iklanexpired" | "iklanditolak"
 // ============ FETCHERS ============
 const fetchJson = async (url: string) => (await fetch(url)).json();
 
-// ============ SHARED HOOK: paket price lookup ============
-// Mengambil tabel Paket dari DB (via /api/admin/paket) dan menyediakan
-// lookup harga berdasarkan packageType listing. Dipakai oleh tab Iklan Aktif,
-// Iklan Baru, Iklan Ditolak, dan Transaksi agar "Harga Pasang Iklan" selalu
-// konsisten dengan harga paket sebenarnya di DB (bukan hardcoded / bukan
-// berdasarkan flag `featured`).
-function usePaketPrices() {
-  const { data } = useQuery({
-    queryKey: ["admin-paket"],
-    queryFn: () => fetchJson("/api/admin/paket"),
-    staleTime: 60_000,
-  });
-  const priceMap: Record<string, number> = {};
-  if (Array.isArray(data?.pakets)) {
-    for (const p of data.pakets) priceMap[p.key] = Number(p.price) || 0;
-  }
-  // Harga numerik untuk paket tertentu (0 jika tidak ditemukan / paket gratis).
-  const priceOf = (packageType?: string | null): number =>
-    packageType && priceMap[packageType] !== undefined ? priceMap[packageType] : 0;
-  // Harga terformat: "Rp 50.000" atau "Gratis" bila 0.
-  const formatPrice = (packageType?: string | null): string => {
-    const p = priceOf(packageType);
-    return p === 0 ? "Gratis" : formatRupiahFull(p);
-  };
-  return { priceOf, formatPrice, ready: !!data?.pakets };
-}
+// Format biaya pasang iklan (angka dari server) → "Gratis" atau "Rp X".
+// `adFee` sudah dihitung di sisi server (/api/admin/listings) dari tabel Paket,
+// jadi tidak ada race condition dengan fetch paket terpisah.
+const formatAdFee = (fee: number | undefined | null): string => {
+  const n = Number(fee) || 0;
+  return n === 0 ? "Gratis" : formatRupiahFull(n);
+};
 
 // ============ MAIN COMPONENT ============
 export function AdminView({ initialTab }: { initialTab?: Tab }) {
@@ -227,7 +208,6 @@ function IklanTab() {
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
-  const { formatPrice } = usePaketPrices();
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const del = useMutation({
@@ -279,7 +259,7 @@ function IklanTab() {
                   </div>
                 </td>
                 <td className="p-2 text-xs">{l.seller?.name} {l.seller?.verified && <BadgeCheck className="inline size-3 text-primary" />}</td>
-                <td className="hidden p-2 text-right text-xs font-bold text-emerald-600 sm:table-cell">{formatPrice(l.packageType)}</td>
+                <td className="hidden p-2 text-right text-xs font-bold text-emerald-600 sm:table-cell">{formatAdFee(l.adFee)}</td>
                 <td className="p-2"><Badge className={l.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}>{l.paymentStatus === "paid" ? "Lunas" : "Belum"}</Badge></td>
                 <td className="p-2"><Badge className={l.status === "active" ? "bg-emerald-100 text-emerald-700" : l.status === "sold" ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}>{l.status}</Badge></td>
                 <td className="p-2" onClick={(e) => e.stopPropagation()}>
@@ -378,7 +358,7 @@ function IklanTab() {
                   <DollarSign className="size-4 text-emerald-600" />
                   <div>
                     <p className="text-[10px] text-muted-foreground">Harga Pasang Iklan</p>
-                    <p className="text-lg font-bold text-emerald-600">{formatPrice(previewListing.packageType)}</p>
+                    <p className="text-lg font-bold text-emerald-600">{formatAdFee(previewListing.adFee)}</p>
                   </div>
                   <Badge className={cn("ml-auto", previewListing.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>{previewListing.paymentStatus === "paid" ? "Lunas" : "Belum Bayar"}</Badge>
                 </div>
@@ -1507,7 +1487,6 @@ function TransaksiTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
-  const { priceOf } = usePaketPrices();
   const [expanded, setExpanded] = useState<string | null>(null);
   if (isLoading || !data) return <SkeletonGrid count={3} />;
 
@@ -1518,9 +1497,10 @@ function TransaksiTab() {
   const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
   const all = data.listings;
-  // Harga pasang iklan diambil dari tabel Paket sesuai packageType listing
-  // (bukan hardcoded 50.000 berdasarkan flag `featured` seperti sebelumnya).
-  const adFee = (l: any) => priceOf(l.packageType);
+  // Harga pasang iklan diambil dari field `adFee` yang sudah dihitung di sisi
+  // server (/api/admin/listings) dari tabel Paket — sehingga realtime, tidak
+  // perlu fetch paket terpisah dan tidak ada race condition.
+  const adFee = (l: any) => l.adFee ?? 0;
 
   const daily = all.filter((l: any) => new Date(l.createdAt) >= startToday);
   const weekly = all.filter((l: any) => new Date(l.createdAt) >= startWeek);

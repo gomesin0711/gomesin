@@ -1,20 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { parseListing } from "@/lib/types";
+import { getPaketMap } from "@/lib/paket";
 
 // GET all listings (admin, include inactive/violation/unpaid)
+// `adFee` (biaya pasang iklan, angka) dihitung di sisi SERVER dari tabel Paket
+// dan disisipkan ke setiap listing. Ini menghilangkan race condition di klien
+// (sebelumnya frontend fetch /api/admin/paket terpisah → saat data paket belum
+// loaded, kolom "Harga Pasang Iklan" sempat tampil "Gratis" untuk semua iklan).
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || "";
   const where: any = {};
   if (status) where.status = status;
-  const listings = await db.listing.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: { category: true, seller: true },
+
+  const [listings, paketMap] = await Promise.all([
+    db.listing.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      include: { category: true, seller: true },
+    }),
+    getPaketMap(),
+  ]);
+
+  const withFee = listings.map((l) => {
+    const parsed = parseListing(l);
+    const fee = paketMap[parsed.packageType || ""]?.price ?? 0;
+    return { ...parsed, adFee: fee };
   });
-  return NextResponse.json({ listings: listings.map(parseListing) });
+
+  return NextResponse.json({ listings: withFee });
 }
 
 // PATCH: update status (approve/reject/sold) OR toggle violation

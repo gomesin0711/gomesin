@@ -3548,3 +3548,25 @@ Work Log:
 Stage Summary:
 - Core bug fixed: packageType is now persisted on ad creation, so selecting Gold/Colek/Platinum/Titanium correctly saves the chosen package (previously all new ads silently became Gold/gratis).
 - Titanium ads now correctly save as Titanium and display the Titanium badge everywhere.
+
+---
+Task ID: F-3
+Agent: orchestrator (admin price realtime fix)
+Task: Fix admin "Iklan Aktif" table showing "Gratis" initially until page refresh — make price realtime.
+
+Work Log:
+- Root cause: admin views fetched /api/admin/listings AND /api/admin/paket as two SEPARATE React Query requests. When listings resolved before paket, the usePaketPrices() hook's priceMap was still empty → formatPrice() returned "Gratis" for every listing. It only self-corrected after a refresh/re-mount when paket data was cached.
+- Fix (server-side, eliminates the race entirely):
+  • /api/admin/listings GET now computes `adFee` (numeric) per listing server-side via getPaketMap() and attaches it to each listing in the response. Listings + prices arrive together in ONE response — no second query, no race.
+  • admin.tsx: removed the usePaketPrices() hook entirely. Added module-level formatAdFee(fee) helper. IklanTab table cell + preview dialog now use formatAdFee(l.adFee). TransaksiTab adFee() now uses l.adFee ?? 0 (sums/views all derived from server-provided fee).
+- Verified API response: each listing now includes adFee (gratis→50000, highlight→88000, sundul→30000, spotlight→99000).
+- Lint: 0 errors (20 pre-existing warnings).
+- Browser verification (cold load, query cache cleared):
+  • Iklan Aktif table: aming → "Rp 50.000", "Rp 88.000", "Rp 30.000" all correct on FIRST render (no "Gratis" flash, no refresh needed).
+  • Preview dialog (Platinum): "Rp 88.000" correct.
+  • Transaksi (Riwayat Penjualan): Hari Ini "Rp 268.000", Minggu Ini "Rp 568.000" — realtime.
+  • No console/runtime errors.
+
+Stage Summary:
+- "Harga Pasang Iklan" now renders correctly on first paint (realtime) — no more "Gratis until refresh".
+- Single source of truth: adFee computed server-side from Paket table, shipped with listings payload.
