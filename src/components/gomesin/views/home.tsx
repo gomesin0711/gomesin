@@ -706,12 +706,20 @@ export function HomeView() {
                 ))}
               </div>
             ) : searchedListings.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+              <div className="grid grid-cols-2 items-stretch gap-2 sm:grid-cols-3 md:grid-cols-6">
                 {searchedListings.map((l: any) => {
-                  // SEMUA kartu ukuran sama (uniform grid) supaya rapi.
-                  // Pembeda paket = border warna + badge chat/views (bukan ukuran).
+                  // Titanium (spotlight) & Platinum (highlight) tampil besar (col-span
+                  // di wrapper = direct grid child). Semua kartu diberi h-full + flex
+                  // stretch (via ListingCard) supaya tinggi baris rata (panjang rata).
+                  const pkg = l.packageType;
+                  const span =
+                    pkg === "spotlight"
+                      ? "col-span-2 sm:col-span-3 md:col-span-3"
+                      : pkg === "highlight"
+                      ? "col-span-2 sm:col-span-2 md:col-span-2"
+                      : "";
                   return (
-                  <div key={l.id} className="relative">
+                  <div key={l.id} className={cn("relative h-full", span)}>
                     {/* Badge: chat count + views (overlay di pojok kanan atas kartu) */}
                     <div className="pointer-events-none absolute right-1 top-1 z-10 flex flex-col items-end gap-1">
                       {(l.chatCount ?? 0) > 0 && (

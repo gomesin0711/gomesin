@@ -65,7 +65,7 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
         goToDetail(listing.slug);
       }}
       className={cn(
-        "card-hover group cursor-pointer overflow-hidden rounded-xl border transition",
+        "card-hover group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border transition",
         isSpotlight
           ? "border-amber-400 bg-card ring-2 ring-amber-400/30 shadow-lg col-span-2 sm:col-span-3 md:col-span-3"
           : isHighlight
@@ -276,7 +276,7 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
         </div>
       )}
 
-      <div className={cn("space-y-1.5 p-3", isSpotlight && "sm:p-4")}>
+      <div className={cn("flex flex-1 flex-col space-y-1.5 p-3", isSpotlight && "sm:p-4")}>
         <div className="flex items-baseline justify-between gap-2">
           <p className={cn("font-bold text-primary", isSpotlight ? "text-2xl" : "text-lg")}>
             {formatRupiahFull(listing.price)}
