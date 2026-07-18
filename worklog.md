@@ -3629,3 +3629,19 @@ Work Log:
 Stage Summary:
 - Titanium & Platinum cards now render large in "Paling Banyak Dicari" (col-span applied to wrapper div, not nested ListingCard).
 - 3 commits pending push to GitHub (most-viewed, most-searched, card-size fixes).
+
+---
+Task ID: F-6
+Agent: orchestrator (rapihkan Paling Banyak Dicari)
+Task: Fix layout "Paling Banyak Dicari" yang berantakan.
+
+Work Log:
+- Analisis via VLM (glm-4.6v): konfirmasi masalah — Titanium (col-span-3) & Platinum (col-span-2) menyebabkan ukuran kartu inkonsisten, alignment baris tidak rapi, gap tidak proporsional, wrapping jelek.
+- Fix: hapus col-span berbeda per paket di section "Paling Banyak Dicari". SEMUA kartu sekarang uniform (188px, grid 6 kolom × 2 baris). Pembeda paket tetap via border warna (amber=Titanium, orange=Platinum, purple=Colek) + badge chat/views.
+- Lint: 0 errors. Browser verify: 12 kartu semua 188×373px, 2 baris rapi (top: 68 & 449).
+- VLM re-verify: "Ya, grid kartu sekarang rapi. Semua kartu memiliki ukuran yang sama dan alignment baris konsisten."
+- Committed locally (f8b1c04). Push failed — token ghp_zAt6... "Bad credentials" (revoked).
+
+Stage Summary:
+- Section "Paling Banyak Dicari" sekarang uniform grid rapi (sebelumnya berantakan karena col-span berbeda).
+- Pending push: 3 commits (Vercel config, Titanium/Platinum size, uniform grid).
