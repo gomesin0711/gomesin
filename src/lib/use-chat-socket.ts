@@ -64,28 +64,47 @@ function getSocket(): Socket {
   if (socketRef) return socketRef;
 
   // Deteksi environment:
-  // - DEV langsung (localhost:3000): gateway Caddy TIDAK ada di port 3000,
-  //   jadi XTransformPort tidak berfungsi → connect LANGSUNG ke localhost:3003.
-  // - PROD / preview via gateway (port 81 / domain): pakai relative path
+  // - DEV langsung (localhost:3000): connect LANGSUNG ke chat-service port 3003
+  //   (gateway Caddy tidak ada di port 3000).
+  // - PROD via gateway Caddy (port 81 / domain sandbox): pakai relative path
   //   "/?XTransformPort=3003" agar Caddy forward ke chat-service port 3003.
+  // - PROD di Vercel (serverless): TIDAK ada chat-service socket.io (Vercel
+  //   tidak support WebSocket long-lived). Buat socket "dummy" yang selalu
+  //   gagal cepat agar chat-widget langsung fallback ke REST (/api/messages).
   const loc = typeof window !== "undefined" ? window.location : null;
   const isDevDirect =
     loc &&
     (loc.hostname === "localhost" || loc.hostname === "127.0.0.1") &&
     loc.port === "3000";
-  const socketUrl = isDevDirect ? "http://localhost:3003" : "/";
+  // Vercel: hostname berakhiran .vercel.app ATAU ada env NEXT_PUBLIC_VERCEL_ENV.
+  const isVercel =
+    (loc && loc.hostname.endsWith(".vercel.app")) ||
+    (typeof process !== "undefined" && !!process.env.NEXT_PUBLIC_VERCEL_ENV);
+
+  let socketUrl = "/";
   const socketOpts: any = {
     transports: ["websocket", "polling"],
     forceNew: true,
     reconnection: true,
-    reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     timeout: 10000,
   };
-  if (!isDevDirect) {
-    // Via gateway Caddy — XTransformPort di query supaya di-forward ke 3003.
+
+  if (isVercel) {
+    // Vercel: tidak ada socket.io server. Buat koneksi ke endpoint yang tidak
+    // ada supaya gagal cepat, lalu disable reconnection (jangan infinite retry).
+    // Chat-widget akan fallback ke REST API.
+    socketOpts.reconnection = false;
+    socketOpts.timeout = 2000;
+    // Connect ke "/" — Next.js akan reject (bukan socket.io server) → error cepat.
+  } else if (isDevDirect) {
+    // Dev langsung: connect ke chat-service lokal port 3003.
+    socketUrl = "http://localhost:3003";
+  } else {
+    // Gateway Caddy (sandbox preview): XTransformPort di query.
     socketOpts.query = { XTransformPort: "3003" };
+    socketOpts.reconnectionAttempts = 10;
   }
 
   const socket = io(socketUrl, socketOpts);
