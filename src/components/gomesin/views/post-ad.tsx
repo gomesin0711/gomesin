@@ -121,6 +121,7 @@ export function PostAdView() {
   const [qrisModal, setQrisModal] = useState(false);
   const [qrisAmount, setQrisAmount] = useState(0);
   const [proofImage, setProofImage] = useState<string>("");
+  const [uploadingProof, setUploadingProof] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Scroll to top when QRIS page opens so the QR image is immediately visible
@@ -749,10 +750,32 @@ export function PostAdView() {
                   </Button>
                   <Button
                     className="flex-1 gap-1.5"
-                    disabled={mutation.isPending || !proofImage}
-                    onClick={() => {
+                    disabled={mutation.isPending || uploadingProof || !proofImage}
+                    onClick={async () => {
                       const adminPhone = "6285888082208";
                       const pkgName = paketMap[selectedPackage]?.name || selectedPackage;
+
+                      // 1. Upload bukti gambar ke host publik (catbox.moe) supaya
+                      //    admin bisa LIHAT gambar via link, bukan cuma teks.
+                      setUploadingProof(true);
+                      let proofUrl = "";
+                      try {
+                        const upRes = await fetch("/api/upload-proof", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ image: proofImage }),
+                        });
+                        if (upRes.ok) {
+                          const upData = await upRes.json();
+                          proofUrl = upData.url || "";
+                        }
+                      } catch {
+                        // ignore — pesan WhatsApp tetap dikirim tanpa link gambar
+                      } finally {
+                        setUploadingProof(false);
+                      }
+
+                      // 2. Buka WhatsApp dengan pesan + link gambar bukti.
                       const msg = encodeURIComponent(
                         `*Bukti Pembayaran Iklan Gomesin*\n\n` +
                         `Paket: ${pkgName}\n` +
@@ -760,15 +783,17 @@ export function PostAdView() {
                         `User: ${user?.name || "-"}\n` +
                         `Email: ${user?.email || "-"}\n` +
                         `Judul Iklan: ${title}\n\n` +
-                        `Bukti pembayaran terlampir — silakan kirim screenshot bukti transfer di chat ini.`
+                        (proofUrl
+                          ? ` Bukti pembayaran (gambar):\n${proofUrl}`
+                          : `Bukti pembayaran terlampir — silakan kirim screenshot bukti transfer di chat ini.`)
                       );
                       window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
                       setQrisModal(false);
                       doSubmit();
                     }}
                   >
-                    {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                    {mutation.isPending ? "Memproses..." : "Kirim & Pasang Iklan"}
+                    {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                    {uploadingProof ? "Mengunggah bukti..." : mutation.isPending ? "Memproses..." : "Kirim & Pasang Iklan"}
                   </Button>
                 </div>
                 {!proofImage && (

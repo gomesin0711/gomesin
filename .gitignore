@@ -72,3 +72,4 @@ upload/
 
 # mini-service deps
 /mini-services/*/node_modules
+/proofs/
