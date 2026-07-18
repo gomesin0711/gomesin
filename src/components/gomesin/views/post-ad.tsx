@@ -754,16 +754,9 @@ export function PostAdView() {
                     onClick={async () => {
                       const adminPhone = "6285888082208";
                       const pkgName = paketMap[selectedPackage]?.name || selectedPackage;
-                      const caption =
-                        `*Bukti Pembayaran Iklan Gomesin*\n\n` +
-                        `Paket: ${pkgName}\n` +
-                        `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
-                        `User: ${user?.name || "-"}\n` +
-                        `Email: ${user?.email || "-"}\n` +
-                        `Judul Iklan: ${title}`;
 
-                      // 1. Upload bukti gambar ke host publik (uguu.se) — return
-                      //    URL gambar LANGSUNG (content-type image/png, no redirect).
+                      // 1. Upload bukti gambar ke host publik (catbox.moe) supaya
+                      //    admin bisa LIHAT gambar via link, bukan cuma teks.
                       setUploadingProof(true);
                       let proofUrl = "";
                       try {
@@ -777,52 +770,30 @@ export function PostAdView() {
                           proofUrl = upData.url || "";
                         }
                       } catch {
-                        // ignore
-                      }
-
-                      // 2. Kirim gambar ke WhatsApp admin.
-                      //    - Jika WHATSAPP_TOKEN & WHATSAPP_PHONE_ID diset di env:
-                      //      gambar dikirim via WhatsApp Cloud API (gambar asli
-                      //      muncul di chat admin, bukan link).
-                      //    - Jika belum: fallback ke wa.me link. Karena uguu.se
-                      //      return direct image (no redirect), WhatsApp akan
-                      //      menampilkan PREVIEW gambar di chat.
-                      let waUrl: string | null = null;
-                      try {
-                        const sendRes = await fetch("/api/send-wa-proof", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ imageUrl: proofUrl, caption }),
-                        });
-                        if (sendRes.ok) {
-                          const sendData = await sendRes.json();
-                          if (sendData.method === "wa.me" && sendData.url) {
-                            waUrl = sendData.url;
-                          } else if (sendData.method === "cloud_api") {
-                            toast.success("Bukti pembayaran terkirim ke WhatsApp admin");
-                          }
-                        }
-                      } catch {
-                        // ignore
+                        // ignore — pesan WhatsApp tetap dikirim tanpa link gambar
                       } finally {
                         setUploadingProof(false);
                       }
 
-                      // Fallback: buka wa.me dengan link gambar.
-                      if (waUrl) {
-                        window.open(waUrl, "_blank");
-                      } else if (!proofUrl) {
-                        const msg = encodeURIComponent(
-                          caption + "\n\nBukti pembayaran terlampir — silakan kirim screenshot di chat ini."
-                        );
-                        window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
-                      }
+                      // 2. Buka WhatsApp dengan pesan + link gambar bukti.
+                      const msg = encodeURIComponent(
+                        `*Bukti Pembayaran Iklan Gomesin*\n\n` +
+                        `Paket: ${pkgName}\n` +
+                        `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
+                        `User: ${user?.name || "-"}\n` +
+                        `Email: ${user?.email || "-"}\n` +
+                        `Judul Iklan: ${title}\n\n` +
+                        (proofUrl
+                          ? ` Bukti pembayaran (gambar):\n${proofUrl}`
+                          : `Bukti pembayaran terlampir — silakan kirim screenshot bukti transfer di chat ini.`)
+                      );
+                      window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
                       setQrisModal(false);
                       doSubmit();
                     }}
                   >
                     {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                    {uploadingProof ? "Mengirim bukti..." : mutation.isPending ? "Memproses..." : "Kirim & Pasang Iklan"}
+                    {uploadingProof ? "Mengunggah bukti..." : mutation.isPending ? "Memproses..." : "Kirim & Pasang Iklan"}
                   </Button>
                 </div>
                 {!proofImage && (
