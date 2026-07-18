@@ -708,19 +708,10 @@ export function HomeView() {
             ) : searchedListings.length > 0 ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
                 {searchedListings.map((l: any) => {
-                  // Titanium (spotlight) & Platinum (highlight) harus tampil besar
-                  // — col-span ditaruh di wrapper (direct grid child) karena badge
-                  // overlay membungkus ListingCard. col-span di ListingCard sendiri
-                  // tidak berlaku saat dibungkus div lain.
-                  const pkg = l.packageType;
-                  const span =
-                    pkg === "spotlight"
-                      ? "col-span-2 sm:col-span-3 md:col-span-3"
-                      : pkg === "highlight"
-                      ? "col-span-2 sm:col-span-2 md:col-span-2"
-                      : "";
+                  // SEMUA kartu ukuran sama (uniform grid) supaya rapi.
+                  // Pembeda paket = border warna + badge chat/views (bukan ukuran).
                   return (
-                  <div key={l.id} className={cn("relative", span)}>
+                  <div key={l.id} className="relative">
                     {/* Badge: chat count + views (overlay di pojok kanan atas kartu) */}
                     <div className="pointer-events-none absolute right-1 top-1 z-10 flex flex-col items-end gap-1">
                       {(l.chatCount ?? 0) > 0 && (
