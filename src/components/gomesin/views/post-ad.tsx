@@ -771,22 +771,16 @@ export function PostAdView() {
                           const a = document.createElement("a");
                           a.href = blobUrl;
                           a.download = `bukti-pembayaran-${pkgName.toLowerCase()}-${Date.now()}.${ext}`;
-                          a.style.display = "none";
                           document.body.appendChild(a);
                           a.click();
-                          // Beri waktu browser untuk memulai download sebelum
-                          // membuka WhatsApp (window.open bisa mengganggu download).
-                          await new Promise((r) => setTimeout(r, 800));
                           document.body.removeChild(a);
-                          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
                         }
 
-                        // 2. Toast instruksi dulu sebelum buka WhatsApp.
-                        toast.success("Gambar bukti diunduh! Klik 📎 di WhatsApp untuk lampirkan.", {
-                          duration: 6000,
-                        });
-
-                        // 3. Buka WhatsApp dengan caption.
+                        // 2. Buka WhatsApp dengan caption (tanpa link).
+                        //    User tinggal klik icon attach (📎) di WhatsApp lalu
+                        //    pilih file "bukti-pembayaran-xxx" yang baru saja
+                        //    ter-download.
                         const msg = encodeURIComponent(
                           `*Bukti Pembayaran Iklan Gomesin*\n\n` +
                           `Paket: ${pkgName}\n` +
@@ -798,17 +792,18 @@ export function PostAdView() {
                           `Silakan klik ikon 📎 (lampiran) di WhatsApp lalu pilih file bukti pembayaran untuk dikirim.`
                         );
                         window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
+
+                        // 3. Toast instruksi.
+                        toast.success("Gambar bukti diunduh! Lampirkan file di WhatsApp.", {
+                          duration: 6000,
+                        });
                       } catch {
                         toast.error("Gagal mengunduh bukti pembayaran");
                       } finally {
                         setUploadingProof(false);
                       }
-                      // Tutup modal & submit iklan (delay sedikit supaya download
-                      // & window.open sempat jalan).
-                      setTimeout(() => {
-                        setQrisModal(false);
-                        doSubmit();
-                      }, 500);
+                      setQrisModal(false);
+                      doSubmit();
                     }}
                   >
                     {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
