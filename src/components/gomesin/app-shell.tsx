@@ -21,7 +21,7 @@ import { DashboardView } from "./views/dashboard";
 import { SellerView } from "./views/seller";
 import { AdminView } from "./views/admin";
 
-const ADMIN_VIEWS = ["admin", "admin-sellers", "admin-categories", "admin-listings", "admin-new-listings", "admin-expired-listings", "admin-rejected-listings", "admin-transactions", "admin-reports", "admin-users", "admin-paket", "admin-merek", "admin-lokasi", "admin-banner", "admin-audit"];
+const ADMIN_VIEWS = ["admin", "admin-sellers", "admin-categories", "admin-listings", "admin-new-listings", "admin-expired-listings", "admin-rejected-listings", "admin-transactions", "admin-reports", "admin-monthly-report", "admin-users", "admin-paket", "admin-merek", "admin-lokasi", "admin-banner", "admin-audit"];
 
 export function AppShell() {
   const view = useStore((s) => s.view);
@@ -75,6 +75,7 @@ export function AppShell() {
               {view === "admin-rejected-listings" && <AdminView initialTab="iklanditolak" />}
               {view === "admin-transactions" && <AdminView initialTab="transaksi" />}
               {view === "admin-reports" && <AdminView initialTab="laporan" />}
+              {view === "admin-monthly-report" && <AdminView initialTab="laporanbulanan" />}
               {view === "admin-users" && <AdminView initialTab="pengguna" />}
               {view === "admin-paket" && <AdminView initialTab="paket" />}
               {view === "admin-merek" && <AdminView initialTab="merek" />}

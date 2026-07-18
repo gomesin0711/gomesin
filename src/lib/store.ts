@@ -210,7 +210,7 @@ export const useStore = create<NavState>()(
           history: [...s.history, { view: s.view, slug: s.slug, filters: s.filters }].slice(-20),
         })),
 
-      goToAdminSub: (sub: "admin-sellers" | "admin-categories" | "admin-listings" | "admin-new-listings" | "admin-expired-listings" | "admin-rejected-listings" | "admin-transactions" | "admin-reports" | "admin-users" | "admin-paket" | "admin-merek" | "admin-lokasi" | "admin-banner" | "admin-audit") =>
+      goToAdminSub: (sub: "admin-sellers" | "admin-categories" | "admin-listings" | "admin-new-listings" | "admin-expired-listings" | "admin-rejected-listings" | "admin-transactions" | "admin-reports" | "admin-monthly-report" | "admin-users" | "admin-paket" | "admin-merek" | "admin-lokasi" | "admin-banner" | "admin-audit") =>
         set((s) => ({
           view: sub,
           slug: undefined,

@@ -21,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { useLang, translations as i18nTranslations } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
 
-type Tab = "dashboard" | "iklan" | "iklanbaru" | "iklanexpired" | "iklanditolak" | "penjual" | "kategori" | "merek" | "lokasi" | "banner" | "paket" | "transaksi" | "laporan" | "audit" | "pengguna";
+type Tab = "dashboard" | "iklan" | "iklanbaru" | "iklanexpired" | "iklanditolak" | "penjual" | "kategori" | "merek" | "lokasi" | "banner" | "paket" | "transaksi" | "laporan" | "laporanbulanan" | "audit" | "pengguna";
 
 // ============ FETCHERS ============
 const fetchJson = async (url: string) => (await fetch(url)).json();
@@ -113,6 +113,7 @@ export function AdminView({ initialTab }: { initialTab?: Tab }) {
       {tab === "paket" && <PaketTab />}
       {tab === "transaksi" && <TransaksiTab />}
       {tab === "laporan" && <LaporanTab />}
+      {tab === "laporanbulanan" && <MonthlyReportTab />}
       {tab === "audit" && <AuditTab />}
     </div>
   );
@@ -1642,6 +1643,225 @@ function LaporanTab() {
         </div>
       </div>
       <Button variant="outline" className="w-full" onClick={() => toast.info("Export laporan segera hadir")}><FileText className="size-4" /> Export PDF/Excel</Button>
+    </div>
+  );
+}
+
+// ============ LAPORAN BULANAN TAB (dipisah per bulan) ============
+function MonthlyReportTab() {
+  const { t } = useLang();
+  const mounted = useMounted();
+  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  const now = new Date();
+  const [year, setYear] = useState<number>(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-monthly-report", year],
+    queryFn: () => fetchJson(`/api/admin/monthly-report?year=${year}`),
+  });
+
+  if (isLoading || !data) return <SkeletonGrid count={3} />;
+
+  const months: any[] = data.months || [];
+  const yearTotal = data.yearTotal || { omzet: 0, listings: 0, users: 0 };
+  const years: number[] = data.years || [year];
+
+  // Bulan yang dipilih (untuk drill-down detail).
+  const selMonthData = selectedMonth ? months.find((m) => m.month === selectedMonth) : null;
+  const selListings = selectedMonth ? (data.listingsByMonth?.[selectedMonth] || []) : [];
+  const selUsers = selectedMonth ? (data.usersByMonth?.[selectedMonth] || []) : [];
+
+  return (
+    <div className="space-y-4">
+      {/* Header + pemilih tahun */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold">{tr("admMonthlyTitle")}</h2>
+          <p className="text-xs text-muted-foreground">{tr("admMonthlyDesc")}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">{tr("admMonthlyYear")}</Label>
+          <select
+            value={year}
+            onChange={(e) => { setYear(Number(e.target.value)); setSelectedMonth(null); }}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+          >
+            {years.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Kartu total tahunan */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">{tr("admMonthlyTotal")} — {tr("admMonthlyOmzet")}</p>
+          <p className="mt-1 text-xl font-bold text-emerald-600">{formatRupiahFull(yearTotal.omzet)}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">{tr("admMonthlyTotal")} — {tr("admMonthlyListings")}</p>
+          <p className="mt-1 text-xl font-bold text-primary">{yearTotal.listings}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">{tr("admMonthlyTotal")} — {tr("admMonthlyUsers")}</p>
+          <p className="mt-1 text-xl font-bold text-blue-500">{yearTotal.users}</p>
+        </div>
+      </div>
+
+      {/* Tabel 12 bulan (dipisah per bulan) */}
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+              <th className="p-3">{tr("admMonthlyMonth")}</th>
+              <th className="p-3 text-right">{tr("admMonthlyOmzet")}</th>
+              <th className="p-3 text-right">{tr("admMonthlyListings")}</th>
+              <th className="p-3 text-right">{tr("admMonthlyUsers")}</th>
+              <th className="p-3 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {months.map((m) => {
+              const hasData = m.listings > 0 || m.users > 0;
+              const isCurrent = now.getMonth() + 1 === m.month && now.getFullYear() === year;
+              return (
+                <tr
+                  key={m.month}
+                  className={cn(
+                    "border-b border-border hover:bg-accent/30",
+                    !hasData && "opacity-50",
+                    selectedMonth === m.month && "bg-primary/5"
+                  )}
+                >
+                  <td className="p-3 font-medium">
+                    {m.label}
+                    {isCurrent && <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">Now</span>}
+                  </td>
+                  <td className="p-3 text-right font-bold text-emerald-600">{m.omzet > 0 ? formatRupiahFull(m.omzet) : "—"}</td>
+                  <td className="p-3 text-right">{m.listings > 0 ? m.listings : "—"}</td>
+                  <td className="p-3 text-right">{m.users > 0 ? m.users : "—"}</td>
+                  <td className="p-3 text-center">
+                    {hasData ? (
+                      <button
+                        onClick={() => setSelectedMonth(selectedMonth === m.month ? null : m.month)}
+                        className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20"
+                      >
+                        {selectedMonth === m.month ? "Tutup" : tr("admMonthlyDetail")}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-border bg-secondary/30 font-bold">
+              <td className="p-3">{tr("admMonthlyTotal")}</td>
+              <td className="p-3 text-right text-emerald-600">{formatRupiahFull(yearTotal.omzet)}</td>
+              <td className="p-3 text-right">{yearTotal.listings}</td>
+              <td className="p-3 text-right">{yearTotal.users}</td>
+              <td className="p-3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Drill-down: detail bulan terpilih */}
+      {selMonthData && (
+        <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-card p-4 animate-fade-up">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold">
+              {tr("admMonthlyDetail")} — {selMonthData.label} {year}
+            </h3>
+            <Button variant="outline" size="sm" onClick={() => toast.info("Export bulan ini segera hadir")}>
+              <FileText className="size-4" /> {tr("admMonthlyExport")}
+            </Button>
+          </div>
+
+          {/* Ringkasan bulan */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-lg bg-emerald-50 p-2">
+              <p className="text-[10px] text-muted-foreground">{tr("admMonthlyOmzet")}</p>
+              <p className="text-sm font-bold text-emerald-600">{formatRupiahFull(selMonthData.omzet)}</p>
+            </div>
+            <div className="rounded-lg bg-primary/10 p-2">
+              <p className="text-[10px] text-muted-foreground">{tr("admMonthlyListings")}</p>
+              <p className="text-sm font-bold text-primary">{selMonthData.listings}</p>
+            </div>
+            <div className="rounded-lg bg-blue-50 p-2">
+              <p className="text-[10px] text-muted-foreground">{tr("admMonthlyUsers")}</p>
+              <p className="text-sm font-bold text-blue-500">{selMonthData.users}</p>
+            </div>
+          </div>
+
+          {/* Rincian per paket */}
+          {Object.keys(selMonthData.byPackage).length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-muted-foreground">{tr("admMonthlyByPkg")}</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(selMonthData.byPackage).map(([pkg, info]: [string, any]) => (
+                  <span key={pkg} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 py-1 text-xs">
+                    <Badge variant="outline" className="px-1.5 py-0 text-[10px]">{pkg}</Badge>
+                    <span className="font-semibold">{info.count} iklan</span>
+                    <span className="text-emerald-600">{formatRupiahFull(info.omzet)}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Daftar iklan bulan ini */}
+          {selListings.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-muted-foreground">{tr("admMonthlyListings")} ({selListings.length})</p>
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-secondary/80">
+                    <tr className="text-left text-muted-foreground">
+                      <th className="p-2">Iklan</th>
+                      <th className="p-2">Paket</th>
+                      <th className="p-2 text-right">Harga</th>
+                      <th className="p-2">Status</th>
+                      <th className="p-2">Tanggal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selListings.map((l: any) => (
+                      <tr key={l.id} className="border-t border-border">
+                        <td className="p-2 font-medium">{l.title}</td>
+                        <td className="p-2"><Badge variant="outline" className="text-[10px]">{l.packageType}</Badge></td>
+                        <td className="p-2 text-right">{formatRupiahFull(l.price)}</td>
+                        <td className="p-2"><Badge className={cn("text-[10px]", l.status === "active" ? "bg-emerald-100 text-emerald-700" : l.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700")}>{l.status}</Badge></td>
+                        <td className="p-2 text-muted-foreground">{new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Daftar user baru bulan ini */}
+          {selUsers.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-muted-foreground">{tr("admMonthlyUsers")} ({selUsers.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {selUsers.map((u: any) => (
+                  <span key={u.id} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 py-1 text-xs">
+                    <span className="font-semibold">{u.name}</span>
+                    <span className="text-muted-foreground">{u.email}</span>
+                    {u.role === "admin" && <Badge className="text-[10px]">admin</Badge>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
