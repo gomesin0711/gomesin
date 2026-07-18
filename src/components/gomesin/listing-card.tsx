@@ -289,11 +289,11 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
         </div>
         <h3 className={cn(
           "line-clamp-2 font-semibold leading-snug text-foreground",
-          isSpotlight ? "min-h-[3rem] text-base" : "min-h-[2.5rem] text-sm"
+          isSpotlight ? "text-base" : "text-sm"
         )}>
           {listingTitle(listing, mounted ? lang : "id")}
         </h3>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
           <Tag className="size-3 shrink-0 text-primary" />
           <span className="shrink-0 font-medium text-primary">{categoryName(listing.category?.name || "", mounted ? lang : "id")}</span>
           <MapPin className="ml-0.5 size-3.5 shrink-0" />
@@ -305,7 +305,7 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
             </>
           )}
         </div>
-        <div className="flex items-center justify-between pt-0.5 text-xs text-muted-foreground">
+        <div className="mt-auto flex items-center justify-between pt-0.5 text-xs text-muted-foreground">
           <span>{timeAgo(listing.createdAt, mounted ? lang : "id")}</span>
           <span className="inline-flex items-center gap-0.5">
             <BadgeCheck className="size-3.5 text-primary" />
