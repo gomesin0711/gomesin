@@ -1567,7 +1567,7 @@ export function ProfileView() {
                               <MessageSquare className="size-4" /> Chat Support
                             </Button>
                             <a
-                              href="https://wa.me/6281230004000?text=Halo%20Gomesin%2C%20saya%20butuh%20bantuan"
+                              href="https://wa.me/6285888082208?text=Halo%20Gomesin%2C%20saya%20butuh%20bantuan"
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-green-500 px-3 text-sm font-semibold text-white hover:bg-green-600"
@@ -1700,7 +1700,7 @@ export function ProfileView() {
                             <ExternalLink className="size-3.5 text-muted-foreground" />
                           </a>
                           <a
-                            href="https://wa.me/6281230004000"
+                            href="https://wa.me/6285888082208"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-3 rounded-lg border border-border p-2.5 transition hover:bg-accent"

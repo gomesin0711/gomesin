@@ -751,7 +751,7 @@ export function PostAdView() {
                     className="flex-1 gap-1.5"
                     disabled={mutation.isPending || !proofImage}
                     onClick={() => {
-                      const adminPhone = "6281234567890";
+                      const adminPhone = "6285888082208";
                       const pkgName = paketMap[selectedPackage]?.name || selectedPackage;
                       const msg = encodeURIComponent(
                         `*Bukti Pembayaran Iklan Gomesin*\n\n` +
@@ -760,7 +760,7 @@ export function PostAdView() {
                         `User: ${user?.name || "-"}\n` +
                         `Email: ${user?.email || "-"}\n` +
                         `Judul Iklan: ${title}\n\n` +
-                        `Bukti pembayaran terlampir.`
+                        `Bukti pembayaran terlampir — silakan kirim screenshot bukti transfer di chat ini.`
                       );
                       window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
                       setQrisModal(false);
