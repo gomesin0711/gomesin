@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
+import { join } from "node:path";
 
 // POST /api/upload-proof
-// Menerima bukti pembayaran (base64 data URL) → upload ke tmpfiles.org (host
-// gambar gratis, anonymous) → return URL gambar LANGSUNG (bukan viewer page).
-// URL ini disisipkan ke pesan WhatsApp admin. Karena URL mengarah ke gambar
-// langsung (content-type: image/png), WhatsApp akan menampilkan PREVIEW gambar,
-// bukan cuma link teks.
+// Menerima bukti pembayaran (base64 data URL) → simpan ke folder proofs/ di
+// luar public/ → return URL ke /api/proof/[id] yang serve gambar LANGSUNG
+// (content-type: image/png, tanpa redirect). URL ini disisipkan ke pesan
+// WhatsApp. Karena response = gambar murni (bukan HTML/redirect), WhatsApp
+// akan menampilkan PREVIEW gambar, bukan link teks.
+//
+// File disimpan di server (self-hosted). URL pakai host request + gateway
+// sehingga admin bisa akses dari luar sandbox.
+
+const PROOFS_DIR = join(process.cwd(), "proofs");
+
 export async function POST(req: NextRequest) {
   try {
     const { image } = (await req.json()) as { image: string };
@@ -21,43 +30,20 @@ export async function POST(req: NextRequest) {
     const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
     const buffer = Buffer.from(matches[2], "base64");
 
-    // Upload ke tmpfiles.org via multipart/form-data.
-    const form = new FormData();
-    form.append("file", new Blob([buffer], { type: `image/${matches[1]}` }), `proof.${ext}`);
+    // Generate unique ID & simpan ke proofs/ (di luar public supaya tidak
+    // di-cache/served oleh Next.js static handler — kita serve via API route
+    // agar full control atas content-type & headers).
+    const id = randomUUID();
+    const filename = `${id}.${ext}`;
+    await mkdir(PROOFS_DIR, { recursive: true });
+    await writeFile(join(PROOFS_DIR, filename), buffer);
 
-    const upRes = await fetch("https://tmpfiles.org/api/v1/upload", {
-      method: "POST",
-      body: form,
-    });
+    // Bangun URL publik berdasarkan host request.
+    const host = req.headers.get("host") || "localhost:3000";
+    const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+    const url = `${proto}://${host}/api/proof/${filename}`;
 
-    if (!upRes.ok) {
-      return NextResponse.json(
-        { error: `Gagal upload ke tmpfiles: ${upRes.status}` },
-        { status: 502 }
-      );
-    }
-
-    const upData = await upRes.json();
-    // Response: { status: "success", data: { url: "https://tmpfiles.org/XXXX/proof.png" } }
-    // Itu adalah VIEWER page (HTML), BUKAN gambar langsung. Perlu ekstrak URL
-    // gambar sebenarnya dari HTML viewer page.
-    const viewerUrl: string = upData?.data?.url;
-    if (!viewerUrl) {
-      return NextResponse.json({ error: "Response tmpfiles tidak ada URL" }, { status: 502 });
-    }
-
-    // Fetch viewer page HTML → cari URL gambar langsung (pattern: /dl/{token}/...)
-    const viewerRes = await fetch(viewerUrl);
-    const html = await viewerRes.text();
-    const directMatch = html.match(/https:\/\/tmpfiles\.org\/dl\/[^"' ]+\.(?:png|jpg|jpeg|gif|webp)/i);
-    const directUrl = directMatch?.[0];
-
-    if (!directUrl) {
-      // Fallback: pakai viewer URL (kurang ideal — WhatsApp tampil sebagai link, bukan gambar)
-      return NextResponse.json({ url: viewerUrl, direct: false });
-    }
-
-    return NextResponse.json({ url: directUrl, direct: true });
+    return NextResponse.json({ url, id: filename });
   } catch (e: any) {
     return NextResponse.json(
       { error: "Gagal upload bukti: " + (e?.message || "unknown") },
