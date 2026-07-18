@@ -63,9 +63,18 @@ const listeners: Record<string, Set<(payload: any) => void>> = {};
 function getSocket(): Socket {
   if (socketRef) return socketRef;
 
-  // IMPORTANT: path MUST be "/" and XTransformPort MUST be in the query string
-  // so Caddy forwards to port 3003.
-  const socket = io("/?XTransformPort=3003", {
+  // Deteksi environment:
+  // - DEV langsung (localhost:3000): gateway Caddy TIDAK ada di port 3000,
+  //   jadi XTransformPort tidak berfungsi → connect LANGSUNG ke localhost:3003.
+  // - PROD / preview via gateway (port 81 / domain): pakai relative path
+  //   "/?XTransformPort=3003" agar Caddy forward ke chat-service port 3003.
+  const loc = typeof window !== "undefined" ? window.location : null;
+  const isDevDirect =
+    loc &&
+    (loc.hostname === "localhost" || loc.hostname === "127.0.0.1") &&
+    loc.port === "3000";
+  const socketUrl = isDevDirect ? "http://localhost:3003" : "/";
+  const socketOpts: any = {
     transports: ["websocket", "polling"],
     forceNew: true,
     reconnection: true,
@@ -73,7 +82,13 @@ function getSocket(): Socket {
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     timeout: 10000,
-  });
+  };
+  if (!isDevDirect) {
+    // Via gateway Caddy — XTransformPort di query supaya di-forward ke 3003.
+    socketOpts.query = { XTransformPort: "3003" };
+  }
+
+  const socket = io(socketUrl, socketOpts);
 
   // Wire internal dispatchers — fan out to all registered listeners.
   const dispatch = (event: string, payload: any) => {
