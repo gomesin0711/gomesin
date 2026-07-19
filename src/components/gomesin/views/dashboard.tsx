@@ -284,7 +284,7 @@ export function DashboardView() {
           </Button>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {listings.map((l) => {
             const img = l.images?.[0];
             const imgs = l.images || [];
@@ -580,7 +580,9 @@ export function DashboardView() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* package activate / upgrade dialog */}
+      {/* package activate / upgrade dialog — DIRENDER TERPISAH, bukan overlay
+          dashboard. Saat aktif, dashboard content di-hide (hidden) supaya
+          tidak ada di belakang upgrade page. */}
       {activateListing && (
         <PackageActivateDialog
           key={activateListing.id}
