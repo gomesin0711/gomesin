@@ -1,10 +1,18 @@
 /**
- * Share image to WhatsApp — dari WhatsApp USER ke WhatsApp ADMIN.
+ * Share image to WhatsApp — kirim LANGSUNG ke nomor admin (085888082208).
  *
- * Mobile (Android/iOS): Web Share API → buka WhatsApp app user dengan
- *   gambar AUTO-ATTACHED + caption. User tinggal pilih chat admin → kirim.
- * Desktop: upload gambar ke tmpfiles.org → dapat URL publik → buka wa.me
- *   dengan caption + link gambar. Admin klik link → lihat gambar.
+ * Baik mobile maupun desktop: upload gambar ke tmpfiles.org → dapat URL publik
+ * → buka wa.me/<phone>?text=<caption+imageURL> → langsung buka chat admin
+ * dengan caption + link gambar. User tinggal tap "Kirim".
+ *
+ * PENTING (fix popup blocker):
+ * Pada mobile browser, window.open() setelah `await fetch()` akan diblokir
+ * karena bukan lagi dalam user gesture context. Solusinya: buka window KOSONG
+ * secara synchronously di click handler, LALU set location-nya setelah upload
+ * selesai. Ini mempertahankan user gesture context → popup tidak diblokir.
+ *
+ * Fallback: kalau window.open('') gagal (popup benar-benar diblokir), gunakan
+ * window.location.href untuk navigasi tab saat ini ke wa.me link.
  */
 
 export interface ShareImageOptions {
@@ -12,10 +20,6 @@ export interface ShareImageOptions {
   fileName: string;
   caption: string;
   phone?: string;
-}
-
-function isMobile(): boolean {
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 export type ShareImageResult =
@@ -49,38 +53,62 @@ async function uploadToTmpfiles(blob: Blob, fileName: string): Promise<string | 
   }
 }
 
-export async function shareImageToWhatsApp({
-  blob,
-  fileName,
-  caption,
-  phone = "6285888082208",
-}: ShareImageOptions): Promise<ShareImageResult> {
-  // Mobile: Web Share API → gambar auto-attach ke WhatsApp app user.
-  if (isMobile() && navigator.share && navigator.canShare) {
-    const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
-    if (navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], text: caption });
-        return { status: "shared" };
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name === "AbortError") {
-          return { status: "cancelled" };
-        }
-      }
-    }
-  }
-
-  // Desktop: upload gambar ke tmpfiles.org → dapat URL → buka wa.me dengan
-  // caption + link gambar. Admin klik link → lihat gambar bukti.
-  const imageUrl = await uploadToTmpfiles(blob, fileName);
-
+/**
+ * Bangun URL wa.me dengan caption + optional image URL.
+ */
+function buildWhatsAppUrl(phone: string, caption: string, imageUrl: string | null): string {
   const msg = encodeURIComponent(
     caption + "\n\n" +
     (imageUrl
       ? `Bukti pembayaran (gambar):\n${imageUrl}`
       : `Bukti pembayaran terlampir — silakan kirim screenshot di chat ini.`)
   );
-  window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+  // PENTING: phone harus format internasional tanpa "+" atau "0" di depan.
+  // Mis. "085888082208" → "6285888082208".
+  const normalizedPhone = phone.replace(/[\s\-()+]/g, "").replace(/^0/, "62");
+  return `https://wa.me/${normalizedPhone}?text=${msg}`;
+}
 
-  return { status: "opened" };
+export async function shareImageToWhatsApp({
+  blob,
+  fileName,
+  caption,
+  phone = "6285888082208",
+}: ShareImageOptions): Promise<ShareImageResult> {
+  // === FIX POPUP BLOCKER ===
+  // Buka window KOSONG secara SYNCHRONOUS di click handler (sebelum await).
+  // Ini mempertahankan user gesture context → popup tidak diblokir di mobile.
+  // Setelah upload selesai, set location window ke wa.me URL.
+  let popupWin: Window | null = null;
+  try {
+    popupWin = window.open("", "_blank");
+  } catch {
+    popupWin = null;
+  }
+
+  // Upload gambar ke tmpfiles.org → dapat direct image URL publik.
+  const imageUrl = await uploadToTmpfiles(blob, fileName);
+
+  // Bangun URL WhatsApp ke nomor admin (6285888082208).
+  const waUrl = buildWhatsAppUrl(phone, caption, imageUrl);
+
+  if (popupWin && !popupWin.closed) {
+    // Popup berhasil dibuka sync — set location ke wa.me URL.
+    try {
+      popupWin.location.href = waUrl;
+      return { status: "opened" };
+    } catch {
+      // Cross-origin restriction — fallback ke location.href.
+      try { popupWin.close(); } catch {}
+    }
+  }
+
+  // Fallback: navigasi tab saat ini ke wa.me URL (tidak butuh user gesture).
+  // Ini selalu berhasil di mobile maupun desktop.
+  try {
+    window.location.href = waUrl;
+    return { status: "opened" };
+  } catch {
+    return { status: "error", error: "Tidak bisa membuka WhatsApp" };
+  }
 }

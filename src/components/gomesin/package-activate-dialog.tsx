@@ -566,11 +566,11 @@ export function PackageActivateDialog({
                         const blob = new Blob([buf], { type: `image/${matches[1]}` });
                         const fileName = `bukti-pembayaran-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
 
-                        // Kirim dari WhatsApp USER ke admin via Web Share API (mobile)
-                        // atau clipboard + wa.me (desktop).
+                        // Kirim bukti pembayaran LANGSUNG ke WhatsApp admin (085888082208).
+                        // Mobile & desktop sama-sama pakai wa.me link → langsung buka chat admin.
                         const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
                         if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
-                        else if (result.status === "opened") toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
+                        else if (result.status === "opened") toast.success("Chat WhatsApp admin dibuka — silakan tap Kirim!");
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
                       } catch {
                         toast.error("Gagal mengirim bukti");
@@ -738,10 +738,10 @@ export function PackageActivateDialog({
                         const blob = new Blob([buf], { type: `image/${matches[1]}` });
                         const fileName = `bukti-pembayaran-bca-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
 
-                        // Kirim dari WhatsApp USER ke admin via Web Share API.
+                        // Kirim bukti pembayaran LANGSUNG ke WhatsApp admin (085888082208).
                         const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
                         if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
-                        else if (result.status === "opened") toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
+                        else if (result.status === "opened") toast.success("Chat WhatsApp admin dibuka — silakan tap Kirim!");
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
                       } catch { toast.error("Gagal mengirim bukti"); }
                       finally { setUploadingProof(false); }
