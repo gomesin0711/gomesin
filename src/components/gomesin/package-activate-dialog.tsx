@@ -556,38 +556,21 @@ export function PackageActivateDialog({
                           `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
                           `Judul Iklan: ${listingTitle(listing, mounted ? lang : "id")}`;
 
-                        // Convert base64 proofImage → Blob untuk Web Share API.
-                        const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
-                        if (!matches) {
-                          toast.error("Format gambar tidak valid");
-                          return;
-                        }
-                        const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
-                        const byteString = atob(matches[2]);
-                        const buf = new Uint8Array(byteString.length);
-                        for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
-                        const blob = new Blob([buf], { type: `image/${matches[1]}` });
-                        const fileName = `bukti-pembayaran-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
-
-                        // Bagikan gambar ke WhatsApp via Web Share API (mobile) atau
-                        // download + wa.me (desktop). GRATIS, tanpa API key.
-                        const result = await shareImageToWhatsApp({
-                          blob,
-                          fileName,
-                          caption,
-                          phone: "6285888082208",
+                        // Kirim gambar bukti ke WhatsApp admin via Fonnte API.
+                        const sendRes = await fetch("/api/send-wa-proof", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            imageBase64: proofImage,
+                            caption,
+                            fileName: `bukti-pembayaran-${selectedPkg.name.toLowerCase()}-${Date.now()}.jpg`,
+                          }),
                         });
-
-                        if (result.status === "shared") {
-                          toast.success("Gambar bukti dibagikan ke WhatsApp!");
-                        } else if (result.status === "copied") {
-                          toast.success("Gambar di-copy! Tekan Ctrl+V di WhatsApp untuk paste.", { duration: 8000 });
-                        } else if (result.status === "opened") {
-                          toast.info("WhatsApp terbuka. Lampirkan gambar bukti manual.", { duration: 6000 });
-                        } else if (result.status === "cancelled") {
-                          toast.info("Pembagian dibatalkan");
-                          setUploadingProof(false);
-                          return; // jangan submit jika user batal
+                        const sendData = await sendRes.json();
+                        if (sendData.success) {
+                          toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
+                        } else {
+                          toast.error("Gagal kirim via Fonnte: " + (sendData.error || "unknown"));
                         }
                       } catch {
                         toast.error("Gagal mengirim bukti");
@@ -745,20 +728,22 @@ export function PackageActivateDialog({
                           `Metode: Transfer BCA\n` +
                           `Judul Iklan: ${listingTitle(listing, mounted ? lang : "id")}`;
 
-                        const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
-                        if (!matches) { toast.error("Format gambar tidak valid"); return; }
-                        const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
-                        const byteString = atob(matches[2]);
-                        const buf = new Uint8Array(byteString.length);
-                        for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
-                        const blob = new Blob([buf], { type: `image/${matches[1]}` });
-                        const fileName = `bukti-pembayaran-bca-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
-
-                        const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
-                        if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
-                        else if (result.status === "copied") toast.success("Gambar di-copy! Tekan Ctrl+V di WhatsApp.", { duration: 8000 });
-                        else if (result.status === "opened") toast.info("WhatsApp terbuka. Lampirkan gambar bukti manual.", { duration: 6000 });
-                        else if (result.status === "cancelled") { setUploadingProof(false); return; }
+                        // Kirim gambar bukti ke WhatsApp admin via Fonnte API.
+                        const sendRes = await fetch("/api/send-wa-proof", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            imageBase64: proofImage,
+                            caption,
+                            fileName: `bukti-pembayaran-bca-${selectedPkg.name.toLowerCase()}-${Date.now()}.jpg`,
+                          }),
+                        });
+                        const sendData = await sendRes.json();
+                        if (sendData.success) {
+                          toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
+                        } else {
+                          toast.error("Gagal kirim via Fonnte: " + (sendData.error || "unknown"));
+                        }
                       } catch { toast.error("Gagal mengirim bukti"); }
                       finally { setUploadingProof(false); }
                       setTimeout(async () => { await doSubmit(); setBcaModal(false); setProofImage(""); }, 500);

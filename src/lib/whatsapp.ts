@@ -50,27 +50,6 @@ export async function sendWhatsAppImage(
       };
     }
 
-    // Cek apakah device Fonnte support attachment (gambar). Free package
-    // TIDAK support kirim gambar (attachment=false) — gambar diabaikan, hanya
-    // caption text yang terkirim. Berbayar package (attachment=true) bisa kirim
-    // gambar. Jika free, return error supaya frontend fallback ke wa.me +
-    // download gambar ke device.
-    try {
-      const devRes = await fetch("https://api.fonnte.com/device", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: apiKey },
-      });
-      const devData = await devRes.json();
-      if (devData.attachment === false) {
-        return {
-          success: false,
-          error: "Free package tidak support kirim gambar. Upgrade Fonnte ke berbayar atau gunakan fallback download.",
-        };
-      }
-    } catch {
-      // ignore device check error, tetap coba kirim
-    }
-
     const normalizedPhone = normalizePhone(targetPhone);
 
     // Pastikan base64 punya data URL prefix.
