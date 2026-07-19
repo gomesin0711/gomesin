@@ -1,17 +1,27 @@
 /**
- * Share image to WhatsApp — kirim LANGSUNG ke nomor admin (085888082208).
+ * Share image to WhatsApp — LANGSUNG ke chat admin 085888082208.
  *
- * === MOBILE (Android/iOS) ===
- * Pakai Web Share API (navigator.share) → gambar AUTO-ATTACH ke WhatsApp app
- * user + caption pre-fill. User tinggal pilih chat admin → kirim.
- * Ini SATU-SATUNYA cara yang bisa attach gambar langsung ke WhatsApp di mobile
- * (wa.me link cuma bisa isi text, tidak bisa attach gambar).
+ * === CARA KERJA ===
+ * Upload gambar bukti ke tmpfiles.org → dapat URL publik → buka
+ * wa.me/6285888082208?text=caption+imageUrl → WhatsApp app/langganan
+ * langsung buka CHAT ADMIN dengan pesan sudah pre-fill.
+ * User tinggal tap "Kirim" — tidak perlu pilih kontak.
  *
- * === DESKTOP ===
- * Upload gambar ke tmpfiles.org → dapat URL publik → buka wa.me link dengan
- * caption + link gambar. Popup-blocker-safe: window.open dipanggil sync di
- * click handler sebelum await, location di-set setelah upload selesai.
- * Fallback: window.location.href kalau popup benar-benar diblokir.
+ * === TRADE-OFF ===
+ * Gambar tidak ter-attach sebagai file di WhatsApp, tapi sebagai URL link
+ * di dalam pesan. Admin klik link untuk lihat gambar.
+ *
+ * Ini lebih baik daripada Web Share API (navigator.share) karena:
+ * - Web Share API TIDAK BISA target nomor spesifik → user harus pilih
+ *   kontak admin manual (085888082208).
+ * - wa.me link LANGSUNG buka chat admin → user tinggal kirim.
+ *
+ * === MOBILE vs DESKTOP ===
+ * Mobile: window.location.href = wa.me URL (paling reliable, langsung
+ *   buka WhatsApp app di HP).
+ * Desktop: window.open dengan popup-blocker-safe pattern (buka window
+ *   sync di click handler sebelum await, set location setelah upload).
+ *   Fallback ke location.href kalau popup diblokir.
  *
  * Admin number: 085888082208 (6285888082208).
  */
@@ -80,30 +90,33 @@ export async function shareImageToWhatsApp({
   caption,
   phone = "6285888082208",
 }: ShareImageOptions): Promise<ShareImageResult> {
+  // Upload gambar ke tmpfiles.org → dapat direct image URL publik.
+  const imageUrl = await uploadToTmpfiles(blob, fileName);
+
+  // Bangun URL WhatsApp ke nomor admin (6285888082208).
+  const waUrl = buildWhatsAppUrl(phone, caption, imageUrl);
+
   // ============================================================
-  // MOBILE: Web Share API → gambar AUTO-ATTACH ke WhatsApp app.
-  // Ini satu-satunya cara attach gambar langsung ke WhatsApp mobile.
-  // wa.me link di mobile TIDAK BISA attach gambar, hanya text.
+  // MOBILE: window.location.href langsung ke wa.me URL.
+  // Ini paling reliable di mobile — langsung buka WhatsApp app
+  // dan navigate ke chat admin (085888082208) dengan pesan
+  // pre-fill. User tinggal tap "Kirim".
   // ============================================================
-  if (isMobile() && typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
-    const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
-    if (navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], text: caption });
-        return { status: "shared" };
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name === "AbortError") {
-          return { status: "cancelled" };
-        }
-        // Jika share gagal (bukan abort), fallback ke wa.me link di bawah.
-      }
+  if (isMobile()) {
+    try {
+      window.location.href = waUrl;
+      return { status: "opened" };
+    } catch {
+      return { status: "error", error: "Tidak bisa membuka WhatsApp" };
     }
   }
 
   // ============================================================
-  // DESKTOP (atau mobile fallback): upload ke tmpfiles → wa.me link
-  // Popup-blocker-safe: window.open dipanggil sync di click handler
-  // sebelum await, location di-set setelah upload selesai.
+  // DESKTOP: popup-blocker-safe pattern.
+  // Buka window KOSONG sync di click handler (sebelum await upload)
+  // untuk preserve user gesture context → popup tidak diblokir.
+  // Setelah upload selesai, set location window ke wa.me URL.
+  // Fallback: window.location.href kalau popup benar-benar diblokir.
   // ============================================================
   let popupWin: Window | null = null;
   try {
@@ -111,12 +124,6 @@ export async function shareImageToWhatsApp({
   } catch {
     popupWin = null;
   }
-
-  // Upload gambar ke tmpfiles.org → dapat direct image URL publik.
-  const imageUrl = await uploadToTmpfiles(blob, fileName);
-
-  // Bangun URL WhatsApp ke nomor admin (6285888082208).
-  const waUrl = buildWhatsAppUrl(phone, caption, imageUrl);
 
   if (popupWin && !popupWin.closed) {
     try {
