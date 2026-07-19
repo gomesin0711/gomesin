@@ -125,11 +125,20 @@ export function PostAdView() {
   const [qrZoom, setQrZoom] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Scroll to top when QRIS page opens so the QR image is immediately visible
+  // Scroll to top when QRIS page opens + lock body scroll (hilangkan scrollbar browser)
   useEffect(() => {
     if (qrisModal) {
       window.scrollTo({ top: 0, behavior: "instant" });
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
     }
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
   }, [qrisModal]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 

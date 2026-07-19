@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import {
@@ -132,6 +132,17 @@ export function PackageActivateDialog({
   const [proofImage, setProofImage] = useState<string>("");
   const [uploadingProof, setUploadingProof] = useState(false);
   const [qrZoom, setQrZoom] = useState(false);
+
+  // Lock body scroll saat QRIS page / QR zoom terbuka (hilangkan scrollbar browser)
+  useEffect(() => {
+    const lock = qrisModal || qrZoom;
+    document.body.style.overflow = lock ? "hidden" : "";
+    document.documentElement.style.overflow = lock ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, [qrisModal, qrZoom]);
 
   const isPending = listing.status === "pending";
   const isSundulDisabled = isPending;
