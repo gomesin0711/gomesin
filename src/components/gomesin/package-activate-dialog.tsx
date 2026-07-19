@@ -13,6 +13,7 @@ import { useLang, translations as i18nTranslations, listingTitle } from "@/lib/i
 import { useMounted } from "@/lib/use-mounted";
 import { compressImage } from "@/lib/image";
 import { shareImageToWhatsApp } from "@/lib/share-image";
+import { useStore } from "@/lib/store";
 
 type PackageKey = "simpan" | "gratis" | "sundul" | "highlight" | "spotlight";
 
@@ -97,6 +98,7 @@ export function PackageActivateDialog({
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const queryClient = useQueryClient();
+  const user = useStore((s) => s.user);
 
   // Fetch paket pricing from DB (admin can edit)
   const { data: paketData } = useQuery({
@@ -564,13 +566,13 @@ export function PackageActivateDialog({
                         const buf = new Uint8Array(byteString.length);
                         for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
                         const blob = new Blob([buf], { type: `image/${matches[1]}` });
-                        const fileName = `bukti-pembayaran-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
+                        const fileName = `${sanitizeFileName(user?.name || user?.email || "bukti-pembayaran")}.${ext}`;
 
                         // Kirim bukti pembayaran LANGSUNG ke WhatsApp admin (085888082208).
                         // Mobile & desktop sama-sama pakai wa.me link → langsung buka chat admin.
                         const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
-                        if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
-                        else if (result.status === "opened") toast.success("Chat WhatsApp admin dibuka — silakan tap Kirim!");
+                        if (result.status === "shared") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
+                        else if (result.status === "opened") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
                       } catch {
                         toast.error("Gagal mengirim bukti");
@@ -736,12 +738,12 @@ export function PackageActivateDialog({
                         const buf = new Uint8Array(byteString.length);
                         for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
                         const blob = new Blob([buf], { type: `image/${matches[1]}` });
-                        const fileName = `bukti-pembayaran-bca-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
+                        const fileName = `${sanitizeFileName(user?.name || user?.email || "bukti-pembayaran")}.${ext}`;
 
                         // Kirim bukti pembayaran LANGSUNG ke WhatsApp admin (085888082208).
                         const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
-                        if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
-                        else if (result.status === "opened") toast.success("Chat WhatsApp admin dibuka — silakan tap Kirim!");
+                        if (result.status === "shared") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
+                        else if (result.status === "opened") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
                       } catch { toast.error("Gagal mengirim bukti"); }
                       finally { setUploadingProof(false); }
@@ -771,4 +773,19 @@ export function PackageActivateDialog({
       )}
     </>
   );
+}
+
+/**
+ * Sanitize user name/email to be filesystem-safe.
+ * "John Doe" → "John_Doe"
+ * "user@email.com" → "user_email.com"
+ * Removes special chars that break URLs/filenames.
+ */
+function sanitizeFileName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, "_")           // spaces → underscore
+    .replace(/[@/\\?%*:|"<>]/g, "_") // special chars → underscore
+    .replace(/_+/g, "_")              // collapse multiple underscores
+    .substring(0, 50);               // max 50 chars
 }

@@ -29,7 +29,9 @@ export type View =
   | "admin-merek"
   | "admin-lokasi"
   | "admin-banner"
-  | "admin-audit";
+  | "admin-audit"
+  | "admin-monthly-report"
+  | "admin-chat";
 
 export type ListingFilters = {
   q?: string;
@@ -90,7 +92,7 @@ type NavState = {
   goToUpgrade: (slug: string) => void;
   goToSeller: (userId: string) => void;
   goToAdmin: () => void;
-  goToAdminSub: (sub: "admin-sellers" | "admin-categories" | "admin-listings" | "admin-new-listings" | "admin-expired-listings" | "admin-rejected-listings" | "admin-transactions" | "admin-reports" | "admin-users" | "admin-paket" | "admin-merek" | "admin-lokasi" | "admin-banner" | "admin-audit") => void;
+  goToAdminSub: (sub: "admin-sellers" | "admin-categories" | "admin-listings" | "admin-new-listings" | "admin-expired-listings" | "admin-rejected-listings" | "admin-transactions" | "admin-reports" | "admin-users" | "admin-paket" | "admin-merek" | "admin-lokasi" | "admin-banner" | "admin-audit" | "admin-monthly-report" | "admin-chat") => void;
   goBack: () => void;
   setFilters: (f: ListingFilters) => void;
   toggleFavorite: (id: string) => void;
@@ -219,7 +221,7 @@ export const useStore = create<NavState>()(
           history: [...s.history, { view: s.view, slug: s.slug, filters: s.filters }].slice(-20),
         })),
 
-      goToAdminSub: (sub: "admin-sellers" | "admin-categories" | "admin-listings" | "admin-new-listings" | "admin-expired-listings" | "admin-rejected-listings" | "admin-transactions" | "admin-reports" | "admin-monthly-report" | "admin-users" | "admin-paket" | "admin-merek" | "admin-lokasi" | "admin-banner" | "admin-audit") =>
+      goToAdminSub: (sub: "admin-sellers" | "admin-categories" | "admin-listings" | "admin-new-listings" | "admin-expired-listings" | "admin-rejected-listings" | "admin-transactions" | "admin-reports" | "admin-monthly-report" | "admin-users" | "admin-paket" | "admin-merek" | "admin-lokasi" | "admin-banner" | "admin-audit" | "admin-chat") =>
         set((s) => ({
           view: sub,
           slug: undefined,

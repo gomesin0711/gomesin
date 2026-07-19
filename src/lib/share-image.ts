@@ -2,19 +2,14 @@
  * Share image to WhatsApp — LANGSUNG ke chat admin 085888082208.
  *
  * === CARA KERJA ===
- * Upload gambar bukti ke tmpfiles.org → dapat URL publik → buka
- * wa.me/6285888082208?text=caption+imageUrl → WhatsApp app/langganan
- * langsung buka CHAT ADMIN dengan pesan sudah pre-fill.
- * User tinggal tap "Kirim" — tidak perlu pilih kontak.
- *
- * === TRADE-OFF ===
- * Gambar tidak ter-attach sebagai file di WhatsApp, tapi sebagai URL link
- * di dalam pesan. Admin klik link untuk lihat gambar.
- *
- * Ini lebih baik daripada Web Share API (navigator.share) karena:
- * - Web Share API TIDAK BISA target nomor spesifik → user harus pilih
- *   kontak admin manual (085888082208).
- * - wa.me link LANGSUNG buka chat admin → user tinggal kirim.
+ * Upload gambar bukti ke server-side /api/upload-proof route (CORS-safe).
+ * Server akan:
+ *   1. Upload ke tmpfiles.org dengan expire=86400 (60 hari)
+ *   2. Fallback ke catbox.moe (permanent) jika tmpfiles gagal
+ *   3. Extract direct image URL dari viewer page HTML
+ * Setelah dapat URL, buka wa.me/6285888082208?text=caption+imageUrl
+ * → WhatsApp langsung buka CHAT ADMIN dengan pesan pre-fill.
+ * User tinggal tap "Kirim".
  *
  * === MOBILE vs DESKTOP ===
  * Mobile: window.location.href = wa.me URL (paling reliable, langsung
@@ -24,6 +19,12 @@
  *   Fallback ke location.href kalau popup diblokir.
  *
  * Admin number: 085888082208 (6285888082208).
+ *
+ * === WHY SERVER-SIDE UPLOAD? ===
+ * Browser-side fetch ke tmpfiles.org viewer page diblokir oleh CORS
+ * (viewer page tidak mengirim Access-Control-Allow-Origin header).
+ * Server-side fetch tidak terkena CORS, jadi extraction direct URL
+ * bisa berjalan normal.
  */
 
 export interface ShareImageOptions {
@@ -45,25 +46,35 @@ function isMobile(): boolean {
 }
 
 /**
- * Upload blob ke tmpfiles.org → return direct image URL.
+ * Convert blob → base64 data URL untuk dikirim ke /api/upload-proof.
+ * Server-side route akan handle upload ke tmpfiles.org (expire 60 hari)
+ * dengan fallback catbox.moe jika gagal.
  */
-async function uploadToTmpfiles(blob: Blob, fileName: string): Promise<string | null> {
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Gagal membaca gambar"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Upload blob via server-side route → return direct image URL.
+ * Server menghandle tmpfiles.org (60 hari) + fallback catbox.moe.
+ * Server-side fetch menghindari CORS issue saat extracting direct URL.
+ */
+async function uploadImageServerSide(blob: Blob): Promise<string | null> {
   try {
-    const fd = new FormData();
-    fd.append("file", blob, fileName);
-    const upRes = await fetch("https://tmpfiles.org/api/v1/upload", {
+    const dataUrl = await blobToDataUrl(blob);
+    const res = await fetch("/api/upload-proof", {
       method: "POST",
-      body: fd,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: dataUrl }),
     });
-    if (!upRes.ok) return null;
-    const upData = await upRes.json();
-    const viewerUrl: string = upData?.data?.url || "";
-    if (!viewerUrl) return null;
-    // Ekstrak direct image URL dari viewer page HTML.
-    const viewerRes = await fetch(viewerUrl);
-    const html = await viewerRes.text();
-    const directMatch = html.match(/https:\/\/tmpfiles\.org\/dl\/[^"' ]+\.(?:png|jpg|jpeg|gif|webp)/i);
-    return directMatch?.[0] || null;
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.url || null;
   } catch {
     return null;
   }
@@ -90,8 +101,9 @@ export async function shareImageToWhatsApp({
   caption,
   phone = "6285888082208",
 }: ShareImageOptions): Promise<ShareImageResult> {
-  // Upload gambar ke tmpfiles.org → dapat direct image URL publik.
-  const imageUrl = await uploadToTmpfiles(blob, fileName);
+  // Upload gambar via server-side route → dapat direct image URL publik.
+  // Server handles: tmpfiles.org (60 hari) + catbox.moe fallback + CORS-safe.
+  const imageUrl = await uploadImageServerSide(blob);
 
   // Bangun URL WhatsApp ke nomor admin (6285888082208).
   const waUrl = buildWhatsAppUrl(phone, caption, imageUrl);

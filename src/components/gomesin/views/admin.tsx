@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,14 @@ import {
   CheckCircle2, XCircle, Trash2, Plus, ChevronRight, ChevronLeft, Lock, X,
   TrendingUp, DollarSign, Eye, BarChart3, Loader2, Edit, Sparkle, Clock, RefreshCw,
   Mail, Phone, Calendar, Zap,
+  MessageCircle, Send, Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { useLang, translations as i18nTranslations } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
 
-type Tab = "dashboard" | "iklan" | "iklanbaru" | "iklanexpired" | "iklanditolak" | "penjual" | "kategori" | "merek" | "lokasi" | "banner" | "paket" | "transaksi" | "laporan" | "laporanbulanan" | "audit" | "pengguna";
+type Tab = "dashboard" | "iklan" | "iklanbaru" | "iklanexpired" | "iklanditolak" | "penjual" | "kategori" | "merek" | "lokasi" | "banner" | "paket" | "transaksi" | "laporan" | "laporanbulanan" | "audit" | "pengguna" | "chat";
 
 // ============ FETCHERS ============
 const fetchJson = async (url: string) => (await fetch(url)).json();
@@ -115,6 +116,7 @@ export function AdminView({ initialTab }: { initialTab?: Tab }) {
       {tab === "laporan" && <LaporanTab />}
       {tab === "laporanbulanan" && <MonthlyReportTab />}
       {tab === "audit" && <AuditTab />}
+      {tab === "chat" && <ChatTab />}
     </div>
   );
 }
@@ -1965,6 +1967,223 @@ function AuditTab() {
       </div>
     </div>
   );
+}
+
+// ============ CHAT TAB ============
+function ChatTab() {
+  const { t } = useLang();
+  const mounted = useMounted();
+  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-chat"],
+    queryFn: () => fetchJson("/api/admin/chat"),
+    refetchInterval: 15000, // auto-refresh every 15s
+  });
+
+  if (isLoading) return <SkeletonGrid count={4} />;
+
+  const conversations: any[] = data?.conversations ?? [];
+  const stats = data?.summary ?? { totalConversations: 0, totalMessages: 0, totalUnread: 0, activeUsers: 0 };
+
+  // Filter by search query (user name, listing title, message preview)
+  const filtered = conversations.filter((c: any) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      (c.userA?.name || "").toLowerCase().includes(q) ||
+      (c.userB?.name || "").toLowerCase().includes(q) ||
+      (c.listingTitle || "").toLowerCase().includes(q) ||
+      (c.lastMessage || "").toLowerCase().includes(q)
+    );
+  });
+
+  const selected = conversations.find((c: any) => c.id === selectedId);
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+          <MessageCircle className="size-5" />
+        </span>
+        <div>
+          <h2 className="text-lg font-bold">{tr("admChatTitle")}</h2>
+          <p className="text-xs text-muted-foreground">{tr("admChatDesc")}</p>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <ChatStat label={tr("admChatTotalConv")} value={stats.totalConversations} icon={MessageCircle} color="text-blue-500" bg="bg-blue-50" />
+        <ChatStat label={tr("admChatTotalMsg")} value={stats.totalMessages} icon={Send} color="text-emerald-600" bg="bg-emerald-50" />
+        <ChatStat label={tr("admChatUnread")} value={stats.totalUnread} icon={Mail} color="text-amber-500" bg="bg-amber-50" />
+        <ChatStat label={tr("admChatActiveUsers")} value={stats.activeUsers} icon={Users} color="text-primary" bg="bg-primary/10" />
+      </div>
+
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={tr("admChatSearch")}
+          className="pl-9"
+        />
+      </div>
+
+      {/* Two-pane layout */}
+      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        {/* Conversation list */}
+        <div className="space-y-1 rounded-xl border border-border bg-card p-2 max-h-[600px] overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">{tr("admChatNoConv")}</div>
+          ) : (
+            filtered.map((c: any) => {
+              const active = c.id === selectedId;
+              const otherUser = c.userA?.id !== c.lastSenderId ? c.userA : c.userB;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedId(c.id)}
+                  className={cn(
+                    "flex w-full flex-col gap-1 rounded-lg p-3 text-left transition",
+                    active ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold">{otherUser?.name || "—"}</span>
+                    {c.unreadCount > 0 && (
+                      <span className={cn(
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                        active ? "bg-white/20" : "bg-primary/10 text-primary"
+                      )}>{c.unreadCount}</span>
+                    )}
+                  </div>
+                  {c.listingTitle && (
+                    <span className={cn("truncate text-[11px]", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                      🏷️ {c.listingTitle}
+                    </span>
+                  )}
+                  <span className={cn("truncate text-xs", active ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                    {c.lastMessage || "(no messages)"}
+                  </span>
+                  <span className={cn("text-[10px]", active ? "text-primary-foreground/60" : "text-muted-foreground")}>
+                    {timeAgoShort(c.lastMessageAt)}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Chat detail panel */}
+        {selected ? (
+          <ChatDetail conversation={selected} />
+        ) : (
+          <div className="grid min-h-[400px] place-items-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            {tr("admChatSelectConv")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ChatStat({ label, value, icon: Icon, color, bg }: { label: string; value: number; icon: any; color: string; bg: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+        <span className={cn("grid size-7 place-items-center rounded-lg", bg)}>
+          <Icon className={cn("size-4", color)} />
+        </span>
+      </div>
+      <p className="mt-1 text-xl font-bold">{value}</p>
+    </div>
+  );
+}
+
+function ChatDetail({ conversation }: { conversation: any }) {
+  const { t } = useLang();
+  const mounted = useMounted();
+  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [conversation?.messages?.length]);
+
+  if (!conversation) return null;
+  const messages: any[] = conversation.messages ?? [];
+
+  return (
+    <div className="flex h-[600px] flex-col rounded-xl border border-border bg-card">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border p-3">
+        <div className="flex items-center gap-2">
+          <div className="grid size-9 place-items-center rounded-full bg-primary/10 text-primary">
+            <Users className="size-4" />
+          </div>
+          <div>
+            <p className="text-sm font-bold">{conversation.userA?.name} ↔ {conversation.userB?.name}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {conversation.listingTitle ? `🏷️ ${conversation.listingTitle}` : "Direct message"}
+            </p>
+          </div>
+        </div>
+        <Badge variant="secondary" className="text-[10px]">{tr("admChatAdminMode")}</Badge>
+      </div>
+
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
+        {messages.length === 0 ? (
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">No messages</div>
+        ) : (
+          messages.map((m: any, i: number) => {
+            const isA = m.senderId === conversation.userA?.id;
+            return (
+              <div key={i} className={cn("flex", isA ? "justify-start" : "justify-end")}>
+                <div className={cn(
+                  "max-w-[75%] rounded-lg px-3 py-2 text-sm",
+                  isA ? "bg-accent text-foreground" : "bg-primary text-primary-foreground"
+                )}>
+                  <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                  <p className={cn("mt-1 text-[10px]", isA ? "text-muted-foreground" : "text-primary-foreground/70")}>
+                    {new Date(m.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Footer info */}
+      <div className="border-t border-border p-3 text-[11px] text-muted-foreground">
+        {tr("admChatLastActivity")}: {timeAgoShort(conversation.lastMessageAt)} · {messages.length} messages
+      </div>
+    </div>
+  );
+}
+
+function timeAgoShort(dateStr: string): string {
+  if (!dateStr) return "—";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}j`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}h`;
+  const mo = Math.floor(day / 30);
+  return `${mo}bl`;
 }
 
 // ============ HELPERS ============
