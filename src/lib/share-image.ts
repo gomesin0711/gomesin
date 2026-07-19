@@ -79,10 +79,9 @@ export async function shareImageToWhatsApp({
   }
 
   // Buka WhatsApp dengan caption. Pakai window.open(_blank) — popup blocker
-  // tidak berlaku karena dipanggil langsung dari user gesture (onClick), bukan
-  // setelah async operation yang lama.
+  // tidak berlaku karena dipanggil langsung dari user gesture (onClick).
   const msg = encodeURIComponent(
-    caption + (copied ? "\n\nGambar bukti sudah di-copy. Tekan Ctrl+V untuk paste." : "")
+    caption + (copied ? "\n\n✅ Gambar bukti sudah di-copy ke clipboard. Tekan Ctrl+V di kolom chat WhatsApp untuk paste gambar." : "\n\n📎 Klik ikon lampiran di WhatsApp untuk upload gambar bukti pembayaran.")
   );
   window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
 
