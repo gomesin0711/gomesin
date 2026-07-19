@@ -3,14 +3,6 @@
 import { useState, useEffect } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import Image from "next/image";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Loader2, CheckCircle2, Sparkles, Zap, TrendingUp, Star, ImageIcon, Clock, AlertTriangle, XCircle, X, Upload } from "lucide-react";
@@ -132,15 +124,16 @@ export function PackageActivateDialog({
   const [proofImage, setProofImage] = useState<string>("");
   const [uploadingProof, setUploadingProof] = useState(false);
 
-  // Lock body scroll saat QRIS page terbuka (hilangkan scrollbar browser)
+  // Lock body scroll saat Upgrade page / QRIS page terbuka (hilangkan scrollbar browser)
   useEffect(() => {
-    document.body.style.overflow = qrisModal ? "hidden" : "";
-    document.documentElement.style.overflow = qrisModal ? "hidden" : "";
+    const lock = open || qrisModal;
+    document.body.style.overflow = lock ? "hidden" : "";
+    document.documentElement.style.overflow = lock ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
     };
-  }, [qrisModal]);
+  }, [open, qrisModal]);
 
   const isPending = listing.status === "pending";
   const isSundulDisabled = isPending;
@@ -230,14 +223,27 @@ export function PackageActivateDialog({
 
   return (
     <>
-    <Dialog open={open && !qrisModal} onOpenChange={(v) => { if (!qrisModal) onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Upgrade Paket Iklan</DialogTitle>
-          <DialogDescription>
-            Pilih paket untuk meningkatkan visibilitas iklan Anda.
-          </DialogDescription>
-        </DialogHeader>
+    {/* ===== UPGRADE PAKET PAGE (fullscreen, bukan dialog popup) ===== */}
+    {open && !qrisModal && (
+      <div className="no-scrollbar fixed inset-0 z-[60] overflow-y-auto bg-background">
+        <div className="mx-auto min-h-screen max-w-3xl px-4 py-4 sm:py-6">
+          {/* Header */}
+          <div className="mb-4 flex shrink-0 items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold sm:text-2xl">Upgrade Paket Iklan</h1>
+              <p className="text-sm text-muted-foreground">Pilih paket untuk meningkatkan visibilitas iklan Anda.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="grid size-10 shrink-0 place-items-center rounded-full border border-border bg-card hover:bg-accent"
+              aria-label="Tutup"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
 
         {/* Listing summary */}
         <div className="flex gap-3 rounded-lg border border-border bg-secondary/30 p-3">
@@ -374,7 +380,8 @@ export function PackageActivateDialog({
           </div>
         )}
 
-        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+        {/* Footer buttons */}
+        <div className="flex flex-col gap-2 pb-6 sm:flex-row sm:justify-between">
           <Button
             type="button"
             variant="outline"
@@ -395,9 +402,11 @@ export function PackageActivateDialog({
             {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
             {submitting ? "Memproses..." : buttonLabel}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+          </div>
+        </div>
+      </div>
+    )}
 
       {/* ===== QRIS PAYMENT PAGE (overlay fullscreen, sama persis seperti post-ad) ===== */}
       {qrisModal && (
@@ -557,7 +566,7 @@ export function PackageActivateDialog({
                   <img
                     src="/qris-gomesin.jpeg"
                     alt="QRIS Gomesin"
-                    className="h-auto w-full max-w-[220px] object-contain"
+                    className="h-auto w-full max-w-[264px] object-contain"
                   />
                 </div>
                 <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
