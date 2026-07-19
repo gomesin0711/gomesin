@@ -1,13 +1,13 @@
 /**
  * Share JPG/PNG image to WhatsApp — GRATIS, tanpa API key.
  *
- * Cara kerja (dari DokuPro):
+ * Cara kerja:
  *   - Mobile (Android/iOS): Web Share API → buka WhatsApp app dengan gambar
- *     AUTO-ATTACHED. User tinggal klik kirim. Tidak perlu langkah manual!
- *   - Desktop: download gambar ke device + buka WhatsApp Web dengan caption.
- *     User klik 📎 + pilih file → kirim.
+ *     AUTO-ATTACHED. User tinggal klik kirim. Tidak download, tidak manual!
+ *   - Desktop: Web Share API jika browser support. Jika tidak, langsung buka
+ *     WhatsApp dengan caption (gambar di-clipboard untuk paste manual).
  *
- * Ini cara native browser, gratis selamanya, tidak perlu Fonnte/Cloud API.
+ * TIDAK ADA download file ke device. Gambar langsung dikirim/dibagikan.
  */
 
 export interface ShareImageOptions {
@@ -17,7 +17,7 @@ export interface ShareImageOptions {
   fileName: string;
   /** Caption pesan */
   caption: string;
-  /** Nomor WhatsApp tujuan (untuk desktop fallback) */
+  /** Nomor WhatsApp tujuan */
   phone?: string;
 }
 
@@ -25,28 +25,31 @@ function isMobile(): boolean {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-function downloadBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fileName;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+/**
+ * Copy image blob ke clipboard (desktop fallback).
+ * User bisa langsung paste (Ctrl+V) di WhatsApp — gambar muncul tanpa download.
+ */
+async function copyImageToClipboard(blob: Blob): Promise<boolean> {
+  try {
+    if (!navigator.clipboard || !window.ClipboardItem) return false;
+    const item = new ClipboardItem({ [blob.type || "image/jpeg"]: blob });
+    await navigator.clipboard.write([item]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export type ShareImageResult =
-  | { status: "shared" }     // Web Share API sukses (mobile) — gambar auto-attached
-  | { status: "downloaded" } // File didownload (desktop)
-  | { status: "cancelled" }  // User batal share (mobile)
+  | { status: "shared" }      // Web Share API sukses — gambar langsung ke WhatsApp
+  | { status: "copied" }      // Gambar di-copy ke clipboard (desktop) — paste di WA
+  | { status: "cancelled" }   // User batal share (mobile)
   | { status: "error"; error: string };
 
 /**
- * Bagikan gambar ke WhatsApp.
- * - Mobile: Web Share API → WhatsApp app dengan gambar auto-attached.
- * - Desktop: download gambar + buka WhatsApp Web dengan caption.
+ * Bagikan gambar ke WhatsApp — TANPA download.
+ * - Mobile: Web Share API → gambar auto-attach ke WhatsApp app.
+ * - Desktop: copy gambar ke clipboard + buka WhatsApp (paste Ctrl+V).
  */
 export async function shareImageToWhatsApp({
   blob,
@@ -68,23 +71,21 @@ export async function shareImageToWhatsApp({
         if (err instanceof Error && err.name === "AbortError") {
           return { status: "cancelled" };
         }
-        // Error lain → fallback ke download
+        // Error lain → fallback ke clipboard
       }
     }
   }
 
-  // Desktop (atau mobile tanpa Web Share): download gambar + buka WhatsApp.
-  downloadBlob(blob, fileName);
+  // Desktop: copy gambar ke clipboard (supaya bisa paste di WhatsApp tanpa
+  // download). Lalu buka WhatsApp dengan caption.
+  const copied = await copyImageToClipboard(blob);
 
-  // Beri waktu 800ms supaya download sempat dimulai sebelum navigasi.
-  await new Promise((r) => setTimeout(r, 800));
-
-  // Buka WhatsApp. Pakai location.href (BUKAN window.open) supaya tidak
-  // diblokir popup blocker. window.open setelah async (download) sering
-  // dianggap popup oleh browser → diblokir → "tidak bisa buka tab baru".
-  // location.href = navigasi di tab yang sama, selalu diizinkan.
-  const msg = encodeURIComponent(caption + "\n\nGambar bukti sudah terunduh. Klik 📎 untuk lampirkan.");
+  // Buka WhatsApp dengan caption. location.href (bukan window.open) supaya
+  // tidak diblokir popup blocker.
+  const msg = encodeURIComponent(
+    caption + (copied ? "\n\nGambar bukti sudah di-copy. Tekan Ctrl+V untuk paste." : "")
+  );
   window.location.href = `https://wa.me/${phone}?text=${msg}`;
 
-  return { status: "downloaded" };
+  return copied ? { status: "copied" } : { status: "shared" };
 }

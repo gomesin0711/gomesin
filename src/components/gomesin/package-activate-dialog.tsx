@@ -576,8 +576,8 @@ export function PackageActivateDialog({
 
                         if (result.status === "shared") {
                           toast.success("Gambar bukti dibagikan ke WhatsApp!");
-                        } else if (result.status === "downloaded") {
-                          toast.info("Gambar diunduh. Klik 📎 di WhatsApp untuk lampirkan.", { duration: 6000 });
+                        } else if (result.status === "copied") {
+                          toast.success("Gambar di-copy! Buka WhatsApp lalu tekan Ctrl+V untuk paste.", { duration: 8000 });
                         } else if (result.status === "cancelled") {
                           toast.info("Pembagian dibatalkan");
                           setUploadingProof(false);
