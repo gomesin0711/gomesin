@@ -219,7 +219,8 @@ export function PackageActivateDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open && !qrisModal} onOpenChange={(v) => { if (!qrisModal) onOpenChange(v); }}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Upgrade Paket Iklan</DialogTitle>
@@ -386,8 +387,9 @@ export function PackageActivateDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+    </Dialog>
 
-      {/* ===== QRIS PAYMENT PAGE (overlay fullscreen, sama seperti post-ad) ===== */}
+      {/* ===== QRIS PAYMENT PAGE (overlay fullscreen, di LUAR Dialog supaya tidak ketutup overlay) ===== */}
       {qrisModal && (
         <div className="fixed inset-0 z-[80] overflow-y-auto bg-background md:overflow-hidden">
           <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:py-6 md:h-screen">
@@ -540,6 +542,6 @@ export function PackageActivateDialog({
           </div>
         </div>
       )}
-    </Dialog>
+    </>
   );
 }
