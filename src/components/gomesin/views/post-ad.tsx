@@ -827,7 +827,7 @@ export function PostAdView() {
                   <img
                     src="/qris-gomesin.jpeg"
                     alt="QRIS Gomesin"
-                    className="h-auto w-full max-w-[264px] object-contain"
+                    className="h-auto w-full max-w-[250px] object-contain"
                   />
                 </div>
                 <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
