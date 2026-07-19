@@ -125,16 +125,16 @@ export function PackageActivateDialog({
   const [proofImage, setProofImage] = useState<string>("");
   const [uploadingProof, setUploadingProof] = useState(false);
 
-  // Lock body scroll saat Upgrade page / QRIS page terbuka (hilangkan scrollbar browser)
+  // Lock body scroll saat QRIS page terbuka (hilangkan scrollbar browser).
+  // Upgrade page TIDAK di-lock supaya di mobile bisa scroll (konten panjang).
   useEffect(() => {
-    const lock = open || qrisModal;
-    document.body.style.overflow = lock ? "hidden" : "";
-    document.documentElement.style.overflow = lock ? "hidden" : "";
+    document.body.style.overflow = qrisModal ? "hidden" : "";
+    document.documentElement.style.overflow = qrisModal ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
     };
-  }, [open, qrisModal]);
+  }, [qrisModal]);
 
   const isPending = listing.status === "pending";
   const isSundulDisabled = isPending;
@@ -226,8 +226,8 @@ export function PackageActivateDialog({
     <>
     {/* ===== UPGRADE PAKET PAGE (fullscreen, 2 kolom di desktop) ===== */}
     {open && !qrisModal && (
-      <div className="no-scrollbar fixed inset-0 z-[60] overflow-y-auto bg-background">
-        <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-4 sm:py-6 md:h-screen">
+      <div className="fixed inset-0 z-[60] flex h-screen flex-col overflow-hidden bg-background">
+        <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-4 py-4 sm:py-6 md:overflow-hidden">
           {/* Header */}
           <div className="mb-4 flex shrink-0 items-center justify-between">
             <div>
