@@ -76,13 +76,16 @@ export async function sendWhatsAppImage(
     const data = await response.json();
 
     // Fonnte return { status: true } on success.
-    if (data.status === true || data.status === "true" || response.ok) {
+    // Fonnte return { status: true } on success. HTTP 200 TIDAK menjamin sukses —
+    // Fonnte bisa return 200 + status:false (mis. device disconnected).
+    // Hanya cek data.status, BUKAN response.ok.
+    if (data.status === true || data.status === "true") {
       return { success: true };
     }
 
     return {
       success: false,
-      error: data.message || data.reason || data.error || "Gagal mengirim gambar",
+      error: data.reason || data.message || data.error || "Gagal mengirim gambar (Fonnte)",
     };
   } catch (error: any) {
     console.error("WhatsApp send image error:", error?.message || error);
@@ -123,13 +126,13 @@ export async function sendWhatsAppMessage(
 
     const data = await response.json();
 
-    if (data.status === true || data.status === "true" || response.ok) {
+    if (data.status === true || data.status === "true") {
       return { success: true };
     }
 
     return {
       success: false,
-      error: data.message || data.reason || data.error || "Gagal mengirim pesan",
+      error: data.reason || data.message || data.error || "Gagal mengirim pesan (Fonnte)",
     };
   } catch (error: any) {
     console.error("WhatsApp send error:", error?.message || error);
