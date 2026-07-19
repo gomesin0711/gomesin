@@ -73,12 +73,18 @@ export async function shareImageToWhatsApp({
     }
   }
 
-  // Desktop (atau mobile tanpa Web Share): download gambar + buka WhatsApp Web.
+  // Desktop (atau mobile tanpa Web Share): download gambar + buka WhatsApp.
   downloadBlob(blob, fileName);
 
-  // Buka WhatsApp Web dengan caption (desktop).
+  // Beri waktu 800ms supaya download sempat dimulai sebelum navigasi.
+  await new Promise((r) => setTimeout(r, 800));
+
+  // Buka WhatsApp. Pakai location.href (BUKAN window.open) supaya tidak
+  // diblokir popup blocker. window.open setelah async (download) sering
+  // dianggap popup oleh browser → diblokir → "tidak bisa buka tab baru".
+  // location.href = navigasi di tab yang sama, selalu diizinkan.
   const msg = encodeURIComponent(caption + "\n\nGambar bukti sudah terunduh. Klik 📎 untuk lampirkan.");
-  window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+  window.location.href = `https://wa.me/${phone}?text=${msg}`;
 
   return { status: "downloaded" };
 }
