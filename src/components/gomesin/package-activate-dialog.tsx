@@ -597,25 +597,27 @@ export function PackageActivateDialog({
                 )}
               </div>
 
-              {/* RIGHT — total pembayaran + QR code (di mobile tampil di ATAS) */}
-              <div className="order-1 flex flex-col items-center justify-start pb-6 md:order-2 md:pb-0">
-                {/* Total pembayaran above QR */}
-                <div className="mb-4 text-center">
+              {/* RIGHT — total pembayaran + QR code SEJAJAR (kiri-kanan di desktop) */}
+              <div className="order-1 flex flex-col items-center justify-center gap-4 pb-6 md:order-2 md:flex-row md:items-center md:justify-center md:gap-6 md:pb-0">
+                {/* Total pembayaran (kiri) */}
+                <div className="text-center md:text-left">
                   <p className="text-xs text-muted-foreground">Total Pembayaran</p>
                   <p className="text-3xl font-extrabold text-primary sm:text-4xl">{formatRupiahFull(qrisAmount)}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Harga paket + kode unik untuk identifikasi pembayar
                   </p>
                 </div>
-                {/* QR code */}
-                <div className="rounded-2xl border-2 border-border bg-white p-4 shadow-lg sm:p-6">
-                  <img
-                    src="/qris-gomesin.jpeg"
-                    alt="QRIS Gomesin"
-                    className="h-auto w-full max-w-[264px] object-contain"
-                  />
+                {/* QR code (kanan) */}
+                <div className="text-center">
+                  <div className="rounded-2xl border-2 border-border bg-white p-4 shadow-lg sm:p-6">
+                    <img
+                      src="/qris-gomesin.jpeg"
+                      alt="QRIS Gomesin"
+                      className="h-auto w-full max-w-[264px] object-contain"
+                    />
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
                 </div>
-                <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
               </div>
             </div>
           </div>
