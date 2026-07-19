@@ -766,39 +766,81 @@ export function PostAdView() {
                       const adminPhone = "6285888082208";
                       const pkgName = paketMap[selectedPackage]?.name || selectedPackage;
 
-                      // 1. Upload bukti gambar ke host publik (catbox.moe) supaya
-                      //    admin bisa LIHAT gambar via link, bukan cuma teks.
+                      // 1. Upload gambar bukti ke host publik (tmpfiles.org) supaya
+                      //    punya URL publik untuk dikirim via WhatsApp Cloud API.
                       setUploadingProof(true);
                       let proofUrl = "";
-                      try {
-                        const upRes = await fetch("/api/upload-proof", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ image: proofImage }),
-                        });
-                        if (upRes.ok) {
-                          const upData = await upRes.json();
-                          proofUrl = upData.url || "";
+                      const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
+                      if (matches) {
+                        const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+                        const byteString = atob(matches[2]);
+                        const buffer = new Uint8Array(byteString.length);
+                        for (let i = 0; i < byteString.length; i++) buffer[i] = byteString.charCodeAt(i);
+                        const blob = new Blob([buffer], { type: `image/${matches[1]}` });
+                        try {
+                          const fd = new FormData();
+                          fd.append("file", blob, `proof.${ext}`);
+                          const upRes = await fetch("https://tmpfiles.org/api/v1/upload", {
+                            method: "POST",
+                            body: fd,
+                          });
+                          if (upRes.ok) {
+                            const upData = await upRes.json();
+                            const viewerUrl: string = upData?.data?.url || "";
+                            if (viewerUrl) {
+                              const viewerRes = await fetch(viewerUrl);
+                              const html = await viewerRes.text();
+                              const directMatch = html.match(/https:\/\/tmpfiles\.org\/dl\/[^"' ]+\.(?:png|jpg|jpeg|gif|webp)/i);
+                              if (directMatch) proofUrl = directMatch[0];
+                            }
+                          }
+                        } catch {
+                          // ignore upload error
                         }
-                      } catch {
-                        // ignore — pesan WhatsApp tetap dikirim tanpa link gambar
-                      } finally {
-                        setUploadingProof(false);
                       }
 
-                      // 2. Buka WhatsApp dengan pesan + link gambar bukti.
-                      const msg = encodeURIComponent(
+                      const caption =
                         `*Bukti Pembayaran Iklan Gomesin*\n\n` +
                         `Paket: ${pkgName}\n` +
                         `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
                         `User: ${user?.name || "-"}\n` +
                         `Email: ${user?.email || "-"}\n` +
-                        `Judul Iklan: ${title}\n\n` +
-                        (proofUrl
-                          ? ` Bukti pembayaran (gambar):\n${proofUrl}`
-                          : `Bukti pembayaran terlampir — silakan kirim screenshot bukti transfer di chat ini.`)
-                      );
-                      window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
+                        `Judul Iklan: ${title}`;
+
+                      // 2. Kirim gambar LANGSUNG ke WhatsApp admin via Cloud API.
+                      let sent = false;
+                      if (proofUrl) {
+                        try {
+                          const sendRes = await fetch("/api/send-wa-proof", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ imageUrl: proofUrl, caption }),
+                          });
+                          if (sendRes.ok) {
+                            const sendData = await sendRes.json();
+                            if (sendData.success) {
+                              sent = true;
+                              toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
+                            }
+                          }
+                        } catch {
+                          // ignore
+                        }
+                      }
+
+                      // 3. Fallback: buka wa.me dengan link gambar (jika Cloud API gagal).
+                      if (!sent) {
+                        const msg = encodeURIComponent(
+                          caption + "\n\n" +
+                          (proofUrl
+                            ? `Bukti pembayaran (gambar):\n${proofUrl}`
+                            : `Bukti pembayaran terlampir — silakan kirim screenshot di chat ini.`)
+                        );
+                        window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
+                        toast.info("Gambar dikirim via link (Cloud API belum dikonfigurasi).", { duration: 6000 });
+                      }
+
+                      setUploadingProof(false);
                       setQrisModal(false);
                       doSubmit();
                     }}

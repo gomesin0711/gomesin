@@ -546,37 +546,97 @@ export function PackageActivateDialog({
                       const adminPhone = "6285888082208";
                       setUploadingProof(true);
                       try {
-                        // Download gambar bukti ke device user.
+                        // 1. Upload gambar bukti ke host publik (tmpfiles.org) supaya
+                        //    punya URL publik untuk dikirim via WhatsApp Cloud API.
                         const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
+                        let proofUrl = "";
                         if (matches) {
                           const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
                           const byteString = atob(matches[2]);
                           const buffer = new Uint8Array(byteString.length);
                           for (let i = 0; i < byteString.length; i++) buffer[i] = byteString.charCodeAt(i);
                           const blob = new Blob([buffer], { type: `image/${matches[1]}` });
-                          const blobUrl = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = blobUrl;
-                          a.download = `bukti-pembayaran-upgrade-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
-                          a.style.display = "none";
-                          document.body.appendChild(a);
-                          a.click();
-                          await new Promise((r) => setTimeout(r, 800));
-                          document.body.removeChild(a);
-                          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                          // Upload ke tmpfiles.org
+                          try {
+                            const fd = new FormData();
+                            fd.append("file", blob, `proof.${ext}`);
+                            const upRes = await fetch("https://tmpfiles.org/api/v1/upload", {
+                              method: "POST",
+                              body: fd,
+                            });
+                            if (upRes.ok) {
+                              const upData = await upRes.json();
+                              const viewerUrl: string = upData?.data?.url || "";
+                              // Ekstrak direct image URL dari viewer page HTML.
+                              if (viewerUrl) {
+                                const viewerRes = await fetch(viewerUrl);
+                                const html = await viewerRes.text();
+                                const directMatch = html.match(/https:\/\/tmpfiles\.org\/dl\/[^"' ]+\.(?:png|jpg|jpeg|gif|webp)/i);
+                                if (directMatch) proofUrl = directMatch[0];
+                              }
+                            }
+                          } catch {
+                            // ignore upload error
+                          }
                         }
-                        // Buka WhatsApp dengan caption.
-                        const msg = encodeURIComponent(
+
+                        const caption =
                           `*Bukti Pembayaran Upgrade Iklan Gomesin*\n\n` +
                           `Paket: ${selectedPkg.name}\n` +
                           `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
-                          `Judul Iklan: ${listingTitle(listing, mounted ? lang : "id")}\n\n` +
-                          `Gambar bukti pembayaran sudah terunduh. Silakan klik 📎 untuk lampirkan.`
-                        );
-                        window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
-                        toast.success("Gambar bukti diunduh! Klik 📎 di WhatsApp.", { duration: 6000 });
+                          `Judul Iklan: ${listingTitle(listing, mounted ? lang : "id")}`;
+
+                        // 2. Kirim gambar LANGSUNG ke WhatsApp admin via Cloud API.
+                        let sent = false;
+                        if (proofUrl) {
+                          try {
+                            const sendRes = await fetch("/api/send-wa-proof", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ imageUrl: proofUrl, caption }),
+                            });
+                            if (sendRes.ok) {
+                              const sendData = await sendRes.json();
+                              if (sendData.success) {
+                                sent = true;
+                                toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
+                              }
+                            }
+                          } catch {
+                            // ignore
+                          }
+                        }
+
+                        // 3. Fallback: buka wa.me dengan link gambar (jika Cloud API gagal).
+                        if (!sent) {
+                          const msg = encodeURIComponent(
+                            caption + "\n\n" +
+                            (proofUrl
+                              ? `Bukti pembayaran (gambar):\n${proofUrl}`
+                              : `Gambar bukti pembayaran sudah terunduh. Silakan klik 📎 untuk lampirkan.`)
+                          );
+                          window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
+                          // Download gambar ke device sebagai backup.
+                          if (matches && !proofUrl) {
+                            const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+                            const byteString = atob(matches[2]);
+                            const buf = new Uint8Array(byteString.length);
+                            for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
+                            const blob = new Blob([buf], { type: `image/${matches[1]}` });
+                            const blobUrl = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = blobUrl;
+                            a.download = `bukti-pembayaran-upgrade-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
+                            a.style.display = "none";
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                          }
+                          toast.info("Gambar dikirim via link (Cloud API belum dikonfigurasi).", { duration: 6000 });
+                        }
                       } catch {
-                        toast.error("Gagal mengunduh bukti");
+                        toast.error("Gagal mengirim bukti");
                       } finally {
                         setUploadingProof(false);
                       }
