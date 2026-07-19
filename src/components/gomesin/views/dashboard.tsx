@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { ListingRow, ListingRowSkeleton } from "../listing-row";
-import { PackageActivateDialog } from "../package-activate-dialog";
 import { formatRupiah, formatRupiahFull, timeAgo } from "@/lib/types";
 import { useLang, translations as i18nTranslations, categoryName, listingTitle } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
@@ -63,11 +62,11 @@ export function DashboardView() {
   const goToEdit = useStore((s) => s.goToEdit);
   const goToPost = useStore((s) => s.goToPost);
   const goHome = useStore((s) => s.goHome);
+  const goToUpgrade = useStore((s) => s.goToUpgrade);
   const user = useStore((s) => s.user);
   const goToLogin = useStore((s) => s.goToLogin);
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [deleteSlug, setDeleteSlug] = useState<string | null>(null);
-  const [activateListing, setActivateListing] = useState<Listing | null>(null);
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
   const { t, lang } = useLang();
@@ -320,7 +319,7 @@ export function DashboardView() {
                   // Hanya iklan AKTIF yang bisa di-klik untuk upgrade.
                   // Iklan pending/rejected tidak bisa di-klik (disable upgrade).
                   if (l.status === "active" && !l.violationFlag) {
-                    setActivateListing(l);
+                    goToUpgrade(l.slug);
                   }
                 }}
                 className={cn(
@@ -517,7 +516,7 @@ export function DashboardView() {
                 <ListingRow
                   key={l.id}
                   listing={l}
-                  onRowClick={(listing) => setActivateListing(listing)}
+                  onRowClick={(listing) => { if (listing.status === "active" && !listing.violationFlag) goToUpgrade(listing.slug); }}
                   extraCells={
                     <td className="p-2 text-center">
                       <div className="flex justify-center gap-1">
@@ -579,19 +578,6 @@ export function DashboardView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* package activate / upgrade dialog — DIRENDER TERPISAH, bukan overlay
-          dashboard. Saat aktif, dashboard content di-hide (hidden) supaya
-          tidak ada di belakang upgrade page. */}
-      {activateListing && (
-        <PackageActivateDialog
-          key={activateListing.id}
-          listing={activateListing}
-          open={activateListing !== null}
-          onOpenChange={(o) => !o && setActivateListing(null)}
-          onEdit={(slug) => goToEdit(slug)}
-        />
-      )}
     </div>
   );
 }

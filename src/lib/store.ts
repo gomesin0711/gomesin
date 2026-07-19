@@ -14,6 +14,7 @@ export type View =
   | "seller"
   | "login"
   | "dashboard"
+  | "upgrade"
   | "admin"
   | "admin-sellers"
   | "admin-categories"
@@ -86,6 +87,7 @@ type NavState = {
   clearProfilePanel: () => void;
   goToLogin: () => void;
   goToDashboard: () => void;
+  goToUpgrade: (slug: string) => void;
   goToSeller: (userId: string) => void;
   goToAdmin: () => void;
   goToAdminSub: (sub: "admin-sellers" | "admin-categories" | "admin-listings" | "admin-new-listings" | "admin-expired-listings" | "admin-rejected-listings" | "admin-transactions" | "admin-reports" | "admin-users" | "admin-paket" | "admin-merek" | "admin-lokasi" | "admin-banner" | "admin-audit") => void;
@@ -192,6 +194,13 @@ export const useStore = create<NavState>()(
         set((s) => ({
           view: "dashboard",
           slug: undefined,
+          history: [...s.history, { view: s.view, slug: s.slug, filters: s.filters }].slice(-20),
+        })),
+
+      goToUpgrade: (slug) =>
+        set((s) => ({
+          view: "upgrade",
+          slug,
           history: [...s.history, { view: s.view, slug: s.slug, filters: s.filters }].slice(-20),
         })),
 

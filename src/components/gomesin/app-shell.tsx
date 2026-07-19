@@ -18,6 +18,7 @@ import { FavoritesView } from "./views/favorites";
 import { ProfileView } from "./views/profile";
 import { LoginView } from "./views/login";
 import { DashboardView } from "./views/dashboard";
+import { UpgradeView } from "./views/upgrade";
 import { SellerView } from "./views/seller";
 import { AdminView } from "./views/admin";
 
@@ -96,6 +97,7 @@ export function AppShell() {
           {view === "profile" && <ProfileView />}
           {view === "login" && <LoginView />}
           {view === "dashboard" && <DashboardView />}
+          {view === "upgrade" && <UpgradeView />}
           {view === "seller" && <SellerView />}
           {/* fallback: if non-admin somehow reaches admin view */}
           {isAdminView && !isAdmin && <AdminView />}
