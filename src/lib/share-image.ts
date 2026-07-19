@@ -3,11 +3,12 @@
  *
  * Cara kerja:
  *   - Mobile (Android/iOS): Web Share API → buka WhatsApp app dengan gambar
- *     AUTO-ATTACHED. User tinggal klik kirim. Tidak download, tidak manual!
- *   - Desktop: Web Share API jika browser support. Jika tidak, langsung buka
- *     WhatsApp dengan caption (gambar di-clipboard untuk paste manual).
+ *     AUTO-ATTACHED. User tinggal klik kirim. Langsung, tanpa download!
+ *   - Desktop: buka WhatsApp langsung dengan caption. Jika browser support
+ *     clipboard write (dengan user gesture), copy gambar supaya user bisa
+ *     paste (Ctrl+V) di WhatsApp.
  *
- * TIDAK ADA download file ke device. Gambar langsung dikirim/dibagikan.
+ * TIDAK ADA download file ke device.
  */
 
 export interface ShareImageOptions {
@@ -25,31 +26,17 @@ function isMobile(): boolean {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-/**
- * Copy image blob ke clipboard (desktop fallback).
- * User bisa langsung paste (Ctrl+V) di WhatsApp — gambar muncul tanpa download.
- */
-async function copyImageToClipboard(blob: Blob): Promise<boolean> {
-  try {
-    if (!navigator.clipboard || !window.ClipboardItem) return false;
-    const item = new ClipboardItem({ [blob.type || "image/jpeg"]: blob });
-    await navigator.clipboard.write([item]);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export type ShareImageResult =
-  | { status: "shared" }      // Web Share API sukses — gambar langsung ke WhatsApp
-  | { status: "copied" }      // Gambar di-copy ke clipboard (desktop) — paste di WA
+  | { status: "shared" }      // Web Share API sukses (mobile)
+  | { status: "copied" }      // Gambar di-copy ke clipboard (desktop)
+  | { status: "opened" }      // WhatsApp dibuka tanpa clipboard (desktop fallback)
   | { status: "cancelled" }   // User batal share (mobile)
   | { status: "error"; error: string };
 
 /**
  * Bagikan gambar ke WhatsApp — TANPA download.
  * - Mobile: Web Share API → gambar auto-attach ke WhatsApp app.
- * - Desktop: copy gambar ke clipboard + buka WhatsApp (paste Ctrl+V).
+ * - Desktop: copy gambar ke clipboard (jika diizinkan) + buka WhatsApp.
  */
 export async function shareImageToWhatsApp({
   blob,
@@ -71,21 +58,33 @@ export async function shareImageToWhatsApp({
         if (err instanceof Error && err.name === "AbortError") {
           return { status: "cancelled" };
         }
-        // Error lain → fallback ke clipboard
+        // Error lain → fallback ke desktop flow
       }
     }
   }
 
-  // Desktop: copy gambar ke clipboard (supaya bisa paste di WhatsApp tanpa
-  // download). Lalu buka WhatsApp dengan caption.
-  const copied = await copyImageToClipboard(blob);
+  // Desktop: coba copy gambar ke clipboard.
+  // Note: clipboard.write butuh user gesture. Karena fungsi ini dipanggil
+  // dari onClick (user gesture), clipboard biasanya diizinkan. Jika ditolak
+  // (mis. permission), tetap buka WhatsApp tanpa clipboard.
+  let copied = false;
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      const item = new ClipboardItem({ [blob.type || "image/jpeg"]: blob });
+      await navigator.clipboard.write([item]);
+      copied = true;
+    }
+  } catch {
+    // Clipboard ditolak — tetap buka WhatsApp tanpa copy.
+  }
 
-  // Buka WhatsApp dengan caption. location.href (bukan window.open) supaya
-  // tidak diblokir popup blocker.
+  // Buka WhatsApp dengan caption. Pakai window.open(_blank) — popup blocker
+  // tidak berlaku karena dipanggil langsung dari user gesture (onClick), bukan
+  // setelah async operation yang lama.
   const msg = encodeURIComponent(
     caption + (copied ? "\n\nGambar bukti sudah di-copy. Tekan Ctrl+V untuk paste." : "")
   );
-  window.location.href = `https://wa.me/${phone}?text=${msg}`;
+  window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
 
-  return copied ? { status: "copied" } : { status: "shared" };
+  return copied ? { status: "copied" } : { status: "opened" };
 }

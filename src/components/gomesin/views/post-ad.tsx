@@ -801,7 +801,9 @@ export function PostAdView() {
                         if (result.status === "shared") {
                           toast.success("Gambar bukti dibagikan ke WhatsApp!");
                         } else if (result.status === "copied") {
-                          toast.success("Gambar di-copy! Buka WhatsApp lalu tekan Ctrl+V untuk paste.", { duration: 8000 });
+                          toast.success("Gambar di-copy! Tekan Ctrl+V di WhatsApp untuk paste.", { duration: 8000 });
+                        } else if (result.status === "opened") {
+                          toast.info("WhatsApp terbuka. Lampirkan gambar bukti manual.", { duration: 6000 });
                         } else if (result.status === "cancelled") {
                           toast.info("Pembagian dibatalkan");
                           setUploadingProof(false);
