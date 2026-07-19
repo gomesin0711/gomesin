@@ -316,8 +316,19 @@ export function DashboardView() {
             return (
               <div
                 key={l.id}
-                onClick={() => setActivateListing(l)}
-                className="group cursor-pointer overflow-hidden rounded-xl border border-border bg-card transition hover:border-primary hover:shadow-md"
+                onClick={() => {
+                  // Hanya iklan AKTIF yang bisa di-klik untuk upgrade.
+                  // Iklan pending/rejected tidak bisa di-klik (disable upgrade).
+                  if (l.status === "active" && !l.violationFlag) {
+                    setActivateListing(l);
+                  }
+                }}
+                className={cn(
+                  "group overflow-hidden rounded-xl border border-border bg-card transition",
+                  l.status === "active" && !l.violationFlag
+                    ? "cursor-pointer hover:border-primary hover:shadow-md"
+                    : "cursor-not-allowed opacity-80"
+                )}
               >
                 {/* image */}
                 <div className="relative aspect-square w-full overflow-hidden bg-muted">

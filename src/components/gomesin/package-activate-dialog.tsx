@@ -13,12 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Loader2, CheckCircle2, Sparkles, Zap, TrendingUp, Star, ImageIcon, Clock, AlertTriangle, XCircle } from "lucide-react";
+import { Edit, Loader2, CheckCircle2, Sparkles, Zap, TrendingUp, Star, ImageIcon, Clock, AlertTriangle, XCircle, X, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatRupiahFull, type Listing } from "@/lib/types";
 import { useLang, translations as i18nTranslations, listingTitle } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
+import { compressImage } from "@/lib/image";
 
 type PackageKey = "simpan" | "gratis" | "sundul" | "highlight" | "spotlight";
 
@@ -127,6 +128,9 @@ export function PackageActivateDialog({
   });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bca");
   const [submitting, setSubmitting] = useState(false);
+  const [qrisModal, setQrisModal] = useState(false);
+  const [proofImage, setProofImage] = useState<string>("");
+  const [uploadingProof, setUploadingProof] = useState(false);
 
   const isPending = listing.status === "pending";
   const isSundulDisabled = isPending;
@@ -166,14 +170,29 @@ export function PackageActivateDialog({
       ? "Simpan (Draft)"
       : "Gold";
 
-  // Button label: "Aktifkan Sekarang" if pending, else "Upgrade Paket"
-  const buttonLabel = isPending ? "Aktifkan Sekarang" : "Upgrade Paket";
+  // Button label: selalu "Upgrade" (dialog hanya dibuka untuk iklan aktif).
+  const buttonLabel = "Upgrade";
+  // QRIS amount: harga paket + 2 digit random untuk identifikasi pembayaran.
+  const qrisAmount = selectedPkg.price > 0
+    ? selectedPkg.price + Math.floor(Math.random() * 100)
+    : 0;
 
   const handleSubmit = async () => {
     if (needsPayment && !paymentMethod) {
       toast.error("Pilih metode pembayaran terlebih dahulu.");
       return;
     }
+    // Jika metode pembayaran QRIS → tampilkan halaman QRIS dulu (upload bukti),
+    // baru submit. BCA/GoPay → langsung submit (simulasi).
+    if (needsPayment && paymentMethod === "qris") {
+      setQrisModal(true);
+      return;
+    }
+    await doSubmit();
+  };
+
+  // Submit sebenarnya ke API (dipanggil setelah QRIS selesai atau langsung untuk BCA/GoPay).
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const res = await fetch(`/api/listings/${listing.slug}`, {
@@ -186,11 +205,7 @@ export function PackageActivateDialog({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal mengaktifkan paket");
-      toast.success(
-        selectedPackage === "simpan"
-          ? "Iklan disimpan sebagai draft."
-          : `Paket ${selectedPkg.name} berhasil diaktifkan!`
-      );
+      toast.success(`Paket ${selectedPkg.name} berhasil diaktifkan!`);
       // Refresh dashboard + listings queries
       queryClient.invalidateQueries({ queryKey: ["dashboard-listings"] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
@@ -207,9 +222,9 @@ export function PackageActivateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Aktifkan / Upgrade Paket Iklan</DialogTitle>
+          <DialogTitle>Upgrade Paket Iklan</DialogTitle>
           <DialogDescription>
-            Pilih paket untuk mengaktifkan atau meningkatkan visibilitas iklan Anda.
+            Pilih paket untuk meningkatkan visibilitas iklan Anda.
           </DialogDescription>
         </DialogHeader>
 
@@ -371,6 +386,160 @@ export function PackageActivateDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* ===== QRIS PAYMENT PAGE (overlay fullscreen, sama seperti post-ad) ===== */}
+      {qrisModal && (
+        <div className="fixed inset-0 z-[80] overflow-y-auto bg-background md:overflow-hidden">
+          <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:py-6 md:h-screen">
+            {/* Header */}
+            <div className="mb-4 flex shrink-0 items-center justify-between">
+              <h2 className="text-xl font-bold sm:text-2xl">Pembayaran QRIS — Upgrade {selectedPkg.name}</h2>
+              <button
+                type="button"
+                onClick={() => { setQrisModal(false); setProofImage(""); }}
+                className="grid size-10 place-items-center rounded-full border border-border bg-card hover:bg-accent"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="grid flex-1 gap-6 md:grid-cols-2 md:overflow-hidden">
+              {/* LEFT — instructions + upload proof */}
+              <div className="space-y-3 md:overflow-hidden">
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <p className="text-sm font-bold">Cara Pembayaran:</p>
+                  <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+                    <li>Buka aplikasi e-wallet / m-banking</li>
+                    <li>Pilih menu Scan / Bayar QRIS</li>
+                    <li>Arahkan kamera ke QR code di sebelah kanan</li>
+                    <li>Pastikan jumlah sesuai: <strong className="text-foreground">{formatRupiahFull(qrisAmount)}</strong></li>
+                    <li>Konfirmasi & selesaikan pembayaran</li>
+                    <li>Upload foto / screenshot bukti pembayaran di bawah</li>
+                  </ol>
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <p className="mb-2 text-sm font-bold">Kirim Bukti Pembayaran</p>
+                  {proofImage ? (
+                    <div className="relative">
+                      <img src={proofImage} alt="Bukti Pembayaran" className="max-h-40 w-full rounded-lg border border-border object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => setProofImage("")}
+                        className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-red-500 text-white shadow"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-center transition hover:border-primary hover:bg-accent">
+                      <Upload className="size-8 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Klik untuk upload bukti pembayaran</span>
+                      <span className="text-[10px] text-muted-foreground/70">JPG, PNG (maks 200KB)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const compressed = await compressImage(file);
+                            setProofImage(compressed);
+                            toast.success("Bukti pembayaran diunggah");
+                          } catch (err: any) {
+                            toast.error("Gagal upload: " + (err?.message || ""));
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => { setQrisModal(false); setProofImage(""); toast.info("Pembayaran dibatalkan"); }}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    className="flex-1 gap-1.5"
+                    disabled={submitting || uploadingProof || !proofImage}
+                    onClick={async () => {
+                      const adminPhone = "6285888082208";
+                      setUploadingProof(true);
+                      try {
+                        // Download gambar bukti ke device user.
+                        const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
+                        if (matches) {
+                          const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+                          const byteString = atob(matches[2]);
+                          const buffer = new Uint8Array(byteString.length);
+                          for (let i = 0; i < byteString.length; i++) buffer[i] = byteString.charCodeAt(i);
+                          const blob = new Blob([buffer], { type: `image/${matches[1]}` });
+                          const blobUrl = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = blobUrl;
+                          a.download = `bukti-pembayaran-upgrade-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
+                          a.style.display = "none";
+                          document.body.appendChild(a);
+                          a.click();
+                          await new Promise((r) => setTimeout(r, 800));
+                          document.body.removeChild(a);
+                          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                        }
+                        // Buka WhatsApp dengan caption.
+                        const msg = encodeURIComponent(
+                          `*Bukti Pembayaran Upgrade Iklan Gomesin*\n\n` +
+                          `Paket: ${selectedPkg.name}\n` +
+                          `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
+                          `Judul Iklan: ${listingTitle(listing, mounted ? lang : "id")}\n\n` +
+                          `Gambar bukti pembayaran sudah terunduh. Silakan klik 📎 untuk lampirkan.`
+                        );
+                        window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
+                        toast.success("Gambar bukti diunduh! Klik 📎 di WhatsApp.", { duration: 6000 });
+                      } catch {
+                        toast.error("Gagal mengunduh bukti");
+                      } finally {
+                        setUploadingProof(false);
+                      }
+                      // Submit upgrade + tutup semua.
+                      setTimeout(async () => {
+                        await doSubmit();
+                        setQrisModal(false);
+                        setProofImage("");
+                      }, 500);
+                    }}
+                  >
+                    {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                    {uploadingProof ? "Mengunduh bukti..." : submitting ? "Memproses..." : "Kirim & Upgrade"}
+                  </Button>
+                </div>
+                {!proofImage && (
+                  <p className="text-center text-[11px] text-amber-600">Upload bukti pembayaran dulu untuk melanjutkan</p>
+                )}
+              </div>
+
+              {/* RIGHT — QR code */}
+              <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-secondary/30 p-4 md:overflow-hidden">
+                <div className="rounded-2xl border-2 border-border bg-white p-4 shadow-lg sm:p-6">
+                  <img
+                    src="/qris-gomesin.jpeg"
+                    alt="QRIS Gomesin"
+                    className="w-full max-w-[240px] object-contain sm:max-w-xs"
+                  />
+                </div>
+                <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
+                <p className="mt-1 text-center text-lg font-bold text-primary">{formatRupiahFull(qrisAmount)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }
