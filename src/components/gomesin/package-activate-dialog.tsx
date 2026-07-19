@@ -223,10 +223,10 @@ export function PackageActivateDialog({
 
   return (
     <>
-    {/* ===== UPGRADE PAKET PAGE (fullscreen, bukan dialog popup) ===== */}
+    {/* ===== UPGRADE PAKET PAGE (fullscreen, 2 kolom di desktop) ===== */}
     {open && !qrisModal && (
       <div className="no-scrollbar fixed inset-0 z-[60] overflow-y-auto bg-background">
-        <div className="mx-auto min-h-screen max-w-3xl px-4 py-4 sm:py-6">
+        <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-4 sm:py-6 md:h-screen">
           {/* Header */}
           <div className="mb-4 flex shrink-0 items-center justify-between">
             <div>
@@ -243,49 +243,94 @@ export function PackageActivateDialog({
             </button>
           </div>
 
-          <div className="space-y-4">
+          {/* Content 2 kolom (desktop) / 1 kolom (mobile) */}
+          <div className="grid flex-1 gap-6 md:grid-cols-2 md:overflow-hidden">
 
-        {/* Listing summary */}
-        <div className="flex gap-3 rounded-lg border border-border bg-secondary/30 p-3">
-          <div className="relative size-20 shrink-0 overflow-hidden rounded-md bg-muted">
-            {listing.images?.[0] ? (
-              <Image
-                src={listing.images[0]}
-                alt={listingTitle(listing, mounted ? lang : "id")}
-                fill
-                className="object-cover"
-                unoptimized
-                sizes="80px"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                <ImageIcon className="size-6" />
+            {/* LEFT — gambar iklan + detail */}
+            <div className="space-y-3 md:overflow-y-auto md:pr-2">
+              <div className="overflow-hidden rounded-xl border border-border bg-card">
+                {/* Gambar utama iklan (besar) */}
+                <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                  {listing.images?.[0] ? (
+                    <Image
+                      src={listing.images[0]}
+                      alt={listingTitle(listing, mounted ? lang : "id")}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                      <ImageIcon className="size-12" />
+                    </div>
+                  )}
+                </div>
+                {/* Detail iklan */}
+                <div className="space-y-2 p-4">
+                  <p className="line-clamp-2 text-base font-semibold text-foreground">
+                    {listingTitle(listing, mounted ? lang : "id")}
+                  </p>
+                  <p className="text-xl font-bold text-primary">
+                    {formatRupiahFull(listing.price)}
+                    {listing.priceType === "negotiable" && (
+                      <span className="ml-2 text-xs font-medium text-muted-foreground">Nego</span>
+                    )}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase text-white",
+                        statusInfo.color
+                      )}
+                    >
+                      <StatusIcon className="size-3" />
+                      {statusInfo.text}
+                    </span>
+                    <span className="inline-flex items-center rounded bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      Paket saat ini: {currentPkgLabel}
+                    </span>
+                  </div>
+                  {/* Info tambahan */}
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 pt-2 text-xs">
+                    <div className="flex justify-between border-b border-border/50 pb-1">
+                      <span className="text-muted-foreground">Kondisi</span>
+                      <span className="font-medium">{listing.condition === "baru" ? "Baru" : "Bekas"}</span>
+                    </div>
+                    {listing.brand && (
+                      <div className="flex justify-between border-b border-border/50 pb-1">
+                        <span className="text-muted-foreground">Brand</span>
+                        <span className="font-medium">{listing.brand}</span>
+                      </div>
+                    )}
+                    {listing.yearProduced && (
+                      <div className="flex justify-between border-b border-border/50 pb-1">
+                        <span className="text-muted-foreground">Tahun</span>
+                        <span className="font-medium">{listing.yearProduced}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-b border-border/50 pb-1">
+                      <span className="text-muted-foreground">Lokasi</span>
+                      <span className="font-medium">{listing.city}</span>
+                    </div>
+                  </div>
+                  {/* Thumbnail galeri */}
+                  {listing.images && listing.images.length > 1 && (
+                    <div className="flex gap-1.5 pt-2">
+                      {listing.images.slice(0, 5).map((img, i) => (
+                        <div key={i} className="relative size-12 shrink-0 overflow-hidden rounded-md border border-border">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={img} alt="" className="size-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-sm font-semibold text-foreground">
-              {listingTitle(listing, mounted ? lang : "id")}
-            </p>
-            <p className="mt-0.5 text-base font-bold text-primary">
-              {formatRupiahFull(listing.price)}
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-white",
-                  statusInfo.color
-                )}
-              >
-                <StatusIcon className="size-3" />
-                {statusInfo.text}
-              </span>
-              <span className="inline-flex items-center rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                Paket saat ini: {currentPkgLabel}
-              </span>
             </div>
-          </div>
-        </div>
+
+            {/* RIGHT — paket + metode pembayaran + total + footer */}
+            <div className="flex flex-col space-y-3 md:overflow-y-auto md:pl-2">
 
         {/* Package cards */}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -403,6 +448,7 @@ export function PackageActivateDialog({
             {submitting ? "Memproses..." : buttonLabel}
           </Button>
         </div>
+            </div>
           </div>
         </div>
       </div>
