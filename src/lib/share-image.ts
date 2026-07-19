@@ -3,11 +3,8 @@
  *
  * Mobile (Android/iOS): Web Share API → buka WhatsApp app user dengan
  *   gambar AUTO-ATTACHED + caption. User tinggal pilih chat admin → kirim.
- * Desktop: copy gambar ke clipboard + buka WhatsApp Web ke nomor admin.
- *   User tekan Ctrl+V untuk paste gambar.
- *
- * TIDAK pakai Fonnte API — karena Fonnte device = nomor admin, tidak bisa
- * kirim ke diri sendiri. Yang mengirim adalah USER dari WhatsApp-nya sendiri.
+ * Desktop: upload gambar ke tmpfiles.org → dapat URL publik → buka wa.me
+ *   dengan caption + link gambar. Admin klik link → lihat gambar.
  */
 
 export interface ShareImageOptions {
@@ -23,10 +20,34 @@ function isMobile(): boolean {
 
 export type ShareImageResult =
   | { status: "shared" }
-  | { status: "copied" }
   | { status: "opened" }
   | { status: "cancelled" }
   | { status: "error"; error: string };
+
+/**
+ * Upload blob ke tmpfiles.org → return direct image URL.
+ */
+async function uploadToTmpfiles(blob: Blob, fileName: string): Promise<string | null> {
+  try {
+    const fd = new FormData();
+    fd.append("file", blob, fileName);
+    const upRes = await fetch("https://tmpfiles.org/api/v1/upload", {
+      method: "POST",
+      body: fd,
+    });
+    if (!upRes.ok) return null;
+    const upData = await upRes.json();
+    const viewerUrl: string = upData?.data?.url || "";
+    if (!viewerUrl) return null;
+    // Ekstrak direct image URL dari viewer page HTML.
+    const viewerRes = await fetch(viewerUrl);
+    const html = await viewerRes.text();
+    const directMatch = html.match(/https:\/\/tmpfiles\.org\/dl\/[^"' ]+\.(?:png|jpg|jpeg|gif|webp)/i);
+    return directMatch?.[0] || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function shareImageToWhatsApp({
   blob,
@@ -49,20 +70,17 @@ export async function shareImageToWhatsApp({
     }
   }
 
-  // Desktop: copy gambar ke clipboard + buka WhatsApp ke nomor admin.
-  let copied = false;
-  try {
-    if (navigator.clipboard && window.ClipboardItem) {
-      const item = new ClipboardItem({ [blob.type || "image/jpeg"]: blob });
-      await navigator.clipboard.write([item]);
-      copied = true;
-    }
-  } catch {}
+  // Desktop: upload gambar ke tmpfiles.org → dapat URL → buka wa.me dengan
+  // caption + link gambar. Admin klik link → lihat gambar bukti.
+  const imageUrl = await uploadToTmpfiles(blob, fileName);
 
   const msg = encodeURIComponent(
-    caption + (copied ? "\n\n✅ Gambar bukti sudah di-copy. Tekan Ctrl+V di kolom chat WhatsApp untuk paste." : "\n\n📎 Klik ikon lampiran di WhatsApp untuk upload gambar bukti pembayaran.")
+    caption + "\n\n" +
+    (imageUrl
+      ? `Bukti pembayaran (gambar):\n${imageUrl}`
+      : `Bukti pembayaran terlampir — silakan kirim screenshot di chat ini.`)
   );
   window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
 
-  return copied ? { status: "copied" } : { status: "opened" };
+  return { status: "opened" };
 }

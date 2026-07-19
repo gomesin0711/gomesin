@@ -570,8 +570,7 @@ export function PackageActivateDialog({
                         // atau clipboard + wa.me (desktop).
                         const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
                         if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
-                        else if (result.status === "copied") toast.success("Gambar di-copy! Tekan Ctrl+V di WhatsApp.", { duration: 8000 });
-                        else if (result.status === "opened") toast.info("WhatsApp terbuka. Lampirkan gambar bukti manual.", { duration: 6000 });
+                        else if (result.status === "opened") toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
                       } catch {
                         toast.error("Gagal mengirim bukti");
@@ -742,8 +741,7 @@ export function PackageActivateDialog({
                         // Kirim dari WhatsApp USER ke admin via Web Share API.
                         const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
                         if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
-                        else if (result.status === "copied") toast.success("Gambar di-copy! Tekan Ctrl+V di WhatsApp.", { duration: 8000 });
-                        else if (result.status === "opened") toast.info("WhatsApp terbuka. Lampirkan gambar bukti manual.", { duration: 6000 });
+                        else if (result.status === "opened") toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
                       } catch { toast.error("Gagal mengirim bukti"); }
                       finally { setUploadingProof(false); }
