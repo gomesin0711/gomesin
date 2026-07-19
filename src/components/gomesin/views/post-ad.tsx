@@ -669,7 +669,7 @@ export function PostAdView() {
 
       {/* QRIS PAYMENT PAGE — fit to desktop, scrollable on mobile */}
       {qrisModal && (
-        <div className="fixed inset-0 z-[70] overflow-y-auto bg-background md:overflow-hidden">
+        <div className="no-scrollbar fixed inset-0 z-[70] overflow-y-auto bg-background md:overflow-hidden">
           <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:py-6 md:h-screen">
             {/* Header */}
             <div className="mb-4 flex shrink-0 items-center justify-between">
