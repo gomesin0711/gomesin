@@ -131,18 +131,16 @@ export function PackageActivateDialog({
   const [qrisModal, setQrisModal] = useState(false);
   const [proofImage, setProofImage] = useState<string>("");
   const [uploadingProof, setUploadingProof] = useState(false);
-  const [qrZoom, setQrZoom] = useState(false);
 
-  // Lock body scroll saat QRIS page / QR zoom terbuka (hilangkan scrollbar browser)
+  // Lock body scroll saat QRIS page terbuka (hilangkan scrollbar browser)
   useEffect(() => {
-    const lock = qrisModal || qrZoom;
-    document.body.style.overflow = lock ? "hidden" : "";
-    document.documentElement.style.overflow = lock ? "hidden" : "";
+    document.body.style.overflow = qrisModal ? "hidden" : "";
+    document.documentElement.style.overflow = qrisModal ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
     };
-  }, [qrisModal, qrZoom]);
+  }, [qrisModal]);
 
   const isPending = listing.status === "pending";
   const isSundulDisabled = isPending;
@@ -554,46 +552,18 @@ export function PackageActivateDialog({
                     Harga paket + kode unik untuk identifikasi pembayar
                   </p>
                 </div>
-                {/* QR code — klik untuk perbesar fullscreen */}
+                {/* QR code */}
                 <div className="rounded-2xl border-2 border-border bg-white p-4 shadow-lg sm:p-6">
                   <img
                     src="/qris-gomesin.jpeg"
                     alt="QRIS Gomesin"
-                    onClick={() => setQrZoom(true)}
-                    className="h-auto w-full max-w-[220px] cursor-zoom-in object-contain transition hover:opacity-80"
+                    className="h-auto w-full max-w-[220px] object-contain"
                   />
                 </div>
-                <p className="mt-1 text-center text-[10px] text-muted-foreground">👆 Klik gambar QR untuk perbesar</p>
                 <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ===== QR ZOOM OVERLAY (fullscreen, klik gambar QR untuk perbesar) ===== */}
-      {qrZoom && (
-        <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setQrZoom(false)}
-        >
-          <button
-            type="button"
-            onClick={() => setQrZoom(false)}
-            className="absolute right-4 top-4 grid size-12 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
-            aria-label="Tutup"
-          >
-            <X className="size-6" />
-          </button>
-          <img
-            src="/qris-gomesin.jpeg"
-            alt="QRIS Gomesin (Perbesar)"
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-full max-w-full rounded-xl object-contain shadow-2xl"
-          />
-          <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-sm text-white/80">
-            Klik di mana saja untuk tutup
-          </p>
         </div>
       )}
     </>
