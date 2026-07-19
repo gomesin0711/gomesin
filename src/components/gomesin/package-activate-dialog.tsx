@@ -389,13 +389,13 @@ export function PackageActivateDialog({
       </DialogContent>
     </Dialog>
 
-      {/* ===== QRIS PAYMENT PAGE (overlay fullscreen, di LUAR Dialog supaya tidak ketutup overlay) ===== */}
+      {/* ===== QRIS PAYMENT PAGE (overlay fullscreen, sama persis seperti post-ad) ===== */}
       {qrisModal && (
-        <div className="fixed inset-0 z-[80] overflow-y-auto bg-background md:overflow-hidden">
+        <div className="fixed inset-0 z-[70] overflow-y-auto bg-background md:overflow-hidden">
           <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:py-6 md:h-screen">
             {/* Header */}
             <div className="mb-4 flex shrink-0 items-center justify-between">
-              <h2 className="text-xl font-bold sm:text-2xl">Pembayaran QRIS — Upgrade {selectedPkg.name}</h2>
+              <h2 className="text-xl font-bold sm:text-2xl">Pembayaran QRIS</h2>
               <button
                 type="button"
                 onClick={() => { setQrisModal(false); setProofImage(""); }}
@@ -405,10 +405,11 @@ export function PackageActivateDialog({
               </button>
             </div>
 
-            {/* Content */}
+            {/* Content — scrollable on mobile, fit on desktop */}
             <div className="grid flex-1 gap-6 md:grid-cols-2 md:overflow-hidden">
               {/* LEFT — instructions + upload proof */}
               <div className="space-y-3 md:overflow-hidden">
+                {/* Instructions */}
                 <div className="rounded-xl border border-border bg-card p-4">
                   <p className="text-sm font-bold">Cara Pembayaran:</p>
                   <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
@@ -421,6 +422,7 @@ export function PackageActivateDialog({
                   </ol>
                 </div>
 
+                {/* Upload proof of payment */}
                 <div className="rounded-xl border border-border bg-card p-4">
                   <p className="mb-2 text-sm font-bold">Kirim Bukti Pembayaran</p>
                   {proofImage ? (
@@ -460,6 +462,7 @@ export function PackageActivateDialog({
                   )}
                 </div>
 
+                {/* Action buttons */}
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -518,7 +521,7 @@ export function PackageActivateDialog({
                     }}
                   >
                     {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                    {uploadingProof ? "Mengunduh bukti..." : submitting ? "Memproses..." : "Kirim & Upgrade"}
+                    {uploadingProof ? "Mengunduh bukti..." : submitting ? "Memproses..." : "Kirim & Pasang Iklan"}
                   </Button>
                 </div>
                 {!proofImage && (
@@ -526,8 +529,17 @@ export function PackageActivateDialog({
                 )}
               </div>
 
-              {/* RIGHT — QR code */}
-              <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-secondary/30 p-4 md:overflow-hidden">
+              {/* RIGHT — total pembayaran + QR code */}
+              <div className="flex flex-col items-center justify-start pb-6 md:pb-0">
+                {/* Total pembayaran above QR */}
+                <div className="mb-4 text-center">
+                  <p className="text-xs text-muted-foreground">Total Pembayaran</p>
+                  <p className="text-3xl font-extrabold text-primary sm:text-4xl">{formatRupiahFull(qrisAmount)}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Harga paket + kode unik untuk identifikasi pembayar
+                  </p>
+                </div>
+                {/* QR code */}
                 <div className="rounded-2xl border-2 border-border bg-white p-4 shadow-lg sm:p-6">
                   <img
                     src="/qris-gomesin.jpeg"
@@ -536,7 +548,6 @@ export function PackageActivateDialog({
                   />
                 </div>
                 <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
-                <p className="mt-1 text-center text-lg font-bold text-primary">{formatRupiahFull(qrisAmount)}</p>
               </div>
             </div>
           </div>
