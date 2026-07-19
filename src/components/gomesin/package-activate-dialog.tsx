@@ -16,7 +16,7 @@ import { shareImageToWhatsApp } from "@/lib/share-image";
 
 type PackageKey = "simpan" | "gratis" | "sundul" | "highlight" | "spotlight";
 
-type PaymentMethod = "bca" | "gopay" | "qris";
+type PaymentMethod = "bca" | "qris";
 
 const PACKAGES: Array<{
   key: PackageKey;
@@ -78,9 +78,8 @@ const PAYMENT_METHODS: Array<{
   desc: string;
   color: string;
 }> = [
-  { key: "bca", name: "BCA Virtual Account", desc: "Transfer otomatis via VA BCA", color: "border-blue-500" },
-  { key: "gopay", name: "GoPay", desc: "Bayar dengan saldo GoPay", color: "border-emerald-500" },
-  { key: "qris", name: "QRIS", desc: "Scan QR dari semua e-wallet/bank", color: "border-purple-500" },
+  { key: "bca", name: "Transfer ke BCA", desc: "Transfer manual ke rekening BCA", color: "border-blue-500" },
+  { key: "qris", name: "QRIS GoPay", desc: "Scan QR dari GoPay / e-wallet", color: "border-purple-500" },
 ];
 
 export function PackageActivateDialog({
@@ -122,19 +121,20 @@ export function PackageActivateDialog({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bca");
   const [submitting, setSubmitting] = useState(false);
   const [qrisModal, setQrisModal] = useState(false);
+  const [bcaModal, setBcaModal] = useState(false);
   const [proofImage, setProofImage] = useState<string>("");
   const [uploadingProof, setUploadingProof] = useState(false);
 
-  // Lock body scroll saat QRIS page terbuka (hilangkan scrollbar browser).
-  // Upgrade page TIDAK di-lock supaya di mobile bisa scroll (konten panjang).
+  // Lock body scroll saat QRIS/BCA page terbuka (hilangkan scrollbar browser).
   useEffect(() => {
-    document.body.style.overflow = qrisModal ? "hidden" : "";
-    document.documentElement.style.overflow = qrisModal ? "hidden" : "";
+    const lock = qrisModal || bcaModal;
+    document.body.style.overflow = lock ? "hidden" : "";
+    document.documentElement.style.overflow = lock ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
     };
-  }, [qrisModal]);
+  }, [qrisModal, bcaModal]);
 
   const isPending = listing.status === "pending";
   const isSundulDisabled = isPending;
@@ -186,10 +186,14 @@ export function PackageActivateDialog({
       toast.error("Pilih metode pembayaran terlebih dahulu.");
       return;
     }
-    // Jika metode pembayaran QRIS → tampilkan halaman QRIS dulu (upload bukti),
-    // baru submit. BCA/GoPay → langsung submit (simulasi).
+    // QRIS → tampilkan halaman QRIS dulu (upload bukti), baru submit.
+    // BCA → tampilkan halaman transfer BCA dulu (upload bukti), baru submit.
     if (needsPayment && paymentMethod === "qris") {
       setQrisModal(true);
+      return;
+    }
+    if (needsPayment && paymentMethod === "bca") {
+      setBcaModal(true);
       return;
     }
     await doSubmit();
@@ -225,7 +229,7 @@ export function PackageActivateDialog({
   return (
     <>
     {/* ===== UPGRADE PAKET PAGE (fullscreen, 2 kolom di desktop) ===== */}
-    {open && !qrisModal && (
+    {open && !qrisModal && !bcaModal && (
       <div className="fixed inset-0 z-[60] flex h-screen flex-col overflow-hidden bg-background">
         <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-4 py-4 sm:py-6 md:overflow-hidden">
           {/* Header */}
@@ -626,6 +630,156 @@ export function PackageActivateDialog({
                   />
                 </div>
                 <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== BCA TRANSFER PAGE (fullscreen, mirip QRIS page) ===== */}
+      {bcaModal && (
+        <div className="no-scrollbar fixed inset-0 z-[70] overflow-y-auto bg-background md:overflow-hidden">
+          <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:py-6 md:h-screen">
+            {/* Header */}
+            <div className="mb-4 flex shrink-0 items-center justify-between">
+              <h2 className="text-xl font-bold sm:text-2xl">Transfer ke BCA</h2>
+              <button
+                type="button"
+                onClick={() => { setBcaModal(false); setProofImage(""); }}
+                className="grid size-10 place-items-center rounded-full border border-border bg-card hover:bg-accent"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="grid flex-1 gap-6 md:grid-cols-2 md:overflow-hidden">
+              {/* LEFT — instructions + upload proof */}
+              <div className="space-y-3 md:overflow-y-auto">
+                {/* Bank details */}
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <p className="text-sm font-bold">Transfer ke Rekening BCA:</p>
+                  <div className="mt-2 space-y-1 text-sm">
+                    <p>Bank: <strong className="text-foreground">BCA</strong></p>
+                    <p>No. Rekening: <strong className="text-foreground text-base">8770338221</strong></p>
+                    <p>a.n. <strong className="text-foreground">Lina Listiawati</strong></p>
+                  </div>
+                  <div className="mt-3 rounded-lg bg-blue-50 p-2 text-center">
+                    <p className="text-xs text-muted-foreground">Jumlah Transfer</p>
+                    <p className="text-2xl font-extrabold text-primary">{formatRupiahFull(qrisAmount)}</p>
+                    <p className="text-[11px] text-muted-foreground">Harga paket + kode unik untuk identifikasi</p>
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <p className="text-sm font-bold">Cara Pembayaran:</p>
+                  <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+                    <li>Buka aplikasi m-banking / ATM BCA</li>
+                    <li>Transfer ke rekening <strong className="text-foreground">8770338221</strong> a.n. Lina Listiawati</li>
+                    <li>Pastikan jumlah sesuai: <strong className="text-foreground">{formatRupiahFull(qrisAmount)}</strong></li>
+                    <li>Konfirmasi & selesaikan transfer</li>
+                    <li>Upload foto / screenshot bukti transfer di bawah</li>
+                  </ol>
+                </div>
+
+                {/* Upload proof */}
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <p className="mb-2 text-sm font-bold">Kirim Bukti Pembayaran</p>
+                  {proofImage ? (
+                    <div className="relative">
+                      <img src={proofImage} alt="Bukti Pembayaran" className="max-h-40 w-full rounded-lg border border-border object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => setProofImage("")}
+                        className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-red-500 text-white shadow"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-center transition hover:border-primary hover:bg-accent">
+                      <Upload className="size-8 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Klik untuk upload bukti pembayaran</span>
+                      <span className="text-[10px] text-muted-foreground/70">JPG, PNG (maks 200KB)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const compressed = await compressImage(file);
+                            setProofImage(compressed);
+                            toast.success("Bukti pembayaran diunggah");
+                          } catch (err: any) {
+                            toast.error("Gagal upload: " + (err?.message || ""));
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => { setBcaModal(false); setProofImage(""); toast.info("Pembayaran dibatalkan"); }}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    className="flex-1 gap-1.5"
+                    disabled={submitting || uploadingProof || !proofImage}
+                    onClick={async () => {
+                      setUploadingProof(true);
+                      try {
+                        const caption =
+                          `*Bukti Pembayaran Upgrade Iklan Gomesin*\n\n` +
+                          `Paket: ${selectedPkg.name}\n` +
+                          `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
+                          `Metode: Transfer BCA\n` +
+                          `Judul Iklan: ${listingTitle(listing, mounted ? lang : "id")}`;
+
+                        const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
+                        if (!matches) { toast.error("Format gambar tidak valid"); return; }
+                        const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+                        const byteString = atob(matches[2]);
+                        const buf = new Uint8Array(byteString.length);
+                        for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
+                        const blob = new Blob([buf], { type: `image/${matches[1]}` });
+                        const fileName = `bukti-pembayaran-bca-${selectedPkg.name.toLowerCase()}-${Date.now()}.${ext}`;
+
+                        const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
+                        if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
+                        else if (result.status === "copied") toast.success("Gambar di-copy! Tekan Ctrl+V di WhatsApp.", { duration: 8000 });
+                        else if (result.status === "opened") toast.info("WhatsApp terbuka. Lampirkan gambar bukti manual.", { duration: 6000 });
+                        else if (result.status === "cancelled") { setUploadingProof(false); return; }
+                      } catch { toast.error("Gagal mengirim bukti"); }
+                      finally { setUploadingProof(false); }
+                      setTimeout(async () => { await doSubmit(); setBcaModal(false); setProofImage(""); }, 500);
+                    }}
+                  >
+                    {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                    {uploadingProof ? "Mengirim bukti..." : submitting ? "Memproses..." : "Kirim & Pasang Iklan"}
+                  </Button>
+                </div>
+                {!proofImage && <p className="text-center text-[11px] text-amber-600">Upload bukti pembayaran dulu untuk melanjutkan</p>}
+              </div>
+
+              {/* RIGHT — bank info + QR code (kosong, info bank di kiri) */}
+              <div className="flex flex-col items-center justify-center gap-4 pb-6 md:pb-0">
+                <div className="rounded-2xl border-2 border-blue-500 bg-white p-8 shadow-lg text-center">
+                  <p className="text-sm font-bold text-blue-600">BCA</p>
+                  <p className="mt-2 text-3xl font-extrabold tracking-wider text-foreground">8770338221</p>
+                  <p className="mt-2 text-sm text-muted-foreground">a.n. Lina Listiawati</p>
+                </div>
+                <p className="text-center text-sm font-semibold text-muted-foreground">Transfer ke rekening di atas</p>
+                <p className="text-center text-lg font-bold text-primary">{formatRupiahFull(qrisAmount)}</p>
               </div>
             </div>
           </div>

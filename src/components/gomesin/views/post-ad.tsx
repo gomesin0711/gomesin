@@ -624,11 +624,10 @@ export function PostAdView() {
             <p className="-mt-1 mb-3 text-xs text-muted-foreground">
               {tr("paymentDesc")}
             </p>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2">
               {[
-                { key: "bca", label: tr("payBCA"), desc: tr("payBCADesc") },
-                { key: "gopay", label: tr("payGoPay"), desc: tr("payGoPayDesc") },
-                { key: "qris", label: tr("payQRIS"), desc: tr("payQRISDesc") },
+                { key: "bca", label: "Transfer ke BCA", desc: "Transfer manual ke rekening BCA" },
+                { key: "qris", label: "QRIS GoPay", desc: "Scan QR dari GoPay / e-wallet" },
               ].map((m) => (
                 <button
                   type="button"
@@ -682,7 +681,7 @@ export function PostAdView() {
           <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:py-6 md:h-screen">
             {/* Header */}
             <div className="mb-4 flex shrink-0 items-center justify-between">
-              <h2 className="text-xl font-bold sm:text-2xl">Pembayaran QRIS</h2>
+              <h2 className="text-xl font-bold sm:text-2xl">{paymentMethod === "bca" ? "Transfer ke BCA" : "Pembayaran QRIS"}</h2>
               <button
                 type="button"
                 onClick={() => { setQrisModal(false); setProofImage(""); }}
@@ -701,14 +700,24 @@ export function PostAdView() {
                 {/* Instructions */}
                 <div className="rounded-xl border border-border bg-card p-4">
                   <p className="text-sm font-bold">Cara Pembayaran:</p>
-                  <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
-                    <li>Buka aplikasi e-wallet / m-banking</li>
-                    <li>Pilih menu Scan / Bayar QRIS</li>
-                    <li>Arahkan kamera ke QR code di sebelah kanan</li>
-                    <li>Pastikan jumlah sesuai: <strong className="text-foreground">{formatRupiahFull(qrisAmount)}</strong></li>
-                    <li>Konfirmasi & selesaikan pembayaran</li>
-                    <li>Upload foto / screenshot bukti pembayaran di bawah</li>
-                  </ol>
+                  {paymentMethod === "bca" ? (
+                    <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+                      <li>Buka aplikasi m-banking / ATM BCA</li>
+                      <li>Transfer ke rekening <strong className="text-foreground">8770338221</strong> a.n. Lina Listiawati</li>
+                      <li>Pastikan jumlah sesuai: <strong className="text-foreground">{formatRupiahFull(qrisAmount)}</strong></li>
+                      <li>Konfirmasi & selesaikan transfer</li>
+                      <li>Upload foto / screenshot bukti transfer di bawah</li>
+                    </ol>
+                  ) : (
+                    <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+                      <li>Buka aplikasi e-wallet / m-banking</li>
+                      <li>Pilih menu Scan / Bayar QRIS</li>
+                      <li>Arahkan kamera ke QR code di sebelah kanan</li>
+                      <li>Pastikan jumlah sesuai: <strong className="text-foreground">{formatRupiahFull(qrisAmount)}</strong></li>
+                      <li>Konfirmasi & selesaikan pembayaran</li>
+                      <li>Upload foto / screenshot bukti pembayaran di bawah</li>
+                    </ol>
+                  )}
                 </div>
 
                 {/* Upload proof of payment */}
@@ -827,9 +836,9 @@ export function PostAdView() {
                 )}
               </div>
 
-              {/* RIGHT — total pembayaran + QR code (di mobile tampil di ATAS) */}
+              {/* RIGHT — total pembayaran + QR code / BCA info (di mobile di ATAS) */}
               <div className="order-1 flex flex-col items-center justify-start pb-6 md:order-2 md:pb-0">
-                {/* Total pembayaran above QR */}
+                {/* Total pembayaran */}
                 <div className="mb-4 text-center">
                   <p className="text-xs text-muted-foreground">Total Pembayaran</p>
                   <p className="text-3xl font-extrabold text-primary sm:text-4xl">{formatRupiahFull(qrisAmount)}</p>
@@ -837,15 +846,29 @@ export function PostAdView() {
                     Harga paket + kode unik untuk identifikasi pembayar
                   </p>
                 </div>
-                {/* QR code */}
-                <div className="rounded-2xl border-2 border-border bg-white p-4 shadow-lg sm:p-6">
-                  <img
-                    src="/qris-gomesin.jpeg"
-                    alt="QRIS Gomesin"
-                    className="h-auto w-full max-w-[250px] object-contain"
-                  />
-                </div>
-                <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
+                {paymentMethod === "bca" ? (
+                  <>
+                    {/* BCA bank info */}
+                    <div className="rounded-2xl border-2 border-blue-500 bg-white p-8 shadow-lg text-center">
+                      <p className="text-sm font-bold text-blue-600">BCA</p>
+                      <p className="mt-2 text-3xl font-extrabold tracking-wider text-foreground">8770338221</p>
+                      <p className="mt-2 text-sm text-muted-foreground">a.n. Lina Listiawati</p>
+                    </div>
+                    <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Transfer ke rekening di atas</p>
+                  </>
+                ) : (
+                  <>
+                    {/* QR code */}
+                    <div className="rounded-2xl border-2 border-border bg-white p-4 shadow-lg sm:p-6">
+                      <img
+                        src="/qris-gomesin.jpeg"
+                        alt="QRIS Gomesin"
+                        className="h-auto w-full max-w-[250px] object-contain"
+                      />
+                    </div>
+                    <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
+                  </>
+                )}
               </div>
             </div>
           </div>
