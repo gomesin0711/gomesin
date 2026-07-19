@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/image";
+import { shareImageToWhatsApp } from "@/lib/share-image";
 import {
   Popover,
   PopoverContent,
@@ -763,77 +764,60 @@ export function PostAdView() {
                     className="flex-1 gap-1.5"
                     disabled={mutation.isPending || uploadingProof || !proofImage}
                     onClick={async () => {
-                      const adminPhone = "6285888082208";
                       const pkgName = paketMap[selectedPackage]?.name || selectedPackage;
 
                       setUploadingProof(true);
-                      const caption =
-                        `*Bukti Pembayaran Iklan Gomesin*\n\n` +
-                        `Paket: ${pkgName}\n` +
-                        `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
-                        `User: ${user?.name || "-"}\n` +
-                        `Email: ${user?.email || "-"}\n` +
-                        `Judul Iklan: ${title}`;
-
-                      // 1. Kirim gambar LANGSUNG ke WhatsApp admin via Fonnte API.
-                      //    Fonnte menerima base64 langsung — gambar muncul sebagai
-                      //    GAMBAR di chat admin, bukan link.
-                      let sent = false;
                       try {
-                        const sendRes = await fetch("/api/send-wa-proof", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            imageBase64: proofImage,
-                            caption,
-                            fileName: `bukti-pembayaran-${pkgName.toLowerCase()}-${Date.now()}.jpg`,
-                          }),
+                        const caption =
+                          `*Bukti Pembayaran Iklan Gomesin*\n\n` +
+                          `Paket: ${pkgName}\n` +
+                          `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
+                          `User: ${user?.name || "-"}\n` +
+                          `Email: ${user?.email || "-"}\n` +
+                          `Judul Iklan: ${title}`;
+
+                        // Convert base64 proofImage → Blob untuk Web Share API.
+                        const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
+                        if (!matches) {
+                          toast.error("Format gambar tidak valid");
+                          return;
+                        }
+                        const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+                        const byteString = atob(matches[2]);
+                        const buf = new Uint8Array(byteString.length);
+                        for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
+                        const blob = new Blob([buf], { type: `image/${matches[1]}` });
+                        const fileName = `bukti-pembayaran-${pkgName.toLowerCase()}-${Date.now()}.${ext}`;
+
+                        // Bagikan gambar ke WhatsApp via Web Share API (mobile) atau
+                        // download + wa.me (desktop). GRATIS, tanpa API key.
+                        const result = await shareImageToWhatsApp({
+                          blob,
+                          fileName,
+                          caption,
+                          phone: "6285888082208",
                         });
-                        if (sendRes.ok) {
-                          const sendData = await sendRes.json();
-                          if (sendData.success) {
-                            sent = true;
-                            toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
-                          }
+
+                        if (result.status === "shared") {
+                          toast.success("Gambar bukti dibagikan ke WhatsApp!");
+                        } else if (result.status === "downloaded") {
+                          toast.info("Gambar diunduh. Klik 📎 di WhatsApp untuk lampirkan.", { duration: 6000 });
+                        } else if (result.status === "cancelled") {
+                          toast.info("Pembagian dibatalkan");
+                          setUploadingProof(false);
+                          return; // jangan submit jika user batal
                         }
                       } catch {
-                        // ignore
+                        toast.error("Gagal mengirim bukti");
+                      } finally {
+                        setUploadingProof(false);
                       }
-
-                      // 2. Fallback: buka wa.me + download gambar ke device.
-                      if (!sent) {
-                        const msg = encodeURIComponent(
-                          caption + "\n\nGambar bukti pembayaran sudah terunduh. Silakan klik 📎 untuk lampirkan."
-                        );
-                        window.open(`https://wa.me/${adminPhone}?text=${msg}`, "_blank");
-                        // Download gambar ke device sebagai backup.
-                        const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
-                        if (matches) {
-                          const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
-                          const byteString = atob(matches[2]);
-                          const buf = new Uint8Array(byteString.length);
-                          for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
-                          const blob = new Blob([buf], { type: `image/${matches[1]}` });
-                          const blobUrl = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = blobUrl;
-                          a.download = `bukti-pembayaran-${pkgName.toLowerCase()}-${Date.now()}.${ext}`;
-                          a.style.display = "none";
-                          document.body.appendChild(a);
-                          a.click();
-                          document.body.removeChild(a);
-                          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-                        }
-                        toast.info("Gambar diunduh. Klik 📎 di WhatsApp untuk lampirkan.", { duration: 6000 });
-                      }
-
-                      setUploadingProof(false);
                       setQrisModal(false);
                       doSubmit();
                     }}
                   >
                     {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                    {uploadingProof ? "Mengunggah bukti..." : mutation.isPending ? "Memproses..." : "Kirim & Pasang Iklan"}
+                    {uploadingProof ? "Mengirim bukti..." : mutation.isPending ? "Memproses..." : "Kirim & Pasang Iklan"}
                   </Button>
                 </div>
                 {!proofImage && (
