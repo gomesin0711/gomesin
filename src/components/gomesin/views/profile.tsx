@@ -47,12 +47,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { timeAgo } from "@/lib/types";
@@ -550,8 +544,8 @@ export function ProfileView() {
               </div>
               {/* Panel content */}
               <div className="max-h-[70vh] overflow-y-auto p-4">
-                {(() => {
-{panel === "pesan" && activeChatId !== null ? (
+                <div>
+                {panel === "pesan" && activeChatId !== null ? (
             /* ===== CHAT CONVERSATION VIEW ===== */
             (() => {
               const conv = conversations.find((c: any) => c.id === activeChatId);
@@ -659,9 +653,6 @@ export function ProfileView() {
           ) : (
             /* ===== DEFAULT PANEL VIEW (list + other panels) ===== */
             <>
-              <DialogHeader className="border-b border-border px-5 py-4">
-                <DialogTitle className="text-lg font-bold">{panel ? panelTitle[panel] : ""}</DialogTitle>
-              </DialogHeader>
               <div className="gomesin-scroll overflow-y-auto px-5 py-4" style={{ maxHeight: "calc(90vh - 70px)" }}>
                 {/* PESAN — list view */}
                 {panel === "pesan" && (
@@ -1761,10 +1752,10 @@ export function ProfileView() {
                 )}
               </div>
             )}
-          </div>
+              </div>
             </>
-          )}
-            })()}
+                )}
+                </div>
               </div>
             </div>
           ) : (

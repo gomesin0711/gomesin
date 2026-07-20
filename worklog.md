@@ -3645,3 +3645,24 @@ Work Log:
 Stage Summary:
 - Section "Paling Banyak Dicari" sekarang uniform grid rapi (sebelumnya berantakan karena col-span berbeda).
 - Pending push: 3 commits (Vercel config, Titanium/Platinum size, uniform grid).
+
+---
+Task ID: FIX-PROFILE-JSX
+Agent: general-purpose
+Task: Fix JSX parsing error in src/components/gomesin/views/profile.tsx at line 1763 (mismatched closing tags from incomplete Dialog→sidebar refactor).
+
+Work Log:
+- Read worklog and profile.tsx (lines 540→end). Identified the panel content area structure (lines ~542-1776).
+- Root cause analysis: The old Dialog-based panel used an IIFE `{panel === "pesan" && activeChatId !== null ? (() => { ... })() : ( <> <DialogHeader>... <div className="gomesin-scroll"> ...all panels... </div> </> )}` pattern. During sidebar refactor, outer Dialog wrappers were removed but:
+  1. The bantuan IIFE (`{panel === "bantuan" && (() => { ... })()}` opened at line 1371) was missing its closing `})()}` after its `return (...);` at line 1725 — the IIFE body was never terminated, so iklan-saya/favorit-saya panels fell through into invalid JS context.
+  2. The end-of-file closing tags (3 `</div>`) were insufficient to close the 4 open divs (scroll div @665, extra wrapper @553, panel content div @552, outer wrapper @543) PLUS the `<>` fragment (@661) and the pesan ternary (@554).
+- Fix 1 (line 1726): Added `            })()}` after `);` (line 1725) to close the bantuan IIFE — matching the pattern used by saldo IIFE (@950) and keamanan IIFE (@1221).
+- Fix 2 (lines 1764-1769): Replaced the 3 mismatched `</div>` closers with the correct sequence: `</div>` (scroll div @665) → `</>` (fragment @661) → `)}` (pesan ternary @554) → `</div>` (extra wrapper @553) → `</div>` (panel content div @552) → `</div>` (outer wrapper @543), followed by the existing `) : (` else branch + placeholder + `)}` (outer ternary @542) + `</div>` (content area div @541).
+- Fix 3 (runtime error): After lint passed, browser test revealed `DialogTitle must be used within Dialog` runtime error at line 663 — leftover `<DialogHeader><DialogTitle>` from the old Dialog (the sidebar layout already has its own panel header at lines 544-550 with `<h2>{panelTitle[panel]}</h2>`). Removed the orphaned `<DialogHeader>/<DialogTitle>` block (lines 662-664) and the now-unused `Dialog, DialogContent, DialogHeader, DialogTitle` imports (lines 50-55). This completed the incomplete Dialog→sidebar refactor.
+- Verification:
+  - `bun run lint`: 0 errors, 19 warnings (all pre-existing in other files: admin.tsx, listing-card-carousel.tsx, listing-row.tsx, package-activate-dialog.tsx).
+  - `curl http://localhost:3000/`: HTTP 200.
+  - Browser test (agent-browser): registered test account → profile page rendered with sidebar menu (Iklan Saya, Favorit Saya, Pesan, Pesanan, Saldo, Notifikasi, Keamanan, Pengaturan, Bantuan). Clicked "Iklan Saya" → panel content showed correctly ("Belum ada iklan dipasang." empty state + "Pasang Iklan" button). Also verified Bantuan panel (Pusat Bantuan Gomesin hero card + FAQ + Hubungi Kami) and Saldo panel (Saldo Gomesin balance + Top Up + Riwayat Transaksi) — all IIFE-based panels render correctly. No console errors.
+
+Stage Summary:
+- JSX parsing error at profile.tsx:1763 resolved; profile sidebar layout fully functional. No panel content logic changed — only JSX opening/closing tags fixed plus removal of orphaned Dialog chrome (DialogHeader/DialogTitle) left over from the incomplete refactor.
