@@ -475,7 +475,7 @@ export function ProfileView() {
             return (
               <button
                 key={i}
-                onClick={(m as any).navigate ? m.action : requireLogin(m.action)}
+                onClick={m.action}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
                   isActive ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
@@ -498,7 +498,7 @@ export function ProfileView() {
             return (
               <button
                 key={i}
-                onClick={requireLogin(m.action)}
+                onClick={m.action}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
                   isActive ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
@@ -513,7 +513,7 @@ export function ProfileView() {
           {/* Section: Bantuan */}
           <p className="px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Bantuan</p>
           <button
-            onClick={requireLogin(() => setPanel("bantuan"))}
+            onClick={() => setPanel("bantuan")}
             className={cn(
               "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
               panel === "bantuan" ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
