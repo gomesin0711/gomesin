@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Package,
   MessageSquare,
+  MessageCircle,
   Wallet,
   ShieldCheck,
   Shield,
@@ -542,167 +543,193 @@ export function ProfileView() {
                   <X className="size-4" />
                 </button>
               </div>
-              {/* Panel content */}
-              <div className="max-h-[70vh] overflow-y-auto p-4">
-                <div>
-                {panel === "pesan" && activeChatId !== null ? (
-            /* ===== CHAT CONVERSATION VIEW (WhatsApp desktop style) ===== */
-            (() => {
-              const conv = conversations.find((c: any) => c.id === activeChatId);
-              if (!conv) return null;
-              const convo = chatMessages[activeChatId as any] || [];
-              return (
-                <div className="flex h-full flex-col">
-                  {/* chat header — WhatsApp style */}
-                  <div className="flex items-center gap-3 border-b border-border bg-[#075E54] p-3 text-white">
-                    <button
-                      onClick={() => setActiveChatId(null)}
-                      className="grid size-8 place-items-center rounded-md hover:bg-white/10"
-                      aria-label={tr("back")}
-                    >
-                      <ChevronLeft className="size-5" />
-                    </button>
-                    <Avatar className="size-10 rounded-full">
-                      <AvatarFallback className="bg-white/20 text-xs font-bold text-white">
-                        {conv.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1">
-                        <p className="truncate text-sm font-bold">{conv.name}</p>
-                        <BadgeCheck className="size-3.5 shrink-0 text-white/70" />
-                      </div>
-                      <p className="text-[10px] text-white/60">online</p>
-                    </div>
-                  </div>
-                  {/* listing card — compact */}
-                  {conv.listingTitle && (
-                    <div className="border-b border-border bg-card p-2">
-                      <div className="flex items-center gap-2">
-                        <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted">
-                          {conv.listingImage ? (
-                            <img src={conv.listingImage} alt="" className="size-full object-cover" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-muted-foreground">
-                              <Tag className="size-4" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold text-foreground">{conv.listingTitle}</p>
-                          {conv.listingPrice && (
-                            <p className="text-xs font-bold text-primary">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {/* messages — WhatsApp chat background */}
-                  <div
-                    ref={chatScrollRef}
-                    className="gomesin-scroll flex-1 space-y-1.5 overflow-y-auto p-3"
-                    style={{
-                      maxHeight: "calc(80vh - 160px)",
-                      backgroundColor: "#e5ddd5",
-                      backgroundImage: "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.03) 1px, transparent 1px)",
-                      backgroundSize: "20px 20px",
-                    }}
-                  >
-                    {/* date separator */}
-                    <div className="flex justify-center py-1">
-                      <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">Hari ini</span>
-                    </div>
-                    {convo.map((c, i) => (
-                      <div key={i} className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                        <div
-                          className={
-                            c.role === "user"
-                              ? "max-w-[75%] rounded-2xl rounded-br-sm bg-[#dcf8c6] px-3 py-2 text-sm text-foreground shadow-sm"
-                              : "max-w-[75%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-sm text-foreground shadow-sm"
-                          }
-                        >
-                          {c.content}
-                          <span className="ml-2 inline-block text-[9px] text-muted-foreground/60">
-                            {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                    {chatSending && (
-                      <div className="flex justify-start">
-                        <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-white px-3 py-2.5 shadow-sm">
-                          <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
-                          <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
-                          <span className="size-2 animate-bounce rounded-full bg-muted-foreground" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {/* input — WhatsApp style */}
-                  <form
-                    onSubmit={(e) => { e.preventDefault(); sendChat(); }}
-                    className="flex items-center gap-2 border-t border-border bg-[#f0f0f0] p-2"
-                  >
-                    <input
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Tulis pesan..."
-                      className="h-10 flex-1 rounded-full border border-transparent bg-white px-4 text-sm outline-none shadow-sm focus:border-primary"
-                      disabled={chatSending}
-                    />
-                    <Button
-                      type="submit"
-                      size="icon"
-                      className="size-10 shrink-0 rounded-full bg-[#075E54] hover:bg-[#054c42]"
-                      disabled={chatSending || !chatInput.trim()}
-                    >
-                      {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 text-white" />}
-                    </Button>
-                  </form>
-                </div>
-              );
-            })()
-          ) : (
-            /* ===== DEFAULT PANEL VIEW (list + other panels) ===== */
-            <>
-              <div className="gomesin-scroll overflow-y-auto px-5 py-4" style={{ maxHeight: "calc(90vh - 70px)" }}>
-                {/* PESAN — conversation list (WhatsApp desktop left panel style) */}
+              {/* Panel content — WhatsApp Web layout (split view) */}
+              <div className="flex h-[calc(100vh-12rem)] overflow-hidden">
+
+                {/* ===== LEFT: Conversation list (WhatsApp Web sidebar) ===== */}
                 {panel === "pesan" && (
-                  <div className="space-y-1">
-                    {conversations.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <MessageSquare className="size-12 text-muted-foreground/40" />
-                        <p className="mt-3 text-sm font-semibold">Belum ada pesan</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Pesan dari pembeli akan muncul di sini.</p>
-                        <Button variant="outline" size="sm" className="mt-3" onClick={() => { setPanel(null); goToListings({}); }}>
-                          Jelajahi iklan
-                        </Button>
+                  <div className="flex w-full flex-col border-r border-border md:w-[320px] md:shrink-0">
+                    {/* Search bar */}
+                    <div className="border-b border-border bg-[#f0f2f5] p-2">
+                      <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 shadow-sm">
+                        <Search className="size-4 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Cari chat..."
+                          className="flex-1 bg-transparent text-sm outline-none"
+                        />
                       </div>
-                    ) : (
-                      conversations.map((c: any) => (
-                        <button
-                          key={c.id}
-                          onClick={() => openChat(c.id)}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-accent"
-                        >
-                          <Avatar className="size-12 shrink-0 rounded-full">
-                            <AvatarFallback className="bg-[#075E54]/10 text-sm font-bold text-[#075E54]">
-                              {c.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0 flex-1 border-b border-border/50 pb-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
-                              <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo(c.lastTime, mounted ? lang : "id")}</span>
+                    </div>
+                    {/* Conversation list */}
+                    <div className="flex-1 overflow-y-auto">
+                      {conversations.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                          <MessageSquare className="size-12 text-muted-foreground/30" />
+                          <p className="mt-3 text-sm font-semibold">Belum ada pesan</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Pesan dari pembeli akan muncul di sini.</p>
+                          <Button variant="outline" size="sm" className="mt-3" onClick={() => { setPanel(null); goToListings({}); }}>
+                            Jelajahi iklan
+                          </Button>
+                        </div>
+                      ) : (
+                        conversations.map((c: any) => (
+                          <button
+                            key={c.id}
+                            onClick={() => openChat(c.id)}
+                            className={cn(
+                              "flex w-full items-center gap-3 px-3 py-2.5 text-left transition border-b border-border/30",
+                              activeChatId === c.id ? "bg-[#f0f2f5]" : "hover:bg-[#f5f6f6]"
+                            )}
+                          >
+                            <Avatar className="size-12 shrink-0 rounded-full">
+                              <AvatarFallback className="bg-[#075E54]/10 text-sm font-bold text-[#075E54]">
+                                {c.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
+                                <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo(c.lastTime, mounted ? lang : "id")}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="truncate text-xs text-muted-foreground">{c.lastMessage}</p>
+                                {c.unread > 0 && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#25D366] text-[9px] font-bold text-white">{c.unread}</span>}
+                              </div>
+                              {c.listingTitle && <p className="mt-0.5 truncate text-[10px] text-[#075E54]">{c.listingTitle}</p>}
                             </div>
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="truncate text-xs text-muted-foreground">{c.lastMessage}</p>
-                              {c.unread > 0 && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#25D366] text-[9px] font-bold text-white">{c.unread}</span>}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ===== RIGHT: Chat view or placeholder ===== */}
+                {panel === "pesan" && (
+                  <div className="hidden flex-1 flex-col md:flex">
+                    {activeChatId !== null ? (() => {
+                      const conv = conversations.find((c: any) => c.id === activeChatId);
+                      if (!conv) return null;
+                      const convo = chatMessages[activeChatId as any] || [];
+                      return (
+                        <>
+                          {/* Chat header */}
+                          <div className="flex items-center gap-3 border-b border-border bg-[#f0f2f5] p-2.5">
+                            <button
+                              onClick={() => setActiveChatId(null)}
+                              className="grid size-8 place-items-center rounded-md hover:bg-black/5 md:hidden"
+                            >
+                              <ChevronLeft className="size-5" />
+                            </button>
+                            <Avatar className="size-10 rounded-full">
+                              <AvatarFallback className="bg-[#075E54]/10 text-xs font-bold text-[#075E54]">
+                                {conv.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1">
+                                <p className="truncate text-sm font-bold text-foreground">{conv.name}</p>
+                                <BadgeCheck className="size-3.5 shrink-0 text-[#075E54]" />
+                              </div>
+                              <p className="text-[10px] text-muted-foreground">online</p>
                             </div>
-                            {c.listingTitle && <p className="mt-0.5 truncate text-[10px] text-[#075E54]">{c.listingTitle}</p>}
                           </div>
-                        </button>
-                      ))
+                          {/* Listing card */}
+                          {conv.listingTitle && (
+                            <div className="border-b border-border bg-white p-2">
+                              <div className="flex items-center gap-2">
+                                <div className="relative size-10 shrink-0 overflow-hidden rounded-md bg-muted">
+                                  {conv.listingImage ? (
+                                    <img src={conv.listingImage} alt="" className="size-full object-cover" />
+                                  ) : (
+                                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                                      <Tag className="size-4" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-xs font-semibold text-foreground">{conv.listingTitle}</p>
+                                  {conv.listingPrice && (
+                                    <p className="text-xs font-bold text-[#075E54]">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {/* Messages */}
+                          <div
+                            ref={chatScrollRef}
+                            className="flex-1 space-y-1.5 overflow-y-auto p-4"
+                            style={{
+                              backgroundColor: "#e5ddd5",
+                              backgroundImage: "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.03) 1px, transparent 1px)",
+                              backgroundSize: "20px 20px",
+                            }}
+                          >
+                            <div className="flex justify-center py-1">
+                              <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">Hari ini</span>
+                            </div>
+                            {convo.map((c, i) => (
+                              <div key={i} className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                                <div
+                                  className={cn(
+                                    "max-w-[70%] rounded-lg px-3 py-2 text-sm shadow-sm",
+                                    c.role === "user"
+                                      ? "rounded-tr-sm bg-[#dcf8c6] text-foreground"
+                                      : "rounded-tl-sm bg-white text-foreground"
+                                  )}
+                                >
+                                  <p className="whitespace-pre-wrap break-words">{c.content}</p>
+                                  <span className="mt-0.5 block text-right text-[9px] text-muted-foreground/60">
+                                    {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                                    {c.role === "user" && <span className="ml-1 text-blue-500">✓✓</span>}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                            {chatSending && (
+                              <div className="flex justify-start">
+                                <div className="flex items-center gap-1 rounded-lg rounded-tl-sm bg-white px-3 py-2.5 shadow-sm">
+                                  <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
+                                  <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
+                                  <span className="size-2 animate-bounce rounded-full bg-muted-foreground" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          {/* Input */}
+                          <form
+                            onSubmit={(e) => { e.preventDefault(); sendChat(); }}
+                            className="flex items-center gap-2 bg-[#f0f2f5] p-2"
+                          >
+                            <input
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              placeholder="Tulis pesan..."
+                              className="h-10 flex-1 rounded-lg border border-transparent bg-white px-4 text-sm outline-none shadow-sm"
+                              disabled={chatSending}
+                            />
+                            <Button
+                              type="submit"
+                              size="icon"
+                              className="size-10 shrink-0 rounded-full bg-[#075E54] hover:bg-[#054c42]"
+                              disabled={chatSending || !chatInput.trim()}
+                            >
+                              {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 text-white" />}
+                            </Button>
+                          </form>
+                        </>
+                      );
+                    })() : (
+                      /* Placeholder when no chat selected */
+                      <div className="flex flex-1 flex-col items-center justify-center bg-[#f0f2f5]">
+                        <div className="text-center">
+                          <MessageCircle className="mx-auto size-16 text-muted-foreground/20" />
+                          <p className="mt-4 text-lg font-light text-muted-foreground">Gomesin Web</p>
+                          <p className="mt-1 text-xs text-muted-foreground/60">Pilih chat di sebelah kiri untuk mulai pesan</p>
+                          <p className="mt-1 text-[10px] text-muted-foreground/40">Pesan terenkripsi end-to-end</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -1765,13 +1792,9 @@ export function ProfileView() {
                   </div>
                 )}
               </div>
-            )}
-              </div>
-            </>
                 )}
                 </div>
               </div>
-            </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center py-16 text-center">
               <Settings className="size-10 text-muted-foreground/30" />
