@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,9 @@ import {
   PlayCircle,
   Search,
   ExternalLink,
+  Ban,
+  Trash2,
+  Eraser,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -126,6 +129,7 @@ export function ProfileView() {
   const [chatMessages, setChatMessages] = useState<Record<number, { role: "user" | "assistant"; content: string }[]>>({});
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
+  const [convMenu, setConvMenu] = useState<{ visible: boolean; x: number; y: number; convId: string | null }>({ visible: false, x: 0, y: 0, convId: null });
   // edit profile state
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState("");
@@ -221,7 +225,6 @@ export function ProfileView() {
     const conv = conversations.find((c: any) => c.id === convId);
     setActiveChatId(convId as any);
     syncChatMessages(convId);
-    // Mark as read via API — use conv.partnerId (user id), NOT convId (composite key)
     if (user && conv?.partnerId) {
       fetch("/api/messages", {
         method: "PATCH",
@@ -230,6 +233,61 @@ export function ProfileView() {
       }).then(() => refetchMessages());
     }
   };
+
+  // ===== Conversation context menu actions =====
+  const handleConvContextMenu = (e: React.MouseEvent, convId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setConvMenu({ visible: true, x: e.clientX, y: e.clientY, convId });
+  };
+
+  const handleBlockUser = useCallback(() => {
+    const conv = conversations.find((c: any) => c.id === convMenu.convId);
+    if (conv) toast.success(`${conv.name} diblokir`);
+    setConvMenu({ visible: false, x: 0, y: 0, convId: null });
+  }, [convMenu.convId, conversations]);
+
+  const handleClearChat = useCallback(async () => {
+    const conv = conversations.find((c: any) => c.id === convMenu.convId);
+    if (!conv || !user) { setConvMenu({ visible: false, x: 0, y: 0, convId: null }); return; }
+    try {
+      await fetch("/api/messages", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, partnerId: conv.partnerId, listingTitle: conv.listingTitle }),
+      });
+      setChatMessages(prev => { const n = { ...prev }; delete n[convMenu.convId as any]; return n; });
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      toast.success("Chat dibersihkan");
+    } catch { toast.error("Gagal membersihkan chat"); }
+    setConvMenu({ visible: false, x: 0, y: 0, convId: null });
+  }, [convMenu.convId, conversations, user, queryClient]);
+
+  const handleDeleteChat = useCallback(async () => {
+    const conv = conversations.find((c: any) => c.id === convMenu.convId);
+    if (!conv || !user) { setConvMenu({ visible: false, x: 0, y: 0, convId: null }); return; }
+    try {
+      await fetch("/api/messages", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, partnerId: conv.partnerId, listingTitle: conv.listingTitle }),
+      });
+      setChatMessages(prev => { const n = { ...prev }; delete n[convMenu.convId as any]; return n; });
+      if (activeChatId === convMenu.convId) setActiveChatId(null);
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      toast.success("Chat dihapus");
+    } catch { toast.error("Gagal menghapus chat"); }
+    setConvMenu({ visible: false, x: 0, y: 0, convId: null });
+  }, [convMenu.convId, conversations, user, queryClient, activeChatId]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!convMenu.visible) return;
+    const close = () => setConvMenu({ visible: false, x: 0, y: 0, convId: null });
+    window.addEventListener("click", close);
+    window.addEventListener("contextmenu", close);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("contextmenu", close); };
+  }, [convMenu.visible]);
 
   // Sync chat messages from conversations data — populate local state from DB snapshot.
   const syncChatMessages = (convId: string) => {
@@ -576,6 +634,7 @@ export function ProfileView() {
                           <button
                             key={c.id}
                             onClick={() => openChat(c.id)}
+                            onContextMenu={(e) => handleConvContextMenu(e, c.id)}
                             className={cn(
                               "flex w-full items-center gap-3 px-3 py-2.5 text-left transition border-b border-border/30",
                               activeChatId === c.id ? "bg-[#f0f2f5]" : "hover:bg-[#f5f6f6]"
@@ -601,6 +660,34 @@ export function ProfileView() {
                         ))
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* ===== Conversation context menu (right-click) ===== */}
+                {convMenu.visible && (
+                  <div
+                    className="fixed z-[100] min-w-[180px] overflow-hidden rounded-lg border border-border bg-card py-1 shadow-xl animate-fade-up"
+                    style={{ left: Math.min(convMenu.x, window.innerWidth - 200), top: Math.min(convMenu.y, window.innerHeight - 200) }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={handleBlockUser}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition hover:bg-accent"
+                    >
+                      <Ban className="size-4" /> Blokir Pengguna
+                    </button>
+                    <button
+                      onClick={handleClearChat}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground transition hover:bg-accent"
+                    >
+                      <Eraser className="size-4" /> Bersihkan Chat
+                    </button>
+                    <button
+                      onClick={handleDeleteChat}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition hover:bg-accent"
+                    >
+                      <Trash2 className="size-4" /> Hapus Chat
+                    </button>
                   </div>
                 )}
 
