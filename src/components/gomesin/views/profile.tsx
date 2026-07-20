@@ -367,141 +367,75 @@ export function ProfileView() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 animate-fade-up">
-      {/* breadcrumb */}
-      <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
-        <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
-        <ChevronRight className="size-3" />
-        <span className="text-foreground">{tr("account")}</span>
-      </div>
-
-      {/* Profile Header — compact, full width */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-emerald-600 p-5 text-primary-foreground shadow-lg">
-        <div className="absolute -right-8 -top-8 size-32 rounded-full bg-white/10" />
-        <div className="absolute -bottom-10 right-12 size-20 rounded-full bg-white/10" />
-        <div className="relative flex items-center gap-4">
-          <Avatar className="size-14 border-2 border-white/40">
-            <AvatarFallback className="bg-white/20 text-lg font-bold text-primary-foreground">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            {user ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-bold leading-tight">{user.name}</h1>
-                  {user.role === "admin" && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase">
-                      <ShieldCheck className="size-3" /> Admin
-                    </span>
-                  )}
-                </div>
-                <p className="truncate text-xs text-primary-foreground/80">{user.email}</p>
-                <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-primary-foreground/70">
-                  {user.phone && (
-                    <span className="flex items-center gap-1"><Smartphone className="size-3" /> {user.phone}</span>
-                  )}
-                  {user.city && (
-                    <span className="flex items-center gap-1"><MapPin className="size-3" /> {user.city}</span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <h1 className="text-lg font-bold">Pengguna Gomesin</h1>
-                <p className="text-xs text-primary-foreground/80">{tr("guest")}</p>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="mt-2 bg-white text-primary hover:bg-white/90"
-                  onClick={goToLogin}
-                >
-                  {tr("loginRegister")}
-                </Button>
-              </>
-            )}
+    <div className="flex animate-fade-up">
+      {/* ===== LEFT — SIDEBAR (sticky, like admin panel) ===== */}
+      <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 overflow-y-auto border-r border-border bg-card md:block">
+        {/* User info at top of sidebar */}
+        <div className="border-b border-border p-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="size-10 border-2 border-primary/20">
+              <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold">{user?.name || "Pengguna"}</p>
+              <p className="truncate text-xs text-muted-foreground">{user?.email || "Belum login"}</p>
+            </div>
           </div>
-          {user && (
-            <Button
-              size="sm"
-              className="hidden shrink-0 bg-white text-primary hover:bg-white/90 sm:flex"
-              onClick={goToPost}
-            >
-              <Plus className="size-4" /> Pasang Iklan
-            </Button>
+          {user?.role === "admin" && (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+              <ShieldCheck className="size-3" /> Admin
+            </span>
           )}
         </div>
-      </div>
 
-      {/* Quick Stats — 4 compact cards */}
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {[
-          { label: tr("myFavorites"), value: favCount, icon: Heart, color: "text-rose-500", bg: "bg-rose-50", action: goToFavorites },
-          { label: tr("profMyAds"), value: myAdsCount, icon: Tag, color: "text-primary", bg: "bg-primary/10", action: goToDashboard },
-          { label: tr("messages"), value: unreadCount, icon: MessageSquare, color: "text-blue-500", bg: "bg-blue-50", action: requireLogin(() => setPanel("pesan")) },
-          { label: tr("orders"), value: orders.length, icon: Package, color: "text-amber-500", bg: "bg-amber-50", action: requireLogin(() => setPanel("pesanan")) },
-        ].map((s) => (
-          <button
-            key={s.label}
-            onClick={s.action}
-            className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition hover:border-primary hover:shadow-sm"
-          >
-            <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg", s.bg)}>
-              <s.icon className={cn("size-4", s.color)} />
-            </span>
-            <div className="min-w-0 text-left">
-              <p className="text-xl font-bold leading-tight">{s.value}</p>
-              <p className="truncate text-[11px] text-muted-foreground">{s.label}</p>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* ===== SIDEBAR LAYOUT — menu kiri, konten kanan ===== */}
-      <div className="mt-4 grid gap-4 md:grid-cols-[240px_1fr]">
-        {/* LEFT — Sidebar Menu */}
-        <aside className="space-y-1">
+        {/* Menu items */}
+        <nav className="p-2">
           {/* Section: Iklan & Transaksi */}
-          <p className="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Iklan & Transaksi</p>
+          <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">Iklan & Transaksi</p>
           {[
-            ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), desc: "Statistik user, iklan & omzet", action: goToAdmin, navigate: true }] : []),
-            { icon: Tag, label: tr("profMyAds"), desc: `${myAdsCount} iklan dipasang`, action: () => setPanel("iklan-saya"), navigate: false },
-            { icon: Heart, label: tr("myFavorites"), desc: `${favCount} iklan disimpan`, action: () => setPanel("favorit-saya"), navigate: false },
-            { icon: MessageSquare, label: tr("messages"), desc: `${unreadCount} pesan belum dibaca`, action: () => setPanel("pesan") },
-            { icon: Package, label: tr("orders"), desc: `${orders.length} transaksi`, action: () => setPanel("pesanan") },
-            { icon: Wallet, label: tr("wallet"), desc: "Saldo & metode bayar", action: () => setPanel("saldo") },
+            ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), action: goToAdmin, navigate: true, key: "admin" }] : []),
+            { icon: Tag, label: tr("profMyAds"), action: () => setPanel("iklan-saya"), navigate: false, key: "iklan-saya" },
+            { icon: Heart, label: tr("myFavorites"), action: () => setPanel("favorit-saya"), navigate: false, key: "favorit-saya" },
+            { icon: MessageSquare, label: tr("messages"), action: () => setPanel("pesan"), navigate: false, key: "pesan" },
+            { icon: Package, label: tr("orders"), action: () => setPanel("pesanan"), navigate: false, key: "pesanan" },
+            { icon: Wallet, label: tr("wallet"), action: () => setPanel("saldo"), navigate: false, key: "saldo" },
           ].map((m, i) => {
-            const isActive = (m.label === tr("messages") && panel === "pesan") || (m.label === tr("orders") && panel === "pesanan") || (m.label === tr("wallet") && panel === "saldo") || (m.label === tr("profMyAds") && panel === "iklan-saya") || (m.label === tr("myFavorites") && panel === "favorit-saya");
+            const isActive = panel === m.key;
             return (
               <button
                 key={i}
                 onClick={m.action}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
-                  isActive ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
+                  isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
                 )}
               >
                 <m.icon className="size-4 shrink-0" />
                 <span className="truncate">{m.label}</span>
+                {m.key === "pesan" && unreadCount > 0 && (
+                  <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{unreadCount}</span>
+                )}
               </button>
             );
           })}
 
           {/* Section: Akun & Keamanan */}
-          <p className="px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Akun & Keamanan</p>
+          <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">Akun & Keamanan</p>
           {[
-            { icon: Bell, label: tr("notifications"), desc: `${notifications.length} notifikasi baru`, action: () => setPanel("notifikasi") },
-            { icon: Lock, label: tr("security"), desc: "Verifikasi & privasi", action: () => setPanel("keamanan") },
-            { icon: Settings, label: tr("settings"), desc: "Edit profil & preferensi", action: () => setPanel("pengaturan") },
+            { icon: Bell, label: tr("notifications"), action: () => setPanel("notifikasi"), key: "notifikasi" },
+            { icon: Lock, label: tr("security"), action: () => setPanel("keamanan"), key: "keamanan" },
+            { icon: Settings, label: tr("settings"), action: () => setPanel("pengaturan"), key: "pengaturan" },
           ].map((m, i) => {
-            const isActive = (m.label === tr("notifications") && panel === "notifikasi") || (m.label === tr("security") && panel === "keamanan") || (m.label === tr("settings") && panel === "pengaturan");
+            const isActive = panel === m.key;
             return (
               <button
                 key={i}
                 onClick={m.action}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
-                  isActive ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
+                  isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
                 )}
               >
                 <m.icon className="size-4 shrink-0" />
@@ -511,12 +445,12 @@ export function ProfileView() {
           })}
 
           {/* Section: Bantuan */}
-          <p className="px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Bantuan</p>
+          <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">Bantuan</p>
           <button
             onClick={() => setPanel("bantuan")}
             className={cn(
               "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
-              panel === "bantuan" ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
+              panel === "bantuan" ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
             )}
           >
             <HelpCircle className="size-4 shrink-0" />
@@ -529,9 +463,81 @@ export function ProfileView() {
             <LogOut className="size-4 shrink-0" />
             <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
           </button>
-        </aside>
+        </nav>
+      </aside>
 
-        {/* RIGHT — Content Area */}
+      {/* ===== RIGHT — MAIN CONTENT (like admin panel) ===== */}
+      <main className="min-w-0 flex-1 px-4 py-6 md:px-6">
+        {/* breadcrumb */}
+        <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
+          <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
+          <ChevronRight className="size-3" />
+          <span className="text-foreground">{tr("account")}</span>
+        </div>
+
+        {/* Header — like admin panel */}
+        <div className="mb-5 flex items-center gap-3">
+          <span className="grid size-12 place-items-center rounded-xl bg-primary text-primary-foreground shadow">
+            <User className="size-6" />
+          </span>
+          <div>
+            <h1 className="text-xl font-bold sm:text-2xl">{user?.name || "Akun Gomesin"}</h1>
+            <p className="text-sm text-muted-foreground">{user?.email || "Kelola akun & preferensi Anda"}</p>
+          </div>
+        </div>
+
+        {/* Quick Stats — 4 compact cards */}
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            { label: tr("myFavorites"), value: favCount, icon: Heart, color: "text-rose-500", bg: "bg-rose-50", action: () => setPanel("favorit-saya") },
+            { label: tr("profMyAds"), value: myAdsCount, icon: Tag, color: "text-primary", bg: "bg-primary/10", action: () => setPanel("iklan-saya") },
+            { label: tr("messages"), value: unreadCount, icon: MessageSquare, color: "text-blue-500", bg: "bg-blue-50", action: () => setPanel("pesan") },
+            { label: tr("orders"), value: orders.length, icon: Package, color: "text-amber-500", bg: "bg-amber-50", action: () => setPanel("pesanan") },
+          ].map((s) => (
+            <button
+              key={s.label}
+              onClick={s.action}
+              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition hover:border-primary hover:shadow-sm"
+            >
+              <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg", s.bg)}>
+                <s.icon className={cn("size-4", s.color)} />
+              </span>
+              <div className="min-w-0 text-left">
+                <p className="text-xl font-bold leading-tight">{s.value}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{s.label}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Mobile menu selector (hidden on desktop — sidebar handles it) */}
+        <div className="mb-4 md:hidden">
+          <select
+            value={panel || ""}
+            onChange={(e) => setPanel(e.target.value || null)}
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+          >
+            <option value="">— Pilih Menu —</option>
+            <optgroup label="Iklan & Transaksi">
+              {user?.role === "admin" && <option value="admin">Panel Admin</option>}
+              <option value="iklan-saya">{tr("profMyAds")}</option>
+              <option value="favorit-saya">{tr("myFavorites")}</option>
+              <option value="pesan">{tr("messages")}</option>
+              <option value="pesanan">{tr("orders")}</option>
+              <option value="saldo">{tr("wallet")}</option>
+            </optgroup>
+            <optgroup label="Akun & Keamanan">
+              <option value="notifikasi">{tr("notifications")}</option>
+              <option value="keamanan">{tr("security")}</option>
+              <option value="pengaturan">{tr("settings")}</option>
+            </optgroup>
+            <optgroup label="Bantuan">
+              <option value="bantuan">{tr("help")}</option>
+            </optgroup>
+          </select>
+        </div>
+
+        {/* Content Area */}
         <div className="min-h-[400px] rounded-xl border border-border bg-card">
           {panel !== null ? (
             <div className="h-full">
@@ -1768,7 +1774,7 @@ export function ProfileView() {
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
