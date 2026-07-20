@@ -39,7 +39,6 @@ const ADMIN_MENU = [
   { view: "admin-reports" as const, labelKey: "adminReports", icon: FileText },
   { view: "admin-monthly-report" as const, labelKey: "adminMonthlyReport", icon: Calendar },
   { view: "admin-users" as const, labelKey: "adminUsers", icon: Users },
-  { view: "admin-chat" as const, labelKey: "adminChat", icon: MessageCircle },
   { view: "admin-paket" as const, labelKey: "adminPackages", icon: Crown },
 ];
 

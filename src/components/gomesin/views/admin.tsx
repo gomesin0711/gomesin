@@ -116,7 +116,7 @@ export function AdminView({ initialTab }: { initialTab?: Tab }) {
       {tab === "laporan" && <LaporanTab />}
       {tab === "laporanbulanan" && <MonthlyReportTab />}
       {tab === "audit" && <AuditTab />}
-      {tab === "chat" && <ChatTab />}
+
     </div>
   );
 }
@@ -1969,8 +1969,8 @@ function AuditTab() {
   );
 }
 
-// ============ CHAT TAB ============
-function ChatTab() {
+// ============ CHAT TAB (removed) ============
+function ChatTab_REMOVED() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
