@@ -8,5 +8,10 @@
       "DATABASE_URL": "file:./db/custom.db",
       "FONNTE_API_KEY": "E8ryxtQaPa7ZNXxiXM15"
     }
+  },
+  "functions": {
+    "src/app/api/**": {
+      "maxDuration": 30
+    }
   }
 }
