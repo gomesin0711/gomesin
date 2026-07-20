@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "bun run vercel-build",
+  "installCommand": "bun install",
+  "build": {
+    "env": {
+      "DATABASE_URL": "file:./db/custom.db",
+      "FONNTE_API_KEY": "E8ryxtQaPa7ZNXxiXM15"
+    }
+  }
+}
