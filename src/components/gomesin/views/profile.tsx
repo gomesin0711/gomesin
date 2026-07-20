@@ -72,6 +72,8 @@ type PanelType =
   | "keamanan"
   | "pengaturan"
   | "bantuan"
+  | "iklan-saya"
+  | "favorit-saya"
   | null;
 
 export function ProfileView() {
@@ -360,6 +362,8 @@ export function ProfileView() {
     keamanan: tr("security"),
     pengaturan: tr("settings"),
     bantuan: tr("help"),
+    "iklan-saya": tr("profMyAds"),
+    "favorit-saya": tr("myFavorites"),
   };
 
   return (
@@ -460,18 +464,18 @@ export function ProfileView() {
           {/* Section: Iklan & Transaksi */}
           <p className="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Iklan & Transaksi</p>
           {[
-            ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), desc: "Statistik user, iklan & omzet", action: goToAdmin }] : []),
-            { icon: Tag, label: tr("profMyAds"), desc: `${myAdsCount} iklan dipasang`, action: goToDashboard },
-            { icon: Heart, label: tr("myFavorites"), desc: `${favCount} iklan disimpan`, action: goToFavorites },
+            ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), desc: "Statistik user, iklan & omzet", action: goToAdmin, navigate: true }] : []),
+            { icon: Tag, label: tr("profMyAds"), desc: `${myAdsCount} iklan dipasang`, action: () => setPanel("iklan-saya"), navigate: false },
+            { icon: Heart, label: tr("myFavorites"), desc: `${favCount} iklan disimpan`, action: () => setPanel("favorit-saya"), navigate: false },
             { icon: MessageSquare, label: tr("messages"), desc: `${unreadCount} pesan belum dibaca`, action: () => setPanel("pesan") },
             { icon: Package, label: tr("orders"), desc: `${orders.length} transaksi`, action: () => setPanel("pesanan") },
             { icon: Wallet, label: tr("wallet"), desc: "Saldo & metode bayar", action: () => setPanel("saldo") },
           ].map((m, i) => {
-            const isActive = (m.label === tr("messages") && panel === "pesan") || (m.label === tr("orders") && panel === "pesanan") || (m.label === tr("wallet") && panel === "saldo");
+            const isActive = (m.label === tr("messages") && panel === "pesan") || (m.label === tr("orders") && panel === "pesanan") || (m.label === tr("wallet") && panel === "saldo") || (m.label === tr("profMyAds") && panel === "iklan-saya") || (m.label === tr("myFavorites") && panel === "favorit-saya");
             return (
               <button
                 key={i}
-                onClick={m.action === goToFavorites || m.action === goToDashboard ? m.action : requireLogin(m.action)}
+                onClick={(m as any).navigate ? m.action : requireLogin(m.action)}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
                   isActive ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
@@ -1714,6 +1718,43 @@ export function ProfileView() {
                 </div>
               );
             })()}
+
+            {/* ===== IKLAN SAYA PANEL ===== */}
+            {panel === "iklan-saya" && (
+              <div className="space-y-2">
+                {myAdsCount > 0 ? (
+                  <Button onClick={goToDashboard} className="w-full gap-2">
+                    <Tag className="size-4" /> Kelola {myAdsCount} Iklan
+                  </Button>
+                ) : (
+                  <div className="py-8 text-center">
+                    <Tag className="mx-auto size-8 text-muted-foreground/40" />
+                    <p className="mt-2 text-sm text-muted-foreground">Belum ada iklan dipasang.</p>
+                    <Button size="sm" className="mt-3 gap-1.5" onClick={goToPost}>
+                      <Plus className="size-4" /> Pasang Iklan
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ===== FAVORIT SAYA PANEL ===== */}
+            {panel === "favorit-saya" && (
+              <div className="space-y-2">
+                {favCount > 0 ? (
+                  <Button onClick={goToFavorites} className="w-full gap-2">
+                    <Heart className="size-4" /> Lihat {favCount} Favorit
+                  </Button>
+                ) : (
+                  <div className="py-8 text-center">
+                    <Heart className="mx-auto size-8 text-muted-foreground/40" />
+                    <p className="mt-2 text-sm text-muted-foreground">Belum ada favorit.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Tekan ikon hati pada iklan untuk menyimpan.</p>
+                    <Button size="sm" variant="outline" className="mt-3" onClick={goHome}>Jelajahi Iklan</Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
             </>
           )}
