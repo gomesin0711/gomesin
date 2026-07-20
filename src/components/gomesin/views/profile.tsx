@@ -453,111 +453,95 @@ export function ProfileView() {
         ))}
       </div>
 
-      {/* Menu Sections — grouped, clean grid */}
-      <div className="mt-4 space-y-4">
-        {/* Section: Iklan & Transaksi */}
-        <div>
-          <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Iklan & Transaksi</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {[
-              ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), desc: "Statistik user, iklan & omzet", action: goToAdmin }] : []),
-              { icon: Tag, label: tr("profMyAds"), desc: `${myAdsCount} iklan dipasang`, action: goToDashboard },
-              { icon: Heart, label: tr("myFavorites"), desc: `${favCount} iklan disimpan`, action: goToFavorites },
-              { icon: MessageSquare, label: tr("messages"), desc: `${unreadCount} pesan belum dibaca`, action: () => setPanel("pesan") },
-              { icon: Package, label: tr("orders"), desc: `${orders.length} transaksi`, action: () => setPanel("pesanan") },
-              { icon: Wallet, label: tr("wallet"), desc: "Saldo & metode bayar", action: () => setPanel("saldo") },
-            ].map((m, i) => (
+      {/* ===== SIDEBAR LAYOUT — menu kiri, konten kanan ===== */}
+      <div className="mt-4 grid gap-4 md:grid-cols-[240px_1fr]">
+        {/* LEFT — Sidebar Menu */}
+        <aside className="space-y-1">
+          {/* Section: Iklan & Transaksi */}
+          <p className="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Iklan & Transaksi</p>
+          {[
+            ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), desc: "Statistik user, iklan & omzet", action: goToAdmin }] : []),
+            { icon: Tag, label: tr("profMyAds"), desc: `${myAdsCount} iklan dipasang`, action: goToDashboard },
+            { icon: Heart, label: tr("myFavorites"), desc: `${favCount} iklan disimpan`, action: goToFavorites },
+            { icon: MessageSquare, label: tr("messages"), desc: `${unreadCount} pesan belum dibaca`, action: () => setPanel("pesan") },
+            { icon: Package, label: tr("orders"), desc: `${orders.length} transaksi`, action: () => setPanel("pesanan") },
+            { icon: Wallet, label: tr("wallet"), desc: "Saldo & metode bayar", action: () => setPanel("saldo") },
+          ].map((m, i) => {
+            const isActive = (m.label === tr("messages") && panel === "pesan") || (m.label === tr("orders") && panel === "pesanan") || (m.label === tr("wallet") && panel === "saldo");
+            return (
               <button
                 key={i}
                 onClick={m.action === goToFavorites || m.action === goToDashboard ? m.action : requireLogin(m.action)}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition hover:border-primary hover:shadow-sm"
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
+                  isActive ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
+                )}
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                  <m.icon className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{m.label}</p>
-                  <p className="truncate text-xs text-muted-foreground">{m.desc}</p>
-                </div>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                <m.icon className="size-4 shrink-0" />
+                <span className="truncate">{m.label}</span>
               </button>
-            ))}
-          </div>
-        </div>
+            );
+          })}
 
-        {/* Section: Akun & Keamanan */}
-        <div>
-          <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Akun & Keamanan</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {[
-              { icon: Bell, label: tr("notifications"), desc: `${notifications.length} notifikasi baru`, action: () => setPanel("notifikasi") },
-              { icon: Lock, label: tr("security"), desc: "Verifikasi & privasi", action: () => setPanel("keamanan") },
-              { icon: Settings, label: tr("settings"), desc: "Edit profil & preferensi", action: () => setPanel("pengaturan") },
-            ].map((m, i) => (
+          {/* Section: Akun & Keamanan */}
+          <p className="px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Akun & Keamanan</p>
+          {[
+            { icon: Bell, label: tr("notifications"), desc: `${notifications.length} notifikasi baru`, action: () => setPanel("notifikasi") },
+            { icon: Lock, label: tr("security"), desc: "Verifikasi & privasi", action: () => setPanel("keamanan") },
+            { icon: Settings, label: tr("settings"), desc: "Edit profil & preferensi", action: () => setPanel("pengaturan") },
+          ].map((m, i) => {
+            const isActive = (m.label === tr("notifications") && panel === "notifikasi") || (m.label === tr("security") && panel === "keamanan") || (m.label === tr("settings") && panel === "pengaturan");
+            return (
               <button
                 key={i}
                 onClick={requireLogin(m.action)}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition hover:border-primary hover:shadow-sm"
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
+                  isActive ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
+                )}
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                  <m.icon className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{m.label}</p>
-                  <p className="truncate text-xs text-muted-foreground">{m.desc}</p>
-                </div>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                <m.icon className="size-4 shrink-0" />
+                <span className="truncate">{m.label}</span>
               </button>
-            ))}
-          </div>
-        </div>
+            );
+          })}
 
-        {/* Section: Bantuan */}
-        <div>
-          <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Bantuan</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button
-              onClick={requireLogin(() => setPanel("bantuan"))}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition hover:border-primary hover:shadow-sm"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                <HelpCircle className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{tr("help")}</p>
-                <p className="truncate text-xs text-muted-foreground">FAQ, chat support, kontak</p>
-              </div>
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-            <button
-              onClick={() => {
-                if (user) {
-                  logout();
-                  toast.success(tr("profLogoutSuccess"));
-                  goHome();
-                } else {
-                  goToLogin();
-                }
-              }}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition hover:border-destructive hover:bg-destructive/5"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-destructive/10 text-destructive">
-                <LogOut className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-destructive">{user ? tr("logout") : tr("loginRegister")}</p>
-                <p className="truncate text-xs text-muted-foreground">{user ? tr("profLogoutDesc") : tr("profLoginOrRegisterDesc")}</p>
-              </div>
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-          </div>
-        </div>
-      </div>
+          {/* Section: Bantuan */}
+          <p className="px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Bantuan</p>
+          <button
+            onClick={requireLogin(() => setPanel("bantuan"))}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
+              panel === "bantuan" ? "bg-primary/10 font-semibold text-primary" : "hover:bg-accent"
+            )}
+          >
+            <HelpCircle className="size-4 shrink-0" />
+            <span className="truncate">{tr("help")}</span>
+          </button>
+          <button
+            onClick={() => { if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-destructive transition hover:bg-destructive/5"
+          >
+            <LogOut className="size-4 shrink-0" />
+            <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
+          </button>
+        </aside>
 
-      {/* ===== FUNCTIONAL PANELS (Centered Dialog) ===== */}
-      <Dialog open={panel !== null} onOpenChange={(o) => { if (!o) closePanel(); }}>
-        <DialogContent className="max-h-[90vh] overflow-hidden p-0 sm:max-w-lg">
-          {panel === "pesan" && activeChatId !== null ? (
+        {/* RIGHT — Content Area */}
+        <div className="min-h-[400px] rounded-xl border border-border bg-card">
+          {panel !== null ? (
+            <div className="h-full">
+              {/* Panel header */}
+              <div className="flex items-center justify-between border-b border-border p-3">
+                <h2 className="text-sm font-bold">{panelTitle[panel]}</h2>
+                <button onClick={closePanel} className="grid size-7 place-items-center rounded-full hover:bg-accent">
+                  <X className="size-4" />
+                </button>
+              </div>
+              {/* Panel content */}
+              <div className="max-h-[70vh] overflow-y-auto p-4">
+                {(() => {
+{panel === "pesan" && activeChatId !== null ? (
             /* ===== CHAT CONVERSATION VIEW ===== */
             (() => {
               const conv = conversations.find((c: any) => c.id === activeChatId);
@@ -1733,8 +1717,17 @@ export function ProfileView() {
           </div>
             </>
           )}
-        </DialogContent>
-      </Dialog>
+            })()}
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center py-16 text-center">
+              <Settings className="size-10 text-muted-foreground/30" />
+              <p className="mt-3 text-sm text-muted-foreground">Pilih menu di samping untuk melihat detail</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
