@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -178,16 +178,32 @@ export function PackageActivateDialog({
 
   // Button label: selalu "Upgrade" (dialog hanya dibuka untuk iklan aktif).
   const buttonLabel = "Upgrade";
-  // QRIS amount: harga paket + kode unik. Kode unik di-generate SEKALI per
-  // listing (deterministic berdasarkan listing ID) supaya tidak berubah setiap
-  // render. Format: 2 digit terakhir dari hash listing ID.
-  const uniqueCode = useMemo(() => {
-    const hash = (listing.id || "default").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-    return (hash % 100).toString().padStart(2, "0");
-  }, [listing.id]);
-  const qrisAmount = selectedPkg.price > 0
-    ? selectedPkg.price + parseInt(uniqueCode, 10)
-    : 0;
+  // Kode unik: fetch dari API (stored in DB, unik per user, tidak berubah).
+  const [uniqueCode, setUniqueCode] = useState<number | null>(null);
+  const currentUserId = useStore((s) => s.user?.id);
+
+  useEffect(() => {
+    if (!open || !listing.id || selectedPkg.price <= 0 || !currentUserId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/listings/unique-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ listingId: listing.id, userId: currentUserId, packageType: selectedPackage }),
+        });
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setUniqueCode(data.uniqueCode);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [open, listing.id, currentUserId, selectedPackage, selectedPkg.price]);
+
+  const qrisAmount = selectedPkg.price > 0 && uniqueCode !== null
+    ? selectedPkg.price + uniqueCode
+    : selectedPkg.price;
 
   const handleSubmit = async () => {
     if (needsPayment && !paymentMethod) {

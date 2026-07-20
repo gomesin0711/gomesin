@@ -58,6 +58,7 @@ model Listing {
   status      String    @default("active") // active | sold | rejected
   paymentStatus String  @default("unpaid") // unpaid | paid
   paymentExpiry DateTime?
+  uniqueCode   Int?     // kode unik pembayaran (2 digit, unik per user, tidak berubah)
   packageType  String   @default("gratis") // gratis | premium | bisnis
   violationFlag Boolean @default(false)
   violationReason String?

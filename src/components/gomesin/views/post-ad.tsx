@@ -181,7 +181,7 @@ export function PostAdView() {
     }
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !categoryId || !description || !price || !city || !province) {
       toast.error(tr("completeFields"));
@@ -196,12 +196,24 @@ export function PostAdView() {
     const pk = paketMap[selectedPackage];
     const pkgPrice = pk?.price ?? 0;
     if (pkgPrice > 0 && selectedPackage !== "simpan") {
-      // Kode unik: deterministic berdasarkan title + user ID + timestamp saat submit.
-      // Di-generate SEKALI saja saat user klik submit, tidak berubah lagi.
+      // Kode unik: fetch dari API (unik per user, stored in DB, tidak berubah).
+      // Hanya generate jika belum ada (qrisAmount === 0).
       if (qrisAmount === 0) {
-        const hash = ((title || "") + (user?.id || "")).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-        const uniqueCode = hash % 100;
-        setQrisAmount(pkgPrice + uniqueCode);
+        try {
+          const codeRes = await fetch("/api/listings/unique-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: user?.id, packageType: selectedPackage }),
+          });
+          if (codeRes.ok) {
+            const codeData = await codeRes.json();
+            setQrisAmount(pkgPrice + codeData.uniqueCode);
+          } else {
+            setQrisAmount(pkgPrice);
+          }
+        } catch {
+          setQrisAmount(pkgPrice);
+        }
       }
       setQrisModal(true);
       return;
