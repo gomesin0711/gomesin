@@ -546,79 +546,91 @@ export function ProfileView() {
               <div className="max-h-[70vh] overflow-y-auto p-4">
                 <div>
                 {panel === "pesan" && activeChatId !== null ? (
-            /* ===== CHAT CONVERSATION VIEW ===== */
+            /* ===== CHAT CONVERSATION VIEW (WhatsApp desktop style) ===== */
             (() => {
               const conv = conversations.find((c: any) => c.id === activeChatId);
               if (!conv) return null;
               const convo = chatMessages[activeChatId as any] || [];
               return (
                 <div className="flex h-full flex-col">
-                  {/* chat header */}
-                  <div className="flex items-center gap-3 border-b border-border p-3">
+                  {/* chat header — WhatsApp style */}
+                  <div className="flex items-center gap-3 border-b border-border bg-[#075E54] p-3 text-white">
                     <button
                       onClick={() => setActiveChatId(null)}
-                      className="grid size-8 place-items-center rounded-md hover:bg-accent"
+                      className="grid size-8 place-items-center rounded-md hover:bg-white/10"
                       aria-label={tr("back")}
                     >
                       <ChevronLeft className="size-5" />
                     </button>
-                    <Avatar className="size-10">
-                      <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+                    <Avatar className="size-10 rounded-full">
+                      <AvatarFallback className="bg-white/20 text-xs font-bold text-white">
                         {conv.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
                         <p className="truncate text-sm font-bold">{conv.name}</p>
-                        <BadgeCheck className="size-3.5 shrink-0 text-primary" />
+                        <BadgeCheck className="size-3.5 shrink-0 text-white/70" />
                       </div>
+                      <p className="text-[10px] text-white/60">online</p>
                     </div>
                   </div>
-                  {/* listing card — 120px square image + title + price */}
+                  {/* listing card — compact */}
                   {conv.listingTitle && (
-                    <div className="border-b border-border bg-card p-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="relative size-[120px] shrink-0 overflow-hidden rounded-lg bg-muted">
+                    <div className="border-b border-border bg-card p-2">
+                      <div className="flex items-center gap-2">
+                        <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted">
                           {conv.listingImage ? (
                             <img src={conv.listingImage} alt="" className="size-full object-cover" />
                           ) : (
                             <div className="flex h-full items-center justify-center text-muted-foreground">
-                              <Tag className="size-6" />
+                              <Tag className="size-4" />
                             </div>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="line-clamp-2 text-sm font-semibold text-foreground">{conv.listingTitle}</p>
+                          <p className="truncate text-xs font-semibold text-foreground">{conv.listingTitle}</p>
                           {conv.listingPrice && (
-                            <p className="mt-0.5 text-sm font-bold text-primary">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
+                            <p className="text-xs font-bold text-primary">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
                           )}
-                          <p className="text-[10px] text-muted-foreground">Iklan yang dibahas</p>
                         </div>
                       </div>
                     </div>
                   )}
-                  {/* messages */}
-                  <div ref={chatScrollRef} className="gomesin-scroll flex-1 space-y-2.5 overflow-y-auto bg-muted/20 p-3" style={{ maxHeight: "calc(80vh - 200px)" }}>
+                  {/* messages — WhatsApp chat background */}
+                  <div
+                    ref={chatScrollRef}
+                    className="gomesin-scroll flex-1 space-y-1.5 overflow-y-auto p-3"
+                    style={{
+                      maxHeight: "calc(80vh - 160px)",
+                      backgroundColor: "#e5ddd5",
+                      backgroundImage: "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.03) 1px, transparent 1px)",
+                      backgroundSize: "20px 20px",
+                    }}
+                  >
                     {/* date separator */}
                     <div className="flex justify-center py-1">
-                      <span className="rounded-full bg-secondary px-3 py-0.5 text-[10px] font-medium text-muted-foreground">Hari ini</span>
+                      <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">Hari ini</span>
                     </div>
                     {convo.map((c, i) => (
                       <div key={i} className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
                         <div
                           className={
                             c.role === "user"
-                              ? "max-w-[80%] rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground"
-                              : "max-w-[80%] rounded-2xl rounded-bl-sm border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm"
+                              ? "max-w-[75%] rounded-2xl rounded-br-sm bg-[#dcf8c6] px-3 py-2 text-sm text-foreground shadow-sm"
+                              : "max-w-[75%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-sm text-foreground shadow-sm"
                           }
                         >
                           {c.content}
+                          <span className="ml-2 inline-block text-[9px] text-muted-foreground/60">
+                            {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
                         </div>
                       </div>
                     ))}
                     {chatSending && (
                       <div className="flex justify-start">
-                        <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm border border-border bg-card px-3 py-2.5 shadow-sm">
+                        <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-white px-3 py-2.5 shadow-sm">
                           <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
                           <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
                           <span className="size-2 animate-bounce rounded-full bg-muted-foreground" />
@@ -626,25 +638,25 @@ export function ProfileView() {
                       </div>
                     )}
                   </div>
-                  {/* input */}
+                  {/* input — WhatsApp style */}
                   <form
                     onSubmit={(e) => { e.preventDefault(); sendChat(); }}
-                    className="flex items-center gap-2 border-t border-border p-3"
+                    className="flex items-center gap-2 border-t border-border bg-[#f0f0f0] p-2"
                   >
                     <input
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       placeholder="Tulis pesan..."
-                      className="h-10 flex-1 rounded-full border border-border bg-card px-4 text-sm outline-none focus:border-primary"
+                      className="h-10 flex-1 rounded-full border border-transparent bg-white px-4 text-sm outline-none shadow-sm focus:border-primary"
                       disabled={chatSending}
                     />
                     <Button
                       type="submit"
                       size="icon"
-                      className="size-10 shrink-0 rounded-full bg-primary"
+                      className="size-10 shrink-0 rounded-full bg-[#075E54] hover:bg-[#054c42]"
                       disabled={chatSending || !chatInput.trim()}
                     >
-                      {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                      {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 text-white" />}
                     </Button>
                   </form>
                 </div>
@@ -654,9 +666,9 @@ export function ProfileView() {
             /* ===== DEFAULT PANEL VIEW (list + other panels) ===== */
             <>
               <div className="gomesin-scroll overflow-y-auto px-5 py-4" style={{ maxHeight: "calc(90vh - 70px)" }}>
-                {/* PESAN — list view */}
+                {/* PESAN — conversation list (WhatsApp desktop left panel style) */}
                 {panel === "pesan" && (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {conversations.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 text-center">
                         <MessageSquare className="size-12 text-muted-foreground/40" />
@@ -671,22 +683,24 @@ export function ProfileView() {
                         <button
                           key={c.id}
                           onClick={() => openChat(c.id)}
-                          className="flex w-full items-start gap-3 rounded-lg border border-border bg-card p-3 text-left transition hover:bg-accent"
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-accent"
                         >
-                          <Avatar className="size-10 shrink-0">
-                            <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+                          <Avatar className="size-12 shrink-0 rounded-full">
+                            <AvatarFallback className="bg-[#075E54]/10 text-sm font-bold text-[#075E54]">
                               {c.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 border-b border-border/50 pb-2">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="truncate text-sm font-semibold">{c.name}</p>
+                              <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
                               <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo(c.lastTime, mounted ? lang : "id")}</span>
                             </div>
-                            <p className="truncate text-xs text-muted-foreground">{c.lastMessage}</p>
-                            {c.listingTitle && <p className="mt-0.5 truncate text-[10px] text-primary">{c.listingTitle}</p>}
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-xs text-muted-foreground">{c.lastMessage}</p>
+                              {c.unread > 0 && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#25D366] text-[9px] font-bold text-white">{c.unread}</span>}
+                            </div>
+                            {c.listingTitle && <p className="mt-0.5 truncate text-[10px] text-[#075E54]">{c.listingTitle}</p>}
                           </div>
-                          {c.unread > 0 && <span className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">{c.unread}</span>}
                         </button>
                       ))
                     )}
