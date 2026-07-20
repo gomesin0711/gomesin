@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -178,9 +178,15 @@ export function PackageActivateDialog({
 
   // Button label: selalu "Upgrade" (dialog hanya dibuka untuk iklan aktif).
   const buttonLabel = "Upgrade";
-  // QRIS amount: harga paket + 2 digit random untuk identifikasi pembayaran.
+  // QRIS amount: harga paket + kode unik. Kode unik di-generate SEKALI per
+  // listing (deterministic berdasarkan listing ID) supaya tidak berubah setiap
+  // render. Format: 2 digit terakhir dari hash listing ID.
+  const uniqueCode = useMemo(() => {
+    const hash = (listing.id || "default").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+    return (hash % 100).toString().padStart(2, "0");
+  }, [listing.id]);
   const qrisAmount = selectedPkg.price > 0
-    ? selectedPkg.price + Math.floor(Math.random() * 100)
+    ? selectedPkg.price + parseInt(uniqueCode, 10)
     : 0;
 
   const handleSubmit = async () => {

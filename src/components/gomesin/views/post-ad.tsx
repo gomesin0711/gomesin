@@ -196,10 +196,13 @@ export function PostAdView() {
     const pk = paketMap[selectedPackage];
     const pkgPrice = pk?.price ?? 0;
     if (pkgPrice > 0 && selectedPackage !== "simpan") {
-      // Add 2 random digits to the price for payment identification
-      const randomDigits = Math.floor(Math.random() * 100);
-      const amountWithDigits = pkgPrice + randomDigits;
-      setQrisAmount(amountWithDigits);
+      // Kode unik: deterministic berdasarkan title + user ID + timestamp saat submit.
+      // Di-generate SEKALI saja saat user klik submit, tidak berubah lagi.
+      if (qrisAmount === 0) {
+        const hash = ((title || "") + (user?.id || "")).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+        const uniqueCode = hash % 100;
+        setQrisAmount(pkgPrice + uniqueCode);
+      }
       setQrisModal(true);
       return;
     }
