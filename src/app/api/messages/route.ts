@@ -161,3 +161,39 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+// DELETE /api/messages — clear chat (delete all messages between 2 users for a listing)
+// Body: { userId, partnerId, listingTitle } → delete all messages between them for that listing
+// Body: { messageId } → delete single message
+export async function DELETE(req: NextRequest) {
+  try {
+    const body = await req.json();
+
+    // Delete single message
+    if (body.messageId) {
+      await db.message.delete({ where: { id: body.messageId } });
+      return NextResponse.json({ ok: true, deleted: 1 });
+    }
+
+    // Clear all messages between userId and partnerId for a listing
+    const { userId, partnerId, listingTitle } = body;
+    if (!userId || !partnerId) {
+      return NextResponse.json({ error: "userId dan partnerId wajib" }, { status: 400 });
+    }
+
+    const result = await db.message.deleteMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: partnerId },
+          { senderId: partnerId, receiverId: userId },
+        ],
+        ...(listingTitle ? { listingTitle } : {}),
+      },
+    });
+
+    return NextResponse.json({ ok: true, deleted: result.count });
+  } catch (e: any) {
+    console.error("DELETE /api/messages error", e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
