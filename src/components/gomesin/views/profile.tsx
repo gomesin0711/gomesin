@@ -539,8 +539,8 @@ export function ProfileView() {
           </div>
         </div>
 
-        {/* Quick Stats — 4 compact cards */}
-        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {/* Quick Stats — 4 compact cards (desktop only, hidden on mobile) */}
+        <div className="mb-4 hidden grid-cols-2 gap-2 sm:grid-cols-4 md:grid">
           {[
             { label: tr("myFavorites"), value: favCount, icon: Heart, color: "text-rose-500", bg: "bg-rose-50", action: () => setPanel("favorit-saya") },
             { label: tr("profMyAds"), value: myAdsCount, icon: Tag, color: "text-primary", bg: "bg-primary/10", action: () => setPanel("iklan-saya") },
