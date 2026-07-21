@@ -65,6 +65,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { useChatSocket, type ChatMessage } from "@/lib/use-chat-socket";
+import EmojiPicker, { EmojiStyle, Theme } from "emoji-picker-react";
 
 type PanelType =
   | "pesan"
@@ -860,21 +861,20 @@ export function ProfileView() {
                               <p className="text-xs text-muted-foreground">Gambar siap dikirim</p>
                             </div>
                           )}
-                          {/* Emoji picker popover */}
+                          {/* Emoji picker popover — full emoji library (large native emoji, search, categories) */}
                           {showEmoji && (
-                            <div className="border-t border-border bg-white p-2">
-                              <div className="grid grid-cols-8 gap-1 sm:grid-cols-10">
-                                {["😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","😋","😎","😍","😘","🥰","😗","😙","😚","🙂","🤗","🤩","🤔","🤨","😐","😑","😶","🙄","😏","😣","😥","😮","🤐","😯","😪","😫","🥱","😴","😌","😛","😜","😝","🤤","😒","😓","😔","😕","🙃","🫠","😨","💔","❤️","🧡","💛","💚","💙","💜","🤎","🖤","🤍","❣️","💕","💞","💓","💗","💖","💘","💝","👍","👎","👌","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","👇","✋","🤚","🖐️","🖖","👋","🤝","💪","🙏","✍️","👀","🧠","🫀","🔥","⭐","🌟","✨","⚡","💯","✅","❌","🎉","🎊","🎁","📷","💰","💵","🛒","📦","🔧","⚙️","🏭"].map((e, idx) => (
-                                  <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => { setChatInput((prev) => prev + e); }}
-                                    className="grid size-8 place-items-center rounded-md text-lg hover:bg-accent"
-                                  >
-                                    {e}
-                                  </button>
-                                ))}
-                              </div>
+                            <div className="border-t border-border bg-white">
+                              <EmojiPicker
+                                onEmojiClick={(emoji) => { setChatInput((prev) => prev + emoji.emoji); }}
+                                emojiStyle={EmojiStyle.NATIVE}
+                                theme={Theme.LIGHT}
+                                width="100%"
+                                height={280}
+                                previewConfig={{ showPreview: false }}
+                                searchPlaceHolder="Cari emoji..."
+                                lazyLoadEmojis
+                                skinTonesDisabled
+                              />
                             </div>
                           )}
                           {/* Hidden file input for image attachment */}

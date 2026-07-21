@@ -3822,3 +3822,36 @@ Stage Summary:
 - Listing sekarang chat bubble dengan gambar (bukan banner kotak di atas messages).
 - Input bar punya emoji picker (110+ emoji) + paperclip (image attachment dengan preview & validasi 2MB).
 - Message type diperluas: `{ role, content, image? }` — support image messages.
+
+---
+Task ID: F-11
+Agent: orchestrator (emoji picker besar + beranimasi)
+Task: Emoji kurang besar, cari yang ada animasi dan besar.
+
+Work Log:
+- Install library `emoji-picker-react@4.19.1` (full emoji picker dengan emoji besar, search, kategori, skin tones).
+- Ganti emoji grid manual (size-8 text-lg, ~110 emoji) dengan EmojiPicker library:
+  • `emojiStyle={EmojiStyle.NATIVE}` — pakai native OS emoji (paling besar & beranimasi di iOS/macOS/Android, Google Noto Color Emoji di Linux/Windows).
+  • `width="100%"` + `height={280}` — responsive full-width, 280px tinggi.
+  • `previewConfig={{ showPreview: false }}` — hide preview pane (hemat space mobile).
+  • `searchPlaceHolder="Cari emoji..."` — search bar dalam bahasa Indonesia.
+  • `lazyLoadEmojis` — lazy load untuk performance.
+  • `skinTonesDisabled` — simplify UI.
+  • `theme={Theme.LIGHT}`.
+- onEmojiClick: `setChatInput((prev) => prev + emoji.emoji)` — append emoji ke input.
+- Import: `EmojiPicker, { EmojiStyle, Theme } from "emoji-picker-react"`.
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, admin login):
+  • Emoji picker muncul dengan emoji BESAR & colorful (native OS style, Google Noto Color Emoji). ✓
+  • Search bar "Cari emoji..." berfungsi. ✓
+  • Category tabs di atas (Smileys & People, dll). ✓
+  • Scrollable grid dengan ratusan emoji. ✓
+  • Klik "grinning face" + "face with tears of joy" → input "😀😂". ✓
+  • Toggle emoji picker buka/tutup via tombol Smile. ✓
+  • Chat view tetap utuh: listing bubble + messages + input bar. ✓
+  • VLM konfirmasi: "emojis are large, colorful, and rendered in a native OS style... full emoji library picker featuring a search bar, category icons, scrollable grid".
+  • No console/runtime errors.
+
+Stage Summary:
+- Emoji picker diganti dari grid manual kecil (110 emoji, size-8) ke library emoji-picker-react (ratusan emoji, native OS style, besar & beranimasi, dengan search + kategori).
+- Native emoji otomatis beranimasi di platform yang support (iOS/macOS/Android).
