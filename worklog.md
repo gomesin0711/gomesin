@@ -3704,3 +3704,19 @@ Stage Summary:
 - Menu Pesan di halaman akun sekarang full WhatsApp mobile experience: list chat full-screen → klik chat → chat detail full-screen dengan input di bawah → back arrow kembali ke list.
 - Site header, profile heading, menu selector, bottom nav SEMUA tersembunyi saat di panel Pesan mobile (fixed overlay z-60).
 - Root cause fix: `animate-fade-up` CSS fill-mode `both`→`backwards` agar tidak meninggalkan `transform` yang membuat `position: fixed` rusak. Ini juga memperbaiki potensi bug serupa di view lain yang pakai `animate-fade-up` + fixed overlay.
+
+---
+Task ID: F-8
+Agent: orchestrator (hapus judul Pesan)
+Task: Hapus tulisan "Pesan" di header green bar mobile list chat view.
+
+Work Log:
+- User request: tulisan "Pesan" di atas halaman list chat dihapus.
+- Lokasi: src/components/gomesin/views/profile.tsx mobile green top bar (line ~647) — ada `<h2 className="text-lg font-semibold">{tr("messages")}</h2>` di sebelah back arrow.
+- Fix: hapus `<h2>` heading, biarkan hanya back arrow di green bar. Bar dibuat lebih compact (`px-1 py-2` dari sebelumnya `px-2 py-3 gap-2`).
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, list view): green bar sekarang hanya berisi back button "Kembali" — tidak ada lagi tulisan "Pesan". Search box "Cari chat..." + conversation list (joni) tetap di bawah. Chat detail view tetap menampilkan nama kontak (joni) bukan "Pesan".
+- "Pesan" hanya tersisa di mobile menu selector `<select>` (combobox) yang ada di belakang fixed overlay — tidak terlihat user saat di panel Pesan.
+
+Stage Summary:
+- Header green bar list chat mobile sekarang minimal: hanya back arrow (WhatsApp-style), tanpa judul "Pesan".

@@ -644,12 +644,11 @@ export function ProfileView() {
                       ? "hidden md:flex md:w-[320px] md:shrink-0"
                       : "flex md:w-[320px] md:shrink-0"
                   )}>
-                    {/* Mobile top bar (WhatsApp-style green header with back button) */}
-                    <div className="flex items-center gap-2 bg-[#075E54] px-2 py-3 text-white md:hidden">
-                      <button onClick={closePanel} className="grid size-9 place-items-center rounded-full hover:bg-white/10">
+                    {/* Mobile top bar — WhatsApp green with back button (no title) */}
+                    <div className="flex items-center bg-[#075E54] px-1 py-2 md:hidden">
+                      <button onClick={closePanel} aria-label="Kembali" className="grid size-10 place-items-center rounded-full text-white hover:bg-white/10">
                         <ChevronLeft className="size-5" />
                       </button>
-                      <h2 className="text-lg font-semibold">{tr("messages")}</h2>
                     </div>
                     {/* Search bar */}
                     <div className="border-b border-border bg-[#f0f2f5] p-2">
