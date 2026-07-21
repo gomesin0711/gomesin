@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
       conv.messages.push({
         id: m.id,
         content: m.content,
+        image: m.image || null,
         sent: isSender,
         read: m.read,
         createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : new Date(m.createdAt).toISOString(),
@@ -98,10 +99,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { senderId, receiverId, content, listingId, listingTitle } = body;
+    const { senderId, receiverId, content, image, listingId, listingTitle } = body;
 
-    if (!senderId || !receiverId || !content?.trim()) {
-      return NextResponse.json({ error: "senderId, receiverId, content wajib diisi" }, { status: 400 });
+    if (!senderId || !receiverId || (!content?.trim() && !image)) {
+      return NextResponse.json({ error: "senderId, receiverId, content/image wajib diisi" }, { status: 400 });
     }
     if (senderId === receiverId) {
       return NextResponse.json({ error: "Tidak bisa kirim pesan ke diri sendiri" }, { status: 400 });
@@ -111,7 +112,8 @@ export async function POST(req: NextRequest) {
       data: {
         senderId,
         receiverId,
-        content: content.trim(),
+        content: content?.trim() || "",
+        image: image || null,
         listingId: listingId || null,
         listingTitle: listingTitle || null,
       },
@@ -124,6 +126,7 @@ export async function POST(req: NextRequest) {
         senderId: msg.senderId,
         receiverId: msg.receiverId,
         content: msg.content,
+        image: msg.image || null,
         listingId: msg.listingId,
         listingTitle: msg.listingTitle,
         createdAt: msg.createdAt instanceof Date ? msg.createdAt.toISOString() : new Date(msg.createdAt).toISOString(),

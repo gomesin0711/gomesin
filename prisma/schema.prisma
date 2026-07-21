@@ -98,6 +98,7 @@ model Message {
   listingId   String?
   listingTitle String?
   content     String
+  image       String?
   read        Boolean  @default(false)
   createdAt   DateTime @default(now())
   sender      User     @relation("MessageSender", fields: [senderId], references: [id])

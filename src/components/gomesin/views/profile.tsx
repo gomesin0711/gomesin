@@ -81,6 +81,15 @@ type PanelType =
   | "favorit-saya"
   | null;
 
+// Estimate byte size of a base64 data URL (approx — 4 chars = 3 bytes, minus header).
+function dataUrlBytes(dataUrl: string): number {
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) return 0;
+  const b64 = dataUrl.slice(comma + 1);
+  // base64: 4 chars ≈ 3 bytes
+  return Math.floor((b64.length * 3) / 4);
+}
+
 export function ProfileView() {
   const goToFavorites = useStore((s) => s.goToFavorites);
   const goToListings = useStore((s) => s.goToListings);
@@ -318,6 +327,7 @@ export function ProfileView() {
       const history = [...conv.messages].reverse().map((m: any) => ({
         role: m.sent ? ("user" as const) : ("assistant" as const),
         content: m.content,
+        image: m.image || undefined,
       }));
       setChatMessages((prev) => ({ ...prev, [convId as any]: history }));
     } else if (dbCount === 0 && localCount === 0) {
@@ -355,7 +365,7 @@ export function ProfileView() {
           }
           return {
             ...prev,
-            [conv.id as any]: [...existing, { role: isMine ? "user" : "assistant", content: msg.content }],
+            [conv.id as any]: [...existing, { role: isMine ? "user" : "assistant", content: msg.content, image: msg.image || undefined }],
           };
         });
         // Auto-mark incoming as read since the chat is open.
@@ -409,6 +419,7 @@ export function ProfileView() {
         senderId: user.id,
         receiverId: conv.partnerId,
         content: content || (image ? "📷 Gambar" : ""),
+        image: image || null,
         listingTitle: conv.listingTitle,
       });
       if (!ack?.ok) {
@@ -420,6 +431,7 @@ export function ProfileView() {
             senderId: user.id,
             receiverId: conv.partnerId,
             content: content || (image ? "📷 Gambar" : ""),
+            image: image || null,
             listingTitle: conv.listingTitle,
           }),
         });
@@ -433,22 +445,69 @@ export function ProfileView() {
   };
 
   // Handle image file selection → convert to base64 data URL
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compress image to max 200KB PNG via canvas. Returns base64 data URL.
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new window.Image();
+        img.onload = () => {
+          const MAX_BYTES = 200 * 1024; // 200KB
+          // Start with original dimensions (capped to max 1280px on longest side)
+          const maxDim = 1280;
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            const scale = maxDim / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          // Try decreasing quality (PNG is lossless, so we reduce dimensions to hit <200KB)
+          const tryCompress = (w: number, h: number): string | null => {
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return null;
+            ctx.drawImage(img, 0, 0, w, h);
+            const dataUrl = canvas.toDataURL("image/png");
+            return dataUrl;
+          };
+          let result = tryCompress(width, height);
+          // If still > 200KB, progressively reduce dimensions
+          let curW = width;
+          let curH = height;
+          while (result && dataUrlBytes(result) > MAX_BYTES && curW > 100) {
+            curW = Math.round(curW * 0.8);
+            curH = Math.round(curH * 0.8);
+            result = tryCompress(curW, curH);
+          }
+          resolve(result || "");
+        };
+        img.onerror = reject;
+        img.src = reader.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       toast.error("File harus berupa gambar");
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Ukuran gambar maksimal 2MB");
-      return;
+    try {
+      const compressed = await compressImage(file);
+      if (!compressed) {
+        toast.error("Gagal memproses gambar");
+        return;
+      }
+      setPendingImage(compressed);
+    } catch {
+      toast.error("Gagal memuat gambar");
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPendingImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
     // reset input so same file can be re-selected
     e.target.value = "";
   };
@@ -714,7 +773,14 @@ export function ProfileView() {
         <div className={cn("mb-4 md:hidden", panel === "pesan" && "max-md:hidden")}>
           <select
             value={panel || ""}
-            onChange={(e) => setPanel(e.target.value || null)}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "admin") {
+                goToAdmin();
+              } else {
+                setPanel(v || null);
+              }
+            }}
             className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
           >
             <option value="">— Pilih Menu —</option>

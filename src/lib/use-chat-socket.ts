@@ -29,6 +29,7 @@ export type ChatMessage = {
   senderId: string;
   receiverId: string;
   content: string;
+  image?: string | null;
   listingId: string | null;
   listingTitle: string | null;
   createdAt: string; // ISO
@@ -49,6 +50,7 @@ type MessageSendPayload = {
   senderId: string;
   receiverId: string;
   content: string;
+  image?: string | null;
   listingId?: string | null;
   listingTitle?: string | null;
 };

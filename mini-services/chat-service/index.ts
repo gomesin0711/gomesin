@@ -33,6 +33,7 @@ interface MessagePayload {
   senderId: string
   receiverId: string
   content: string
+  image: string | null
   listingId: string | null
   listingTitle: string | null
   createdAt: string
@@ -63,15 +64,16 @@ io.on('connection', (socket) => {
         senderId: string
         receiverId: string
         content: string
+        image?: string | null
         listingId?: string | null
         listingTitle?: string | null
       },
       ack?: (res: any) => void
     ) => {
       try {
-        const { senderId, receiverId, content, listingId, listingTitle } = data
-        if (!senderId || !receiverId || !content?.trim()) {
-          ack?.({ ok: false, error: 'senderId, receiverId, content wajib' })
+        const { senderId, receiverId, content, image, listingId, listingTitle } = data
+        if (!senderId || !receiverId || (!content?.trim() && !image)) {
+          ack?.({ ok: false, error: 'senderId, receiverId, content/image wajib' })
           return
         }
 
@@ -79,7 +81,8 @@ io.on('connection', (socket) => {
           data: {
             senderId,
             receiverId,
-            content: content.trim(),
+            content: content?.trim() || '',
+            image: image || null,
             listingId: listingId || null,
             listingTitle: listingTitle || null,
           },
@@ -93,6 +96,7 @@ io.on('connection', (socket) => {
           senderId: msg.senderId,
           receiverId: msg.receiverId,
           content: msg.content,
+          image: msg.image || null,
           listingId: msg.listingId,
           listingTitle: msg.listingTitle,
           createdAt,
