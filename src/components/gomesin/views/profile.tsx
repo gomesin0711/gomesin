@@ -132,7 +132,7 @@ export function ProfileView() {
   const conversations: any[] = messagesData?.conversations ?? [];
   const unreadCount = conversations.reduce((a: number, c: any) => a + (c.unread || 0), 0);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
-  const [chatMessages, setChatMessages] = useState<Record<number, { role: "user" | "assistant"; content: string; image?: string; animation?: string }[]>({});
+  const [chatMessages, setChatMessages] = useState<{ [key: number]: { role: "user" | "assistant"; content: string; image?: string; animation?: string }[] }>({});
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -520,7 +520,7 @@ export function ProfileView() {
     }
   };
 
-  const panelTitle: Record<Exclude<PanelType, null>, string> = {
+  const panelTitle: { [K in Exclude<PanelType, null>]: string } = {
     pesan: tr("messages"),
     pesanan: tr("orders"),
     saldo: tr("wallet"),
