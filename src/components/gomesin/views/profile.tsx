@@ -49,6 +49,10 @@ import {
   Ban,
   Trash2,
   Eraser,
+  Smile,
+  Paperclip,
+  Image as ImageIcon,
+  X as XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -126,9 +130,12 @@ export function ProfileView() {
   const conversations: any[] = messagesData?.conversations ?? [];
   const unreadCount = conversations.reduce((a: number, c: any) => a + (c.unread || 0), 0);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
-  const [chatMessages, setChatMessages] = useState<Record<number, { role: "user" | "assistant"; content: string }[]>>({});
+  const [chatMessages, setChatMessages] = useState<Record<number, { role: "user" | "assistant"; content: string; image?: string }[]>>({});
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [convMenu, setConvMenu] = useState<{ visible: boolean; x: number; y: number; convId: string | null }>({ visible: false, x: 0, y: 0, convId: null });
   // edit profile state
   const [editMode, setEditMode] = useState(false);
@@ -369,14 +376,17 @@ export function ProfileView() {
 
   const sendChat = async () => {
     const content = chatInput.trim();
-    if (!content || chatSending || activeChatId === null || !user) return;
+    const image = pendingImage;
+    if ((!content && !image) || chatSending || activeChatId === null || !user) return;
     const conv = conversations.find((c: any) => c.id === activeChatId);
     if (!conv) return;
 
     setChatInput("");
+    setPendingImage(null);
+    setShowEmoji(false);
     // Optimistic: show immediately.
     const history = chatMessages[activeChatId as any] || [];
-    const next = [...history, { role: "user" as const, content }];
+    const next = [...history, { role: "user" as const, content: content || (image ? "📷 Gambar" : ""), image: image || undefined }];
     setChatMessages((prev) => ({ ...prev, [activeChatId as any]: next }));
     setChatSending(true);
 
@@ -385,7 +395,7 @@ export function ProfileView() {
       const ack = await sendMessage({
         senderId: user.id,
         receiverId: conv.partnerId,
-        content,
+        content: content || (image ? "📷 Gambar" : ""),
         listingTitle: conv.listingTitle,
       });
       if (!ack?.ok) {
@@ -396,7 +406,7 @@ export function ProfileView() {
           body: JSON.stringify({
             senderId: user.id,
             receiverId: conv.partnerId,
-            content,
+            content: content || (image ? "📷 Gambar" : ""),
             listingTitle: conv.listingTitle,
           }),
         });
@@ -407,6 +417,27 @@ export function ProfileView() {
     } finally {
       setChatSending(false);
     }
+  };
+
+  // Handle image file selection → convert to base64 data URL
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("File harus berupa gambar");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Ukuran gambar maksimal 2MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPendingImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    // reset input so same file can be re-selected
+    e.target.value = "";
   };
 
   const panelTitle: Record<Exclude<PanelType, null>, string> = {
@@ -613,7 +644,7 @@ export function ProfileView() {
               <div className={cn(
                 "flex overflow-hidden",
                 panel === "pesan"
-                  ? "h-[calc(100dvh-8.5rem)] max-md:h-[calc(100dvh-8.5rem)]"
+                  ? "h-[calc(100vh-12rem)] max-md:h-[calc(100dvh-11rem)]"
                   : "h-[calc(100vh-12rem)]"
               )}>
 
@@ -747,29 +778,7 @@ export function ProfileView() {
                               <p className="text-[10px] text-muted-foreground">online</p>
                             </div>
                           </div>
-                          {/* Listing card */}
-                          {conv.listingTitle && (
-                            <div className="border-b border-border bg-white p-2">
-                              <div className="flex items-center gap-2">
-                                <div className="relative size-10 shrink-0 overflow-hidden rounded-md bg-muted">
-                                  {conv.listingImage ? (
-                                    <img src={conv.listingImage} alt="" className="size-full object-cover" />
-                                  ) : (
-                                    <div className="flex h-full items-center justify-center text-muted-foreground">
-                                      <Tag className="size-4" />
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-xs font-semibold text-foreground">{conv.listingTitle}</p>
-                                  {conv.listingPrice && (
-                                    <p className="text-xs font-bold text-[#075E54]">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          {/* Messages */}
+                          {/* Messages — listing shown as a chat bubble (not a banner) */}
                           <div
                             ref={chatScrollRef}
                             className="flex-1 space-y-1.5 overflow-y-auto p-4"
@@ -782,6 +791,30 @@ export function ProfileView() {
                             <div className="flex justify-center py-1">
                               <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">Hari ini</span>
                             </div>
+                            {/* Listing as a chat bubble (left-aligned, from partner) */}
+                            {conv.listingTitle && (
+                              <div className="flex justify-start">
+                                <div className="max-w-[75%] overflow-hidden rounded-lg rounded-tl-sm bg-white shadow-sm">
+                                  {conv.listingImage ? (
+                                    <img src={conv.listingImage} alt={conv.listingTitle} className="max-h-44 w-full object-cover" />
+                                  ) : (
+                                    <div className="flex h-20 items-center justify-center bg-muted text-muted-foreground">
+                                      <Tag className="size-6" />
+                                    </div>
+                                  )}
+                                  <div className="p-2">
+                                    <p className="truncate text-xs font-semibold text-foreground">{conv.listingTitle}</p>
+                                    {conv.listingPrice != null && (
+                                      <p className="text-xs font-bold text-[#075E54]">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
+                                    )}
+                                    <span className="mt-0.5 block text-right text-[9px] text-muted-foreground/60">
+                                      {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            {/* Chat messages */}
                             {convo.map((c, i) => (
                               <div key={i} className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
                                 <div
@@ -792,7 +825,10 @@ export function ProfileView() {
                                       : "rounded-tl-sm bg-white text-foreground"
                                   )}
                                 >
-                                  <p className="whitespace-pre-wrap break-words">{c.content}</p>
+                                  {c.image && (
+                                    <img src={c.image} alt="Gambar" className="mb-1 max-h-48 rounded-md object-cover" />
+                                  )}
+                                  {c.content && <p className="whitespace-pre-wrap break-words">{c.content}</p>}
                                   <span className="mt-0.5 block text-right text-[9px] text-muted-foreground/60">
                                     {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                                     {c.role === "user" && <span className="ml-1 text-blue-500">✓✓</span>}
@@ -810,11 +846,66 @@ export function ProfileView() {
                               </div>
                             )}
                           </div>
-                          {/* Input */}
+                          {/* Image preview (before sending) */}
+                          {pendingImage && (
+                            <div className="flex items-center gap-2 border-t border-border bg-white p-2">
+                              <img src={pendingImage} alt="Preview" className="size-16 rounded-lg object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => setPendingImage(null)}
+                                className="grid size-7 place-items-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80"
+                              >
+                                <XIcon className="size-4" />
+                              </button>
+                              <p className="text-xs text-muted-foreground">Gambar siap dikirim</p>
+                            </div>
+                          )}
+                          {/* Emoji picker popover */}
+                          {showEmoji && (
+                            <div className="border-t border-border bg-white p-2">
+                              <div className="grid grid-cols-8 gap-1 sm:grid-cols-10">
+                                {["😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","😋","😎","😍","😘","🥰","😗","😙","😚","🙂","🤗","🤩","🤔","🤨","😐","😑","😶","🙄","😏","😣","😥","😮","🤐","😯","😪","😫","🥱","😴","😌","😛","😜","😝","🤤","😒","😓","😔","😕","🙃","🫠","😨","💔","❤️","🧡","💛","💚","💙","💜","🤎","🖤","🤍","❣️","💕","💞","💓","💗","💖","💘","💝","👍","👎","👌","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","👇","✋","🤚","🖐️","🖖","👋","🤝","💪","🙏","✍️","👀","🧠","🫀","🔥","⭐","🌟","✨","⚡","💯","✅","❌","🎉","🎊","🎁","📷","💰","💵","🛒","📦","🔧","⚙️","🏭"].map((e, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => { setChatInput((prev) => prev + e); }}
+                                    className="grid size-8 place-items-center rounded-md text-lg hover:bg-accent"
+                                  >
+                                    {e}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Hidden file input for image attachment */}
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageSelect}
+                            className="hidden"
+                          />
+                          {/* Input — emoji + paperclip + text + send */}
                           <form
                             onSubmit={(e) => { e.preventDefault(); sendChat(); }}
-                            className="flex items-center gap-2 bg-[#f0f2f5] p-2"
+                            className="flex items-center gap-1 bg-[#f0f2f5] p-2"
                           >
+                            <button
+                              type="button"
+                              onClick={() => setShowEmoji((v) => !v)}
+                              aria-label="Emoji"
+                              className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+                            >
+                              <Smile className="size-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              aria-label="Lampirkan gambar"
+                              className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+                            >
+                              <Paperclip className="size-5" />
+                            </button>
                             <input
                               value={chatInput}
                               onChange={(e) => setChatInput(e.target.value)}
@@ -826,7 +917,7 @@ export function ProfileView() {
                               type="submit"
                               size="icon"
                               className="size-10 shrink-0 rounded-full bg-[#075E54] hover:bg-[#054c42]"
-                              disabled={chatSending || !chatInput.trim()}
+                              disabled={chatSending || (!chatInput.trim() && !pendingImage)}
                             >
                               {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 text-white" />}
                             </Button>

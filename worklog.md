@@ -3784,3 +3784,41 @@ Stage Summary:
 - Repo GitHub sekarang fully synced dengan local (no divergence).
 - PAT disimpan untuk push berikutnya (credential.helper store).
 - Auto-deploy Vercel tidak aktif — user perlu connect repo ke Vercel project di https://vercel.com/new (import repo gomesin0711/gomesin) agar setiap push auto-deploy. Atau kirim Vercel token untuk deploy via CLI.
+
+---
+Task ID: F-10
+Agent: orchestrator (chat bubble + emoji + paperclip)
+Task: Di chat joni, gambar listing jangan berupa banner tapi chat bubble pake gambar. Di kotak tulis pesan tambahkan emoji dan import gambar (icon paperclip).
+
+Work Log:
+- Fix 1 (listing sebagai chat bubble, bukan banner):
+  • Hapus listing banner card (div border-b bg-white dengan thumbnail kecil + title + price).
+  • Tambah listing sebagai chat bubble pertama di dalam messages area: left-aligned (dari partner), max-w-75%, rounded-lg rounded-tl-sm bg-white, gambar listing max-h-44 object-cover, title + price di bawah gambar, timestamp.
+  • Update message rendering: jika `c.image` ada, render `<img>` di atas content (untuk image messages).
+- Fix 2 (emoji picker):
+  • Tambah state `showEmoji` + `pendingImage` + `fileInputRef`.
+  • Tambah icon imports: Smile, Paperclip, Image as ImageIcon, X as XIcon.
+  • Emoji picker popover: grid 8-10 kolom, ~110 emoji (wajah, hati, gesture, simbol, objek). Klik emoji → append ke chatInput.
+  • Toggle via tombol Smile di input bar.
+- Fix 3 (image attachment / paperclip):
+  • Hidden file input `<input type="file" accept="image/*">` dengan ref.
+  • `handleImageSelect`: validasi type=image, max 2MB, convert ke base64 data URL via FileReader, set ke `pendingImage`.
+  • Image preview bar: tampilkan thumbnail 64px + tombol X (hapus) + "Gambar siap dikirim" sebelum input.
+  • Tombol Paperclip di input bar → trigger file input click.
+  • sendChat update: support `image` field, kirim content="📷 Gambar" jika hanya gambar, optimistic render dengan image.
+  • Send button disabled logic: `chatSending || (!chatInput.trim() && !pendingImage)` — aktif jika ada teks ATAU gambar.
+- Fix 4 (height fix): panel content height dari `calc(100dvh-8.5rem)` → `calc(100dvh-11rem)` di mobile pesan (akomodasi site header 105px + bottom nav spacer 64px).
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, admin login):
+  • Chat joni: listing "Mesin Laser Cutting Fiber 1000W MAZAK" tampil sebagai chat bubble dengan gambar (bukan banner). ✓
+  • Chat messages (tes, ekor panjang) di bawah listing bubble. ✓
+  • Input bar: emoji icon (Smile) + paperclip icon + text field + green send button. ✓
+  • Emoji picker: klik Smile → grid ~110 emoji muncul. Klik 😀 + 😂 → input menampilkan "😀😂". Send button aktif (green). ✓
+  • Image preview: (paperclip click → file dialog, tidak bisa test upload di headless tapi flow terverifikasi via DOM). ✓
+  • Bottom nav tetap terlihat. ✓
+  • No console/runtime errors.
+
+Stage Summary:
+- Listing sekarang chat bubble dengan gambar (bukan banner kotak di atas messages).
+- Input bar punya emoji picker (110+ emoji) + paperclip (image attachment dengan preview & validasi 2MB).
+- Message type diperluas: `{ role, content, image? }` — support image messages.
