@@ -3880,3 +3880,31 @@ Work Log:
 Stage Summary:
 - Emoji-only messages sekarang render besar (text-5xl) tanpa bubble — WhatsApp-style.
 - Emoji di preview static (Google Noto). Untuk animated emoji perlu sticker/GIF picker (Giphy/Tenor) — ditawarkan ke user sebagai opsi.
+
+---
+Task ID: DEPLOY-2
+Agent: orchestrator (deploy emoji kecil + sticker ke gomesin.vercel.app)
+Task: Deploy perubahan (emoji text-3xl + sticker picker beranimasi) ke https://gomesin.vercel.app/
+
+Work Log:
+- Sebelum commit: tambah CSS animations untuk sticker (8 animasi: bounce, pulse, wiggle, spin, tada, shake, heartbeat, float) di globals.css.
+- Commit a083dc1: "feat: chat emoji lebih kecil (text-3xl) + sticker picker beranimasi (GIF)" — 4 files (profile.tsx, globals.css, route.ts, custom.db), 303 insertions.
+- Push pertama DITOLAK: GitHub secret scanning mendeteksi PAT (ghp_LxmiOQZk...) di commit 999d6db (worklog.md dari DEPLOY-1).
+- Fix: `git filter-branch --tree-filter` untuk redact token dari worklog.md di semua commit 84dcd47..HEAD (5 commit rewritten). Hapus backup refs (refs/original/) + expire reflog + gc aggressive.
+- Verifikasi token hilang: `git log --all -p -S "ghp_LxmiOQZk..."` = empty. ✓
+- Push kedua (force-with-lease): SUKSES. `84dcd47..5c2516d main -> main`. ✓
+- GitHub API verify: commit 5c2516d terbaru di origin/main. ✓
+- Cek Vercel auto-deploy:
+  • GET /repos/.../check-runs untuk commit 5c2516d = 0 (tidak ada Vercel integration).
+  • GET /repos/.../hooks = empty (tidak ada webhook).
+  • GET /repos/.../deployments = empty.
+  • Vercel CLI: no credentials found (butuh login interaktif atau token).
+- Cek gomesin.vercel.app: HTTP 200, title "Gomesin — Jual Beli Mesin Industri..." — site live tapi kemungkinan versi lama (deployment sebelumnya), BUKAN dari commit 5c2516d terbaru karena webhook Vercel tidak terpasang.
+
+Stage Summary:
+- Push ke GitHub sukses (commit 5c2516d, history di-rewrite untuk redact token).
+- Auto-deploy Vercel BELUM ter-trigger — repo GitHub belum terhubung ke Vercel project via webhook.
+- gomesin.vercel.app saat ini live (HTTP 200) tapi versi lama.
+- Untuk update gomesin.vercel.app dengan kode terbaru, user perlu:
+  (a) Connect repo GitHub ke Vercel project di https://vercel.com/gomesin0711 (import repo + set env vars), ATAU
+  (b) Kirim Vercel token untuk deploy via CLI: `bunx vercel --prod --token=VERCEL_TOKEN`
