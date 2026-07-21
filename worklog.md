@@ -3908,3 +3908,27 @@ Stage Summary:
 - Untuk update gomesin.vercel.app dengan kode terbaru, user perlu:
   (a) Connect repo GitHub ke Vercel project di https://vercel.com/gomesin0711 (import repo + set env vars), ATAU
   (b) Kirim Vercel token untuk deploy via CLI: `bunx vercel --prod --token=VERCEL_TOKEN`
+
+---
+Task ID: DEPLOY-3
+Agent: orchestrator (deploy ke gomesin.vercel.app via Vercel CLI)
+Task: Deploy kode terbaru (emoji text-3xl + sticker beranimasi) ke https://gomesin.vercel.app/
+
+Work Log:
+- User berikan Vercel token: [REDACTED-VERCEL-TOKEN].
+- Verify token: `bunx vercel whoami --token` → user `gomesin0711-1596`, plan hobby, team `team_vgpQdeAKV4c1O02dNKubgurT`. ✓
+- List projects via API: project "gomesin" (id: prj_PtVQH3jLvzeTRTdH7wvKX1XH6Rc6) sudah ada, terhubung ke GitHub repo gomesin0711/gomesin, alias gomesin.vercel.app. Latest deployment SHA 88bb0f0 (commit lama).
+- Attempt 1: `bunx vercel --prod --yes --token` → deploy berhasil tapi ke project "my-project" (default), bukan "gomesin". Alias my-project-mu-three-84.vercel.app.
+- Attempt 2: `bunx vercel --prod --yes --token --name gomesin` → sama, masih ke my-project (--name tidak re-route ke existing project).
+- Attempt 3 (SOLUTION): `bunx vercel link --yes --token --project gomesin` → linked to gomesin0711-1596s-projects/gomesin. Created .env.local dengan VERCEL_OIDC_TOKEN.
+- Deploy final: `bunx vercel --prod --yes --token` → Build Completed in 22s, Deploy outputs, alias assigned to **https://gomesin.vercel.app**. ✓ Ready in 52s.
+- Verifikasi production:
+  • GET https://gomesin.vercel.app/ → HTTP 200. ✓
+  • GET https://gomesin.vercel.app/api/gifs → return 24 trending stickers (emoji + animation). ✓
+  • GET https://gomesin.vercel.app/api/gifs?q=senang → return mood-based stickers (Happy/LOL/Starstruck/Party/Cool/Celebrate/Applause/100). ✓
+  • API routes ter-deploy: /api/gifs, /api/messages, /api/listings, /api/admin/*, /api/auth/*, dll.
+
+Stage Summary:
+- **gomesin.vercel.app LIVE dengan kode terbaru** (emoji text-3xl + sticker picker beranimasi + semua fitur chat WhatsApp-style).
+- Vercel project "gomesin" terhubung ke GitHub repo — push ke main selanjutnya akan auto-deploy.
+- Vercel token disimpan untuk deploy berikutnya.
