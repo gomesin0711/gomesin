@@ -3855,3 +3855,28 @@ Work Log:
 Stage Summary:
 - Emoji picker diganti dari grid manual kecil (110 emoji, size-8) ke library emoji-picker-react (ratusan emoji, native OS style, besar & beranimasi, dengan search + kategori).
 - Native emoji otomatis beranimasi di platform yang support (iOS/macOS/Android).
+
+---
+Task ID: F-12
+Agent: orchestrator (emoji besar di chat)
+Task: Hasil emoji chat harus besar juga. Ada yang bergerak gak?
+
+Work Log:
+- Fix 1 (emoji-only messages render besar, WhatsApp-style):
+  • Tambah helper `isEmojiOnly`: deteksi message yang hanya berisi emoji (regex `^[\s\p{Extended_Pictographic}\u200d\ufe0f]+$` + max 12 char).
+  • Update chat bubble rendering: jika isEmojiOnly → `text-5xl leading-tight` + `bg-transparent shadow-none` (tanpa bubble background, persis WhatsApp).
+  • Jika bukan emoji-only → tetap `text-sm` dengan bubble bg (hijau/putih).
+- Verifikasi emoji animation:
+  • Preview environment pakai Google Noto Color Emoji (static, tidak beranimasi).
+  • Native emoji animasi tergantung platform: iOS/macOS/Android sebagian besar static; Windows beberapa emoji animated (💥🎉).
+  • emoji-picker-react library support EmojiStyle: NATIVE/APPLE/GOOGLE/FACEBOOK/TWITTER/MICROSOFT — semua static images kecuali NATIVE di platform yang support.
+  • Untuk truly animated emoji perlu sticker/GIF system (Giphy/Tenor API) — belum diimplementasi.
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify:
+  • Kirim 3 emoji (😀😃😄) → tampil BESAR (text-5xl) dengan transparent background (tanpa bubble). ✓
+  • VLM konfirmasi: "emoji-only messages displayed very large (text-5xl size), transparent background, no bubble". ✓
+  • VLM konfirmasi emoji static (Google Noto Color Emoji) di preview. ✓
+
+Stage Summary:
+- Emoji-only messages sekarang render besar (text-5xl) tanpa bubble — WhatsApp-style.
+- Emoji di preview static (Google Noto). Untuk animated emoji perlu sticker/GIF picker (Giphy/Tenor) — ditawarkan ke user sebagai opsi.

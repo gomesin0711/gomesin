@@ -816,27 +816,47 @@ export function ProfileView() {
                               </div>
                             )}
                             {/* Chat messages */}
-                            {convo.map((c, i) => (
+                            {convo.map((c, i) => {
+                              // Detect emoji-only messages (render big, WhatsApp-style)
+                              const isEmojiOnly = !!c.content && c.content.trim().length > 0 && /^[\s\p{Extended_Pictographic}\u200d\ufe0f]+$/u.test(c.content.trim()) && c.content.trim().length <= 12;
+                              return (
                               <div key={i} className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
                                 <div
                                   className={cn(
-                                    "max-w-[70%] rounded-lg px-3 py-2 text-sm shadow-sm",
-                                    c.role === "user"
-                                      ? "rounded-tr-sm bg-[#dcf8c6] text-foreground"
-                                      : "rounded-tl-sm bg-white text-foreground"
+                                    "rounded-lg shadow-sm",
+                                    isEmojiOnly
+                                      ? cn(
+                                          "px-2 py-1 bg-transparent shadow-none",
+                                          c.role === "user" ? "rounded-tr-sm" : "rounded-tl-sm"
+                                        )
+                                      : cn(
+                                          "max-w-[70%] px-3 py-2 text-sm",
+                                          c.role === "user"
+                                            ? "rounded-tr-sm bg-[#dcf8c6] text-foreground"
+                                            : "rounded-tl-sm bg-white text-foreground"
+                                        )
                                   )}
                                 >
                                   {c.image && (
                                     <img src={c.image} alt="Gambar" className="mb-1 max-h-48 rounded-md object-cover" />
                                   )}
-                                  {c.content && <p className="whitespace-pre-wrap break-words">{c.content}</p>}
-                                  <span className="mt-0.5 block text-right text-[9px] text-muted-foreground/60">
+                                  {c.content && (
+                                    <p className={cn(
+                                      "whitespace-pre-wrap break-words",
+                                      isEmojiOnly ? "text-5xl leading-tight" : ""
+                                    )}>{c.content}</p>
+                                  )}
+                                  <span className={cn(
+                                    "block text-right text-[9px] text-muted-foreground/60",
+                                    isEmojiOnly ? "mt-1" : "mt-0.5"
+                                  )}>
                                     {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                                     {c.role === "user" && <span className="ml-1 text-blue-500">✓✓</span>}
                                   </span>
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                             {chatSending && (
                               <div className="flex justify-start">
                                 <div className="flex items-center gap-1 rounded-lg rounded-tl-sm bg-white px-3 py-2.5 shadow-sm">
