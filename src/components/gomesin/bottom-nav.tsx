@@ -17,12 +17,14 @@ function NavItem({
   active,
   onClick,
   badge,
+  badgeMounted = false,
 }: {
   icon: LucideIcon;
   label: string;
   active: boolean;
   onClick: () => void;
   badge?: number;
+  badgeMounted?: boolean;
 }) {
   return (
     <button
@@ -35,7 +37,7 @@ function NavItem({
         <Icon
           className={cn("size-5", active ? "text-primary" : "text-muted-foreground")}
         />
-        {badge !== undefined && badge > 0 && (
+        {badgeMounted && badge !== undefined && badge > 0 && (
           <span className="absolute -right-2 -top-2 grid min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
             {badge > 99 ? "99+" : badge}
           </span>
@@ -121,6 +123,7 @@ export function BottomNav() {
           active={false}
           onClick={guard(() => goToProfilePanel("pesan"))}
           badge={unreadCount}
+          badgeMounted={mounted}
         />
 
         {/* Center elevated Jual button */}

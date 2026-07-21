@@ -185,7 +185,7 @@ export function Header() {
               aria-label="Favorit"
             >
               <Heart className="size-5" />
-              {favCount > 0 && (
+              {mounted && favCount > 0 && (
                 <Badge className="absolute -right-0.5 -top-0.5 size-4 rounded-full bg-rose-500 p-0 text-[9px] text-white">
                   {favCount}
                 </Badge>
@@ -274,7 +274,7 @@ export function Header() {
             <Home className="size-5" />
             <span className="text-[10px] font-medium leading-none">{tr("home2")}</span>
           </button>
-          {user && (
+          {mounted && user && (
             <button
               onClick={() => goToProfilePanel("pesan")}
               className="relative flex h-10 flex-col items-center justify-center gap-0.5 rounded-lg px-2 text-foreground hover:bg-accent"
@@ -328,14 +328,14 @@ export function Header() {
             aria-label="Favorit"
           >
             <Heart className="size-5" />
-            {favCount > 0 && (
+            {mounted && favCount > 0 && (
               <Badge className="absolute -right-0.5 -top-0.5 size-4 rounded-full bg-rose-500 p-0 text-[9px] text-white">
                 {favCount}
               </Badge>
             )}
           </button>
 
-          {user ? (
+          {mounted && user ? (
             <button
               onClick={goToProfile}
               className="flex h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-foreground hover:bg-accent"
@@ -353,7 +353,7 @@ export function Header() {
               aria-label="Masuk atau Daftar"
             >
               <User className="size-5" />
-              <span className="hidden lg:inline">{user ? user.name.split(" ")[0] : tr("login")}</span>
+              <span className="hidden lg:inline">{tr("login")}</span>
             </button>
           )}
 
