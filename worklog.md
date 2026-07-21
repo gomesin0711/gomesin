@@ -4069,3 +4069,37 @@ Stage Summary:
 - Icon camera ditambahkan di sebelah paperclip (dalam input field) — klik untuk buka kamera langsung (mobile).
 - Notifikasi sound "Go mesin!" (suara teriakan, voice luodo, speed 1.3) berbunyi saat ada pesan masuk (bukan dari sendiri).
 - Production gomesin.vercel.app live dengan semua perubahan.
+
+---
+Task ID: F-18
+Agent: orchestrator (gambar persist + compress + admin mobile fix + deploy)
+Task: Gambar chat hilang saat keluar → simpan ke DB. Compress max 200KB PNG. Admin mobile blank fix. Deploy.
+
+Work Log:
+- Fix 1 (gambar persist di DB):
+  • Schema: tambah `image String?` di Message model. db:push.
+  • API /api/messages: GET return `image` field per message; POST accept `image` param, save to DB.
+  • Socket mini-service: MessagePayload + message:send handler include `image` field, save to DB, broadcast.
+  • use-chat-socket.ts: ChatMessage + MessageSendPayload include `image`.
+  • profile.tsx syncChatMessages: load `image` dari DB ke local state saat buka chat.
+  • profile.tsx socket message:new handler: append `image` ke message.
+  • profile.tsx sendChat: kirim `image` via socket + REST fallback.
+  • Sekarang gambar tersimpan permanen di DB — tidak hilang saat keluar chat.
+- Fix 2 (compress max 200KB PNG):
+  • Tambah `compressImage(file)` — canvas-based, cap max 1280px, convert ke PNG via `canvas.toDataURL("image/png")`.
+  • Progressive dimension reduction (×0.8) sampai < 200KB.
+  • Tambah `dataUrlBytes()` helper (estimasi byte dari base64).
+  • handleImageSelect: pakai compressImage sebelum setPendingImage. Berlaku untuk paperclip (gallery) + camera (capture).
+- Fix 3 (admin mobile blank):
+  • Root cause: di profile mobile, `<option value="admin">Panel Admin</option>` set `panel="admin"`, tapi tidak ada content render untuk panel "admin" (admin = view terpisah, bukan panel).
+  • Fix: onChange handler, jika value="admin" → call `goToAdmin()` (navigate ke admin view), bukan `setPanel("admin")`.
+  • VLM verify: admin panel sekarang tampil dengan statistik (Total User 5, Total Iklan 60, Total Omset Rp 3.299.000).
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14): admin mobile tampil normal dari profile menu. ✓
+- Deploy ke Vercel production: Ready in 53s, aliased gomesin.vercel.app. HTTP 200. ✓
+
+Stage Summary:
+- Gambar chat sekarang persist di DB (tidak hilang saat keluar halaman chat).
+- Gambar/foto otomatis compress max 200KB + convert ke PNG (canvas-based, progressive dimension reduction).
+- Admin panel mobile (dari halaman akun) sekarang menampilkan konten (sebelumnya blank).
+- Production gomesin.vercel.app live.
