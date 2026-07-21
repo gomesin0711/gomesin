@@ -1029,7 +1029,7 @@ export function ProfileView() {
                             onChange={handleImageSelect}
                             className="hidden"
                           />
-                          {/* Input — emoji + paperclip + text + send */}
+                          {/* Input — emoji + sticker (outside) + text field with paperclip inside */}
                           <form
                             onSubmit={(e) => { e.preventDefault(); sendChat(); }}
                             className="flex items-center gap-1 bg-[#f0f2f5] p-2"
@@ -1056,29 +1056,24 @@ export function ProfileView() {
                             >
                               <Sticker className="size-5" />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current?.click()}
-                              aria-label="Lampirkan gambar"
-                              className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
-                            >
-                              <Paperclip className="size-5" />
-                            </button>
-                            <input
-                              value={chatInput}
-                              onChange={(e) => setChatInput(e.target.value)}
-                              placeholder="Tulis pesan..."
-                              className="h-10 flex-1 rounded-lg border border-transparent bg-white px-4 text-sm outline-none shadow-sm"
-                              disabled={chatSending}
-                            />
-                            <Button
-                              type="submit"
-                              size="icon"
-                              className="size-10 shrink-0 rounded-full bg-[#075E54] hover:bg-[#054c42]"
-                              disabled={chatSending || (!chatInput.trim() && !pendingImage)}
-                            >
-                              {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 text-white" />}
-                            </Button>
+                            {/* Text field with paperclip icon inside (right side) */}
+                            <div className="relative flex-1">
+                              <input
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                placeholder="Tulis pesan..."
+                                className="h-10 w-full rounded-lg border border-transparent bg-white pr-10 pl-4 text-sm outline-none shadow-sm"
+                                disabled={chatSending}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                aria-label="Lampirkan gambar"
+                                className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+                              >
+                                {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+                              </button>
+                            </div>
                           </form>
                         </>
                       );
