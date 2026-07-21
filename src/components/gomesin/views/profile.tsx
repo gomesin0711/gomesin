@@ -54,6 +54,7 @@ import {
   Image as ImageIcon,
   X as XIcon,
   Sticker,
+  Camera,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -139,6 +140,7 @@ export function ProfileView() {
   const [showGifs, setShowGifs] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [msgMenu, setMsgMenu] = useState<{ visible: boolean; x: number; y: number; msgIndex: number | null }>({ visible: false, x: 0, y: 0, msgIndex: null });
   const [lightbox, setLightbox] = useState<string | null>(null);
   const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; msgIndex: number | null }>({ timer: null, msgIndex: null });
@@ -335,6 +337,8 @@ export function ProfileView() {
       );
       // Refresh conversation list so last message preview + unread count update.
       queryClient.invalidateQueries({ queryKey: ["messages"] });
+
+      // (Notification sound handled in Header.tsx — global, works in all views)
 
       // If this conversation is currently open in the chat view, append the message.
       if (conv && activeChatId !== null && String(activeChatId) === String(conv.id)) {
@@ -1063,11 +1067,20 @@ export function ProfileView() {
                               </div>
                             </div>
                           )}
-                          {/* Hidden file input for image attachment */}
+                          {/* Hidden file input for image attachment (gallery) */}
                           <input
                             ref={fileInputRef}
                             type="file"
                             accept="image/*"
+                            onChange={handleImageSelect}
+                            className="hidden"
+                          />
+                          {/* Hidden file input for camera capture */}
+                          <input
+                            ref={cameraInputRef}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
                             onChange={handleImageSelect}
                             className="hidden"
                           />
@@ -1087,23 +1100,33 @@ export function ProfileView() {
                             >
                               <Smile className="size-5" />
                             </button>
-                            {/* Text field with paperclip icon inside (right side) */}
+                            {/* Text field with paperclip + camera icons inside (right side) */}
                             <div className="relative flex-1">
                               <input
                                 value={chatInput}
                                 onChange={(e) => setChatInput(e.target.value)}
                                 placeholder="Tulis pesan..."
-                                className="h-10 w-full rounded-lg border border-transparent bg-white pr-10 pl-4 text-sm outline-none shadow-sm"
+                                className="h-10 w-full rounded-lg border border-transparent bg-white pr-20 pl-4 text-sm outline-none shadow-sm"
                                 disabled={chatSending}
                               />
-                              <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                aria-label="Lampirkan gambar"
-                                className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
-                              >
-                                <Paperclip className="size-4" />
-                              </button>
+                              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => fileInputRef.current?.click()}
+                                  aria-label="Lampirkan gambar"
+                                  className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+                                >
+                                  <Paperclip className="size-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => cameraInputRef.current?.click()}
+                                  aria-label="Buka kamera"
+                                  className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+                                >
+                                  <Camera className="size-4" />
+                                </button>
+                              </div>
                             </div>
                             <Button
                               type="submit"

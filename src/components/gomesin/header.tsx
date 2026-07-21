@@ -72,8 +72,20 @@ export function Header() {
   // Realtime: refresh unread count instantly when a new message arrives or a read receipt comes in.
   useEffect(() => {
     if (!user) return;
-    const offNew = subscribe("message:new", () => {
+    const offNew = subscribe("message:new", (msg: any) => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
+      // Play "Go mesin!" notification sound for incoming messages (not from self).
+      if (msg && msg.senderId !== user.id) {
+        try {
+          const audio = new Audio("/sounds/go-mesin.wav");
+          audio.volume = 1;
+          audio.play().catch(() => {
+            // Autoplay may be blocked until user interaction — ignore silently.
+          });
+        } catch {
+          // Audio not available — ignore.
+        }
+      }
     });
     const offRead = subscribe("message:read-update", () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
