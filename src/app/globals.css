@@ -188,3 +188,57 @@
 .animate-fade-up {
   animation: gomesin-fade-up 0.35s ease backwards;
 }
+
+/* ===== Animated sticker emoji (chat) ===== */
+@keyframes sticker-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12%); }
+}
+@keyframes sticker-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+@keyframes sticker-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-12deg); }
+  75% { transform: rotate(12deg); }
+}
+@keyframes sticker-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes sticker-tada {
+  0% { transform: scale(1) rotate(0); }
+  15% { transform: scale(1.2) rotate(-8deg); }
+  30% { transform: scale(0.95) rotate(8deg); }
+  45% { transform: scale(1.15) rotate(-5deg); }
+  60% { transform: scale(1.05) rotate(5deg); }
+  75% { transform: scale(1.1) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes sticker-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8%); }
+  40% { transform: translateX(8%); }
+  60% { transform: translateX(-6%); }
+  80% { transform: translateX(6%); }
+}
+@keyframes sticker-heartbeat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.25); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.25); }
+  60% { transform: scale(1); }
+}
+@keyframes sticker-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8%); }
+}
+.sticker-anim[data-anim="bounce"] { animation: sticker-bounce 1.4s ease-in-out infinite; display: inline-block; }
+.sticker-anim[data-anim="pulse"] { animation: sticker-pulse 1.6s ease-in-out infinite; display: inline-block; }
+.sticker-anim[data-anim="wiggle"] { animation: sticker-wiggle 0.8s ease-in-out infinite; display: inline-block; }
+.sticker-anim[data-anim="spin"] { animation: sticker-spin 2.5s linear infinite; display: inline-block; }
+.sticker-anim[data-anim="tada"] { animation: sticker-tada 1.8s ease-in-out infinite; display: inline-block; }
+.sticker-anim[data-anim="shake"] { animation: sticker-shake 0.6s ease-in-out infinite; display: inline-block; }
+.sticker-anim[data-anim="heartbeat"] { animation: sticker-heartbeat 1.3s ease-in-out infinite; display: inline-block; }
+.sticker-anim[data-anim="float"] { animation: sticker-float 2s ease-in-out infinite; display: inline-block; }

@@ -53,6 +53,7 @@ import {
   Paperclip,
   Image as ImageIcon,
   X as XIcon,
+  Sticker,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -131,12 +132,16 @@ export function ProfileView() {
   const conversations: any[] = messagesData?.conversations ?? [];
   const unreadCount = conversations.reduce((a: number, c: any) => a + (c.unread || 0), 0);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
-  const [chatMessages, setChatMessages] = useState<Record<number, { role: "user" | "assistant"; content: string; image?: string }[]>>({});
+  const [chatMessages, setChatMessages] = useState<Record<number, { role: "user" | "assistant"; content: string; image?: string; animation?: string }[]>({});
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showGifs, setShowGifs] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [gifQuery, setGifQuery] = useState("");
+  const [gifResults, setGifResults] = useState<{ id: string; emoji: string; label: string; animation: string }[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
   const [convMenu, setConvMenu] = useState<{ visible: boolean; x: number; y: number; convId: string | null }>({ visible: false, x: 0, y: 0, convId: null });
   // edit profile state
   const [editMode, setEditMode] = useState(false);
@@ -439,6 +444,80 @@ export function ProfileView() {
     reader.readAsDataURL(file);
     // reset input so same file can be re-selected
     e.target.value = "";
+  };
+
+  // Fetch stickers from /api/gifs — trending by default, search if query
+  const fetchGifs = useCallback(async (q: string) => {
+    setGifLoading(true);
+    try {
+      const url = q ? `/api/gifs?q=${encodeURIComponent(q)}` : "/api/gifs";
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("fail");
+      const data = await res.json();
+      setGifResults(data.stickers || []);
+    } catch {
+      setGifResults([]);
+    } finally {
+      setGifLoading(false);
+    }
+  }, []);
+
+  // Load trending GIFs when GIF picker opens (only once per open)
+  const gifFetchRef = useRef(false);
+  useEffect(() => {
+    if (showGifs && !gifFetchRef.current && gifResults.length === 0) {
+      fetchGifs("");
+      gifFetchRef.current = true;
+    }
+    if (!showGifs) {
+      gifFetchRef.current = false;
+    }
+  }, [showGifs, fetchGifs, gifResults.length]);
+
+  // Debounced GIF search
+  useEffect(() => {
+    if (!showGifs) return;
+    const t = setTimeout(() => {
+      fetchGifs(gifQuery);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [gifQuery, showGifs, fetchGifs]);
+
+  // Send a sticker (animated emoji) as a big animated message
+  const sendGif = async (sticker: { emoji: string; animation: string }) => {
+    if (chatSending || activeChatId === null || !user) return;
+    const conv = conversations.find((c: any) => c.id === activeChatId);
+    if (!conv) return;
+    setShowGifs(false);
+    const history = chatMessages[activeChatId as any] || [];
+    const next = [...history, { role: "user" as const, content: sticker.emoji, animation: sticker.animation }];
+    setChatMessages((prev) => ({ ...prev, [activeChatId as any]: next }));
+    setChatSending(true);
+    try {
+      const ack = await sendMessage({
+        senderId: user.id,
+        receiverId: conv.partnerId,
+        content: sticker.emoji,
+        listingTitle: conv.listingTitle,
+      });
+      if (!ack?.ok) {
+        await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            senderId: user.id,
+            receiverId: conv.partnerId,
+            content: sticker.emoji,
+            listingTitle: conv.listingTitle,
+          }),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+    } catch {
+      toast.error(tr("chatSendFailed"));
+    } finally {
+      setChatSending(false);
+    }
   };
 
   const panelTitle: Record<Exclude<PanelType, null>, string> = {
@@ -843,8 +922,12 @@ export function ProfileView() {
                                   {c.content && (
                                     <p className={cn(
                                       "whitespace-pre-wrap break-words",
-                                      isEmojiOnly ? "text-5xl leading-tight" : ""
-                                    )}>{c.content}</p>
+                                      isEmojiOnly ? "text-3xl leading-tight" : ""
+                                    )}>
+                                      {c.animation ? (
+                                        <span className="sticker-anim inline-block" data-anim={c.animation}>{c.content}</span>
+                                      ) : c.content}
+                                    </p>
                                   )}
                                   <span className={cn(
                                     "block text-right text-[9px] text-muted-foreground/60",
@@ -897,6 +980,47 @@ export function ProfileView() {
                               />
                             </div>
                           )}
+                          {/* GIF / Sticker picker popover — animated emoji stickers */}
+                          {showGifs && (
+                            <div className="flex h-[280px] flex-col border-t border-border bg-white">
+                              <div className="border-b border-border p-2">
+                                <input
+                                  type="text"
+                                  value={gifQuery}
+                                  onChange={(e) => setGifQuery(e.target.value)}
+                                  placeholder="Cari sticker (senang, sedih, halo, cinta, terima)..."
+                                  className="h-8 w-full rounded-lg border border-border bg-muted/30 px-3 text-sm outline-none focus:border-primary"
+                                />
+                              </div>
+                              <div className="flex-1 overflow-y-auto p-2">
+                                {gifLoading && gifResults.length === 0 ? (
+                                  <div className="grid place-items-center py-8 text-muted-foreground">
+                                    <Loader2 className="size-5 animate-spin" />
+                                    <p className="mt-2 text-xs">Memuat sticker...</p>
+                                  </div>
+                                ) : gifResults.length === 0 ? (
+                                  <div className="grid place-items-center py-8 text-center text-muted-foreground">
+                                    <Sticker className="size-8 text-muted-foreground/30" />
+                                    <p className="mt-2 text-xs">Tidak ada sticker ditemukan</p>
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                                    {gifResults.map((g) => (
+                                      <button
+                                        key={g.id}
+                                        type="button"
+                                        onClick={() => sendGif({ emoji: g.emoji, animation: g.animation })}
+                                        title={g.label}
+                                        className="group grid aspect-square place-items-center rounded-lg bg-muted/30 text-3xl transition hover:bg-primary/10 hover:scale-110"
+                                      >
+                                        <span className="sticker-anim" data-anim={g.animation}>{g.emoji}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           {/* Hidden file input for image attachment */}
                           <input
                             ref={fileInputRef}
@@ -912,11 +1036,25 @@ export function ProfileView() {
                           >
                             <button
                               type="button"
-                              onClick={() => setShowEmoji((v) => !v)}
+                              onClick={() => { setShowEmoji((v) => !v); setShowGifs(false); }}
                               aria-label="Emoji"
-                              className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+                              className={cn(
+                                "grid size-10 shrink-0 place-items-center rounded-full hover:bg-black/5",
+                                showEmoji ? "text-[#075E54]" : "text-muted-foreground"
+                              )}
                             >
                               <Smile className="size-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setShowGifs((v) => !v); setShowEmoji(false); }}
+                              aria-label="GIF & Sticker"
+                              className={cn(
+                                "grid size-10 shrink-0 place-items-center rounded-full hover:bg-black/5",
+                                showGifs ? "text-[#075E54]" : "text-muted-foreground"
+                              )}
+                            >
+                              <Sticker className="size-5" />
                             </button>
                             <button
                               type="button"
