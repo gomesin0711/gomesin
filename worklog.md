@@ -4038,3 +4038,34 @@ Stage Summary:
 - Long-press (mobile) / right-click (desktop) message → context menu dengan "Hapus Pesan".
 - Klik gambar di message → lightbox full-screen (bg hitam, image max-h-90vh).
 - Belum di-deploy (menunggu instruksi user).
+
+---
+Task ID: F-17
+Agent: orchestrator (camera icon + notifikasi sound)
+Task: Tambah icon camera di sebelah paperclip. Tambah bunyi notifikasi "go mesin" (suara orang teriak) saat ada pesan. Deploy.
+
+Work Log:
+- Fix 1 (icon camera di sebelah paperclip):
+  • Import `Camera` dari lucide-react.
+  • Tambah `cameraInputRef = useRef<HTMLInputElement>(null)`.
+  • Tambah hidden file input dengan `capture="environment"` (untuk buka kamera langsung di mobile).
+  • Di dalam input field, kanan: paperclip (gallery) + camera (capture) berdampingan, gap-0.5.
+  • Input field padding-right dinaikkan dari `pr-10` → `pr-20` agar teks tidak tertutup 2 icon.
+- Fix 2 (notifikasi sound "Go mesin!"):
+  • Generate audio via TTS skill: `z-ai tts -i "Go mesin!" -o ./public/sounds/go-mesin.wav --voice luodo --speed 1.3` (voice luodo =富有感染力, speed 1.3 = agak cepat seperti teriakan).
+  • File: public/sounds/go-mesin.wav (59KB).
+  • Di header.tsx `subscribe("message:new", (msg) => ...)`: cek `msg.senderId !== user.id` (bukan pesan sendiri), lalu `new Audio("/sounds/go-mesin.wav").play()` dengan catch untuk autoplay block.
+  • Sound di header (global — berfungsi di semua view, bukan hanya saat chat terbuka).
+  • Hapus duplikat sound dari profile.tsx (hindari double play).
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, admin login, chat joni):
+  • Input bar: emoji (😊) kiri + text field dengan paperclip (📎) + camera (📷) di kanan dalam + send button hijau. ✓
+  • VLM konfirmasi: "paperclip and camera icons inside text input field on right, emoji icon on left, send button present". ✓
+  • Audio file accessible: GET /sounds/go-mesin.wav = 200. ✓
+- Deploy ke Vercel production: Ready in 55s, aliased gomesin.vercel.app. ✓
+- Production verify: page HTTP 200, audio HTTP 200. ✓
+
+Stage Summary:
+- Icon camera ditambahkan di sebelah paperclip (dalam input field) — klik untuk buka kamera langsung (mobile).
+- Notifikasi sound "Go mesin!" (suara teriakan, voice luodo, speed 1.3) berbunyi saat ada pesan masuk (bukan dari sendiri).
+- Production gomesin.vercel.app live dengan semua perubahan.
