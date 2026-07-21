@@ -139,6 +139,9 @@ export function ProfileView() {
   const [showGifs, setShowGifs] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [msgMenu, setMsgMenu] = useState<{ visible: boolean; x: number; y: number; msgIndex: number | null }>({ visible: false, x: 0, y: 0, msgIndex: null });
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; msgIndex: number | null }>({ timer: null, msgIndex: null });
   const [gifQuery, setGifQuery] = useState("");
   const [gifResults, setGifResults] = useState<{ id: string; emoji: string; label: string; animation: string }[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
@@ -518,6 +521,33 @@ export function ProfileView() {
     } finally {
       setChatSending(false);
     }
+  };
+
+  // Long-press handlers for message delete
+  const handleMsgLongPressStart = (e: React.MouseEvent | React.TouchEvent, index: number) => {
+    const x = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const y = "touches" in e ? e.touches[0].clientY : e.clientY;
+    longPressRef.current.timer = setTimeout(() => {
+      setMsgMenu({ visible: true, x, y, msgIndex: index });
+    }, 500);
+    longPressRef.current.msgIndex = index;
+  };
+  const handleMsgLongPressEnd = () => {
+    if (longPressRef.current.timer) {
+      clearTimeout(longPressRef.current.timer);
+      longPressRef.current.timer = null;
+    }
+  };
+  const deleteMessage = () => {
+    if (msgMenu.msgIndex === null || activeChatId === null) {
+      setMsgMenu({ visible: false, x: 0, y: 0, msgIndex: null });
+      return;
+    }
+    const history = chatMessages[activeChatId as any] || [];
+    const next = history.filter((_, i) => i !== msgMenu.msgIndex);
+    setChatMessages((prev) => ({ ...prev, [activeChatId as any]: next }));
+    setMsgMenu({ visible: false, x: 0, y: 0, msgIndex: null });
+    toast.success("Pesan dihapus");
   };
 
   const panelTitle: { [K in Exclude<PanelType, null>]: string } = {
@@ -901,8 +931,15 @@ export function ProfileView() {
                               return (
                               <div key={i} className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
                                 <div
+                                  onContextMenu={(e) => { e.preventDefault(); setMsgMenu({ visible: true, x: e.clientX, y: e.clientY, msgIndex: i }); }}
+                                  onTouchStart={(e) => handleMsgLongPressStart(e, i)}
+                                  onTouchEnd={handleMsgLongPressEnd}
+                                  onTouchMove={handleMsgLongPressEnd}
+                                  onMouseDown={(e) => handleMsgLongPressStart(e, i)}
+                                  onMouseUp={handleMsgLongPressEnd}
+                                  onMouseLeave={handleMsgLongPressEnd}
                                   className={cn(
-                                    "rounded-lg shadow-sm",
+                                    "rounded-lg shadow-sm select-none",
                                     isEmojiOnly
                                       ? cn(
                                           "px-2 py-1 bg-transparent shadow-none",
@@ -917,7 +954,12 @@ export function ProfileView() {
                                   )}
                                 >
                                   {c.image && (
-                                    <img src={c.image} alt="Gambar" className="mb-1 max-h-48 rounded-md object-cover" />
+                                    <img
+                                      src={c.image}
+                                      alt="Gambar"
+                                      onClick={() => setLightbox(c.image!)}
+                                      className="mb-1 max-h-48 cursor-pointer rounded-md object-cover transition hover:opacity-90"
+                                    />
                                   )}
                                   {c.content && (
                                     <p className={cn(
@@ -1029,11 +1071,22 @@ export function ProfileView() {
                             onChange={handleImageSelect}
                             className="hidden"
                           />
-                          {/* Input — text field with paperclip inside + send button */}
+                          {/* Input — emoji + text field with paperclip inside + send button */}
                           <form
                             onSubmit={(e) => { e.preventDefault(); sendChat(); }}
-                            className="flex items-center gap-2 bg-[#f0f2f5] p-2"
+                            className="flex items-center gap-1 bg-[#f0f2f5] p-2"
                           >
+                            <button
+                              type="button"
+                              onClick={() => setShowEmoji((v) => !v)}
+                              aria-label="Emoji"
+                              className={cn(
+                                "grid size-10 shrink-0 place-items-center rounded-full hover:bg-black/5",
+                                showEmoji ? "text-[#075E54]" : "text-muted-foreground"
+                              )}
+                            >
+                              <Smile className="size-5" />
+                            </button>
                             {/* Text field with paperclip icon inside (right side) */}
                             <div className="relative flex-1">
                               <input
@@ -1061,6 +1114,44 @@ export function ProfileView() {
                               {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 text-white" />}
                             </Button>
                           </form>
+                          {/* Message context menu (long-press / right-click) — delete */}
+                          {msgMenu.visible && (
+                            <>
+                              <div className="fixed inset-0 z-[70]" onClick={() => setMsgMenu({ visible: false, x: 0, y: 0, msgIndex: null })} />
+                              <div
+                                className="fixed z-[71] min-w-[160px] overflow-hidden rounded-lg border border-border bg-card py-1 shadow-xl animate-fade-up"
+                                style={{ left: Math.min(msgMenu.x, window.innerWidth - 180), top: Math.min(msgMenu.y, window.innerHeight - 100) }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={deleteMessage}
+                                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition hover:bg-accent"
+                                >
+                                  <Trash2 className="size-4" /> Hapus Pesan
+                                </button>
+                              </div>
+                            </>
+                          )}
+                          {/* Image lightbox — click image to view full size */}
+                          {lightbox && (
+                            <div
+                              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-4"
+                              onClick={() => setLightbox(null)}
+                            >
+                              <button
+                                aria-label="Tutup"
+                                className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                              >
+                                <XIcon className="size-6" />
+                              </button>
+                              <img
+                                src={lightbox}
+                                alt="Gambar besar"
+                                className="max-h-[90vh] max-w-full rounded-lg object-contain"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          )}
                         </>
                       );
                     })() : (

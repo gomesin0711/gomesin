@@ -3999,3 +3999,42 @@ Stage Summary:
 - Input bar sekarang: kotak text (dengan paperclip di dalam) + tombol send hijau di kanan.
 - Icon emoji & sticker dihapus dari input bar (emoji/sticker picker code tetap ada tapi tidak ada trigger — bisa dihapus nanti kalau tidak dipakai).
 - Production gomesin.vercel.app live.
+
+---
+Task ID: F-16
+Agent: orchestrator (emoji back + long-press delete + image lightbox)
+Task: Munculkan lagi emoji (bukan GIF). Long-press teks/gambar → tombol delete. Klik gambar → gambar besar. JANGAN deploy.
+
+Work Log:
+- Fix 1 (kembalikan emoji button):
+  • Tambah tombol Emoji (Smile icon) kembali di input bar, sebelum text field.
+  • Toggle `showEmoji` state (emoji picker popover tetap ada dari F-11).
+  • Layout: `[😊] [Tulis pesan... 📎] [➤ send]`.
+- Fix 2 (long-press → delete):
+  • Tambah state `msgMenu` (visible, x, y, msgIndex) + `longPressRef` (timer, msgIndex).
+  • Handler `handleMsgLongPressStart`: 500ms timer → show msgMenu di posisi cursor/touch.
+  • Handler `handleMsgLongPressEnd`: clear timer.
+  • Event handlers di setiap message bubble: onContextMenu (right-click desktop), onTouchStart/onTouchEnd/onTouchMove (mobile long-press), onMouseDown/onMouseUp/onMouseLeave (desktop long-press).
+  • `select-none` class untuk mencegah text selection saat long-press.
+  • Context menu: fixed overlay z-70 + menu z-71 dengan tombol "Hapus Pesan" (Trash2 icon, red).
+  • `deleteMessage`: filter out message by index dari chatMessages state, toast success.
+- Fix 3 (klik gambar → lightbox):
+  • Tambah state `lightbox` (string | null).
+  • Image di message bubble: `onClick={() => setLightbox(c.image!)}` + `cursor-pointer`.
+  • Lightbox modal: fixed inset-0 z-80, bg-black/90, image max-h-90vh object-contain, tombol X (XIcon) untuk tutup, click background untuk tutup.
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, admin login, chat joni):
+  • Emoji button (😊) kembali di input bar. ✓
+  • Send test message "pesan test untuk delete" → message muncul di chat. ✓
+  • Right-click message → context menu "Hapus Pesan" muncul. ✓
+  • Click "Hapus Pesan" → message terhapus (count 6→5), toast "Pesan dihapus". ✓
+  • VLM konfirmasi message "pesan test untuk delete" sudah tidak ada. ✓
+  • No console/runtime errors. ✓
+  • Lightbox: code in place, but tidak ada image message di chat test untuk verify (listing image tidak load di data test).
+- NO DEPLOY per user request.
+
+Stage Summary:
+- Emoji button dikembalikan (hanya emoji, GIF/sticker icon tetap dihapus).
+- Long-press (mobile) / right-click (desktop) message → context menu dengan "Hapus Pesan".
+- Klik gambar di message → lightbox full-screen (bg hitam, image max-h-90vh).
+- Belum di-deploy (menunggu instruksi user).
