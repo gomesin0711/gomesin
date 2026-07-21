@@ -3950,3 +3950,29 @@ Work Log:
 Stage Summary:
 - "Record is not defined" error fixed — semua `Record<K, V>` diganti dengan inline object type `{ [key: K]: V }` atau mapped type.
 - Production gomesin.vercel.app sekarang berfungsi tanpa error runtime.
+
+---
+Task ID: F-14
+Agent: orchestrator (hapus send button, paperclip ke dalam input)
+Task: Tombol send dihapus. Icon paperclip dipindah ke dalam kotak tulis pesan.
+
+Work Log:
+- Restructure chat input form (profile.tsx ~line 1032):
+  • HAPUS tombol Send (Button type="submit" dengan icon Send/Loader2).
+  • PINDAH tombol Paperclip dari luar → DALAM kotak input (absolute right-2 top-1/2, size-7, translate-y-1/2).
+  • Input field: tambah `pr-10` (padding right agar teks tidak tertutup paperclip) + `relative` wrapper div.
+  • Saat chatSending: paperclip icon berubah jadi Loader2 spinner (feedback loading).
+  • Emoji + Sticker icons tetap di luar (kiri input).
+- Kirim pesan sekarang via Enter key (form onSubmit tetap ada, input default type=text → Enter triggers submit).
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, admin login):
+  • Input bar: emoji (😊) + sticker (🎭) di luar kiri, kotak text dengan paperclip (📎) di kanan DALAM kotak. ✓
+  • Tidak ada tombol send hijau. ✓
+  • Ketik "test kirim tanpa tombol" → Enter → message terkirim (input cleared, bubble muncul di chat). ✓
+  • VLM konfirmasi: "No send button, paperclip inside text field on right, emoji+sticker outside on left".
+- Deploy ke Vercel production: Ready in 48s, aliased gomesin.vercel.app. HTTP 200. ✓
+
+Stage Summary:
+- Tombol send dihapus — pesan dikirim via Enter key.
+- Paperclip icon pindah ke dalam kotak tulis pesan (kanan), lebih compact & WhatsApp-style.
+- Production gomesin.vercel.app live dengan perubahan.
