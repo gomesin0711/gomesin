@@ -365,24 +365,7 @@ export function ProfileView() {
     }
   }, [chatMessages, activeChatId, panel]);
 
-  // Lock body scroll when Pesan panel is open on mobile (full-screen chat overlay)
-  useEffect(() => {
-    if (panel !== "pesan" || typeof window === "undefined") return;
-    const mq = window.matchMedia("(max-width: 767px)");
-    const apply = () => {
-      if (mq.matches) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "";
-      }
-    };
-    apply();
-    mq.addEventListener("change", apply);
-    return () => {
-      mq.removeEventListener("change", apply);
-      document.body.style.overflow = "";
-    };
-  }, [panel]);
+  // (body scroll lock removed — Pesan panel now renders inline, not as a fixed overlay)
 
   const sendChat = async () => {
     const content = chatInput.trim();
@@ -539,16 +522,16 @@ export function ProfileView() {
       </aside>
 
       {/* ===== RIGHT — MAIN CONTENT (like admin panel) ===== */}
-      <main className="min-w-0 flex-1 px-4 py-6 md:px-6">
-        {/* breadcrumb */}
-        <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
+      <main className={cn("min-w-0 flex-1 px-4 py-6 md:px-6", panel === "pesan" && "max-md:px-0 max-md:pt-2 max-md:pb-0")}>
+        {/* breadcrumb — hidden on mobile when Pesan (cleaner chat view) */}
+        <div className={cn("mb-4 flex items-center gap-1 text-xs text-muted-foreground", panel === "pesan" && "max-md:hidden")}>
           <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
           <ChevronRight className="size-3" />
           <span className="text-foreground">{tr("account")}</span>
         </div>
 
-        {/* Header — like admin panel */}
-        <div className="mb-5 flex items-center gap-3">
+        {/* Header — hidden on mobile when Pesan (cleaner chat view) */}
+        <div className={cn("mb-5 flex items-center gap-3", panel === "pesan" && "max-md:hidden")}>
           <span className="grid size-12 place-items-center rounded-xl bg-primary text-primary-foreground shadow">
             <User className="size-6" />
           </span>
@@ -609,14 +592,14 @@ export function ProfileView() {
           </select>
         </div>
 
-        {/* Content Area — on mobile, Pesan panel renders as a fixed full-screen overlay so we hide the card chrome */}
+        {/* Content Area */}
         <div className={cn(
           "min-h-[400px] rounded-xl border border-border bg-card",
-          panel === "pesan" && "max-md:border-0 max-md:p-0 max-md:min-h-0"
+          panel === "pesan" && "max-md:rounded-none max-md:border-0"
         )}>
           {panel !== null ? (
             <div className="h-full">
-              {/* Panel header — hidden on mobile when Pesan (the WhatsApp green bar replaces it) */}
+              {/* Panel header — hidden on mobile when Pesan */}
               <div className={cn(
                 "flex items-center justify-between border-b border-border p-3",
                 panel === "pesan" && "max-md:hidden"
@@ -626,11 +609,11 @@ export function ProfileView() {
                   <X className="size-4" />
                 </button>
               </div>
-              {/* Panel content — WhatsApp split view (desktop) / full-screen overlay (mobile Pesan) */}
+              {/* Panel content — WhatsApp split view (desktop) / inline full-width (mobile Pesan) */}
               <div className={cn(
                 "flex overflow-hidden",
                 panel === "pesan"
-                  ? "max-md:h-screen max-md:fixed max-md:inset-0 max-md:z-[60] h-[calc(100vh-12rem)]"
+                  ? "h-[calc(100dvh-8.5rem)] max-md:h-[calc(100dvh-8.5rem)]"
                   : "h-[calc(100vh-12rem)]"
               )}>
 
@@ -638,18 +621,10 @@ export function ProfileView() {
                 {panel === "pesan" && (
                   <div className={cn(
                     "flex-col border-r border-border bg-card w-full",
-                    // Mobile: full width when no chat open; hidden when a chat is open (chat pane takes over)
-                    // Desktop: 320px sidebar always visible
                     activeChatId !== null
                       ? "hidden md:flex md:w-[320px] md:shrink-0"
                       : "flex md:w-[320px] md:shrink-0"
                   )}>
-                    {/* Mobile top bar — WhatsApp green with back button (no title) */}
-                    <div className="flex items-center bg-[#075E54] px-1 py-2 md:hidden">
-                      <button onClick={closePanel} aria-label="Kembali" className="grid size-10 place-items-center rounded-full text-white hover:bg-white/10">
-                        <ChevronLeft className="size-5" />
-                      </button>
-                    </div>
                     {/* Search bar */}
                     <div className="border-b border-border bg-[#f0f2f5] p-2">
                       <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 shadow-sm">
@@ -750,26 +725,26 @@ export function ProfileView() {
                       const convo = chatMessages[activeChatId as any] || [];
                       return (
                         <>
-                          {/* Chat header — WhatsApp green on mobile, light gray on desktop */}
-                          <div className="flex items-center gap-2 bg-[#075E54] p-2.5 text-white md:gap-3 md:border-b md:border-border md:bg-[#f0f2f5] md:text-foreground">
+                          {/* Chat header — light gray, back arrow on mobile only */}
+                          <div className="flex items-center gap-2 border-b border-border bg-[#f0f2f5] p-2.5">
                             <button
                               onClick={() => setActiveChatId(null)}
                               aria-label="Kembali"
-                              className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-white/10 md:hidden"
+                              className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-black/5 md:hidden"
                             >
                               <ChevronLeft className="size-5" />
                             </button>
                             <Avatar className="size-9 shrink-0 rounded-full md:size-10">
-                              <AvatarFallback className="bg-white/20 text-xs font-bold text-white md:bg-[#075E54]/10 md:text-[#075E54]">
+                              <AvatarFallback className="bg-[#075E54]/10 text-xs font-bold text-[#075E54]">
                                 {conv.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1">
-                                <p className="truncate text-sm font-bold">{conv.name}</p>
-                                <BadgeCheck className="size-3.5 shrink-0 text-white/80 md:text-[#075E54]" />
+                                <p className="truncate text-sm font-bold text-foreground">{conv.name}</p>
+                                <BadgeCheck className="size-3.5 shrink-0 text-[#075E54]" />
                               </div>
-                              <p className="text-[10px] text-white/70 md:text-muted-foreground">online</p>
+                              <p className="text-[10px] text-muted-foreground">online</p>
                             </div>
                           </div>
                           {/* Listing card */}
