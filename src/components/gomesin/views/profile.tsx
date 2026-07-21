@@ -1029,33 +1029,11 @@ export function ProfileView() {
                             onChange={handleImageSelect}
                             className="hidden"
                           />
-                          {/* Input — emoji + sticker (outside) + text field with paperclip inside */}
+                          {/* Input — text field with paperclip inside + send button */}
                           <form
                             onSubmit={(e) => { e.preventDefault(); sendChat(); }}
-                            className="flex items-center gap-1 bg-[#f0f2f5] p-2"
+                            className="flex items-center gap-2 bg-[#f0f2f5] p-2"
                           >
-                            <button
-                              type="button"
-                              onClick={() => { setShowEmoji((v) => !v); setShowGifs(false); }}
-                              aria-label="Emoji"
-                              className={cn(
-                                "grid size-10 shrink-0 place-items-center rounded-full hover:bg-black/5",
-                                showEmoji ? "text-[#075E54]" : "text-muted-foreground"
-                              )}
-                            >
-                              <Smile className="size-5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setShowGifs((v) => !v); setShowEmoji(false); }}
-                              aria-label="GIF & Sticker"
-                              className={cn(
-                                "grid size-10 shrink-0 place-items-center rounded-full hover:bg-black/5",
-                                showGifs ? "text-[#075E54]" : "text-muted-foreground"
-                              )}
-                            >
-                              <Sticker className="size-5" />
-                            </button>
                             {/* Text field with paperclip icon inside (right side) */}
                             <div className="relative flex-1">
                               <input
@@ -1071,9 +1049,17 @@ export function ProfileView() {
                                 aria-label="Lampirkan gambar"
                                 className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
                               >
-                                {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+                                <Paperclip className="size-4" />
                               </button>
                             </div>
+                            <Button
+                              type="submit"
+                              size="icon"
+                              className="size-10 shrink-0 rounded-full bg-[#075E54] hover:bg-[#054c42]"
+                              disabled={chatSending || (!chatInput.trim() && !pendingImage)}
+                            >
+                              {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 text-white" />}
+                            </Button>
                           </form>
                         </>
                       );
