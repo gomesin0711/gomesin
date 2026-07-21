@@ -3720,3 +3720,36 @@ Work Log:
 
 Stage Summary:
 - Header green bar list chat mobile sekarang minimal: hanya back arrow (WhatsApp-style), tanpa judul "Pesan".
+
+---
+Task ID: F-9
+Agent: orchestrator (hapus greenbar + kembalikan bottom nav + hapus kotak menu)
+Task: (1) Hapus green bar + tombol back di list view mobile. (2) Kembalikan bottom nav yang tersembunyi. (3) Hapus kotak menu (dropdown selector) di atas nama joni.
+
+Work Log:
+- Revert fixed overlay approach (F-7) — user ingin bottom nav tetap terlihat, chat inline (bukan full-screen overlay).
+- Fix 1 (hapus fixed overlay): panel content wrapper dari `max-md:h-screen max-md:fixed max-md:inset-0 max-md:z-[60]` → `h-[calc(100dvh-8.5rem)]` (inline, mengikuti flow normal). Bottom nav (z-50) sekarang terlihat di bawah.
+- Fix 2 (hapus green bar + back button di list view): hapus mobile green top bar (`<div className="bg-[#075E54]...">` dengan ChevronLeft + closePanel). List view sekarang langsung diawali search box "Cari chat...".
+- Fix 3 (chat detail header): hapus green WhatsApp style, kembalikan ke light gray `bg-[#f0f2f5]` dengan back arrow subtle (`hover:bg-black/5`) — back arrow tetap ada (mobile only) untuk kembali dari chat detail ke list.
+- Fix 4 (hide profile chrome di mobile pesan):
+  • `<main>`: `panel === "pesan" && "max-md:px-0 max-md:pt-2 max-md:pb-0"` — hapus padding.
+  • Breadcrumb: `panel === "pesan" && "max-md:hidden"`.
+  • Profile header (nama "Admin Gomesin"): `panel === "pesan" && "max-md:hidden"`.
+  • Content area card: `panel === "pesan" && "max-md:rounded-none max-md:border-0"`.
+  • Panel header (heading "Pesan" + X): `panel === "pesan" && "max-md:hidden"`.
+- Fix 5 (hapus body scroll-lock useEffect) — tidak diperlukan lagi karena inline (bukan overlay).
+- Fix 6 (ROOT — hapus kotak menu dropdown di atas nama):
+  • Mobile menu selector `<select>` (dropdown "Pesan"): `panel === "pesan" && "max-md:hidden"` — sembunyikan saat di panel Pesan.
+  • Ini kotak menu yang muncul di atas chat (antara site header dan area chat dengan nama "joni").
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, 390×844):
+  • List view: site header (logo+search) → search "Cari chat..." → conversation (joni) → bottom nav (Home/Chat/Jual/Iklan saya/Akun saya). Tidak ada green bar, tidak ada dropdown "Pesan". ✓
+  • Chat detail: site header → chat header (back arrow + "joni" + online) → listing card → messages → input "Tulis pesan..." → bottom nav. Tidak ada green bar, tidak ada dropdown menu. ✓
+  • Back arrow di chat detail berfungsi (kembali ke list). ✓
+  • VLM konfirmasi: "A dropdown menu box is visible near the top" → setelah fix, dropdown "Pesan" hilang.
+
+Stage Summary:
+- Green bar + back button di list view mobile dihapus.
+- Bottom nav dikembalikan (chat inline, bukan fixed overlay).
+- Kotak menu dropdown "Pesan" di atas nama joni dihapus di mobile.
+- Chat tetap full WhatsApp-style (list ↔ detail switching via activeChatId), tapi sekarang coexist dengan bottom nav.

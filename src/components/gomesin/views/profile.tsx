@@ -565,8 +565,8 @@ export function ProfileView() {
           ))}
         </div>
 
-        {/* Mobile menu selector (hidden on desktop — sidebar handles it) */}
-        <div className="mb-4 md:hidden">
+        {/* Mobile menu selector (hidden on desktop — sidebar handles it; hidden on mobile when in Pesan chat) */}
+        <div className={cn("mb-4 md:hidden", panel === "pesan" && "max-md:hidden")}>
           <select
             value={panel || ""}
             onChange={(e) => setPanel(e.target.value || null)}
