@@ -3666,3 +3666,41 @@ Work Log:
 
 Stage Summary:
 - JSX parsing error at profile.tsx:1763 resolved; profile sidebar layout fully functional. No panel content logic changed — only JSX opening/closing tags fixed plus removal of orphaned Dialog chrome (DialogHeader/DialogTitle) left over from the incomplete refactor.
+
+---
+Task ID: F-7
+Agent: orchestrator (WhatsApp mobile chat)
+Task: Halaman akun → menu Pesan → di tampilan mobile dibuat sama dengan aplikasi WhatsApp mobile (full-screen, list chat ↔ chat detail, input di bawah).
+
+Work Log:
+- Analisis struktur profile.tsx panel pesan: sebelumnya layout split-view WhatsApp Web (list kiri 320px + chat kanan). Chat detail pane pakai `hidden md:flex` → di mobile tidak pernah muncul. List pane `w-full md:w-[320px]` → di mobile selalu tampil.
+- Fix 1 (mobile list ↔ chat detail switching):
+  • List pane: `activeChatId !== null ? "hidden md:flex" : "flex"` — saat chat dibuka, list disembunyikan di mobile.
+  • Chat detail pane: `activeChatId !== null ? "flex" : "hidden md:flex"` — saat chat dibuka, detail muncul full-screen di mobile.
+- Fix 2 (full-screen overlay menghapus elemen lain):
+  • Panel content wrapper: `panel === "pesan" ? "max-md:h-screen max-md:fixed max-md:inset-0 max-md:z-[60] h-[calc(100vh-12rem)]" : "h-[calc(100vh-12rem)]"` — di mobile, wrapper jadi fixed overlay full-screen z-60 menutup site header (z-40) + bottom nav (z-50).
+  • Content area card chrome: `panel === "pesan" && "max-md:border-0 max-md:p-0 max-md:min-h-0"` — hilangkan border/padding kartu di mobile.
+  • Panel header (heading "Pesan" + X): `panel === "pesan" && "max-md:hidden"` — hilangkan duplikat heading di mobile.
+  • Mobile green top bar (WhatsApp-style): `<div className="bg-[#075E54] px-2 py-3 text-white md:hidden">` dengan back button (ChevronLeft → closePanel).
+- Fix 3 (chat header WhatsApp green di mobile):
+  • Chat header: `bg-[#075E54] text-white md:bg-[#f0f2f5] md:text-foreground` — green di mobile, light gray di desktop.
+  • Back button (ChevronLeft): `md:hidden` dengan aria-label="Kembali".
+  • Avatar fallback: `bg-white/20 text-white md:bg-[#075E54]/10 md:text-[#075E54]`.
+- Fix 4 (ROOT CAUSE — fixed overlay tidak menutup header):
+  • Gejala: setelah `max-md:fixed max-md:inset-0 z-[60]`, site header masih terlihat di belakang. VLM konfirmasi.
+  • Root cause: `animate-fade-up` (globals.css) pakai `animation: gomesin-fade-up 0.35s ease both` dengan keyframe `to { transform: translateY(0) }`. Fill-mode `both` (=`forwards`) mempertahankan `transform: translateY(0)` setelah animasi selesai. `transform` ≠ `none` pada ancestor manapun membuat `position: fixed` menjadi relative ke ancestor tersebut, BUKAN viewport.
+  • Profile root div (line 442): `<div className="flex animate-fade-up">` — ancestor dari fixed overlay → containing block.
+  • Fix: globals.css `animation: gomesin-fade-up 0.35s ease both` → `backwards`. Dengan `backwards`, setelah animasi selesai element kembali ke natural computed style (transform: none), sehingga `position: fixed` kembali relative ke viewport. Animasi entrance tetap berjalan (from-state apply during delay).
+  • Verifikasi: `getComputedStyle(document.querySelector(".animate-fade-up")).transform` = "none" ✓. Fixed overlay: position=fixed, top=0, left=0, width=390, height=844, z-index=60 ✓.
+- Fix 5 (body scroll lock): useEffect lock `document.body.style.overflow = "hidden"` saat `panel === "pesan"` di mobile (matchMedia max-width: 767px), unlock saat unmount/panel change.
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, logged in as admin):
+  • List view: green WhatsApp header "Pesan" + back arrow, search box, 1 conversation (joni). Hanya SATU "Pesan" heading (duplikat hilang). Site header & bottom nav hidden. ✓
+  • Click joni → chat detail full-screen: green header "joni" + online + back arrow, listing card (Mesin Laser Cutting Rp 485jt), chat bubbles (tes, ekor panjang), input "Tulis pesan..." + green send button di bawah. Site header & bottom nav hidden. ✓
+  • Click back arrow → return to list. ✓
+  • No console/runtime errors.
+
+Stage Summary:
+- Menu Pesan di halaman akun sekarang full WhatsApp mobile experience: list chat full-screen → klik chat → chat detail full-screen dengan input di bawah → back arrow kembali ke list.
+- Site header, profile heading, menu selector, bottom nav SEMUA tersembunyi saat di panel Pesan mobile (fixed overlay z-60).
+- Root cause fix: `animate-fade-up` CSS fill-mode `both`→`backwards` agar tidak meninggalkan `transform` yang membuat `position: fixed` rusak. Ini juga memperbaiki potensi bug serupa di view lain yang pakai `animate-fade-up` + fixed overlay.
