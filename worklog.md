@@ -3976,3 +3976,26 @@ Stage Summary:
 - Tombol send dihapus — pesan dikirim via Enter key.
 - Paperclip icon pindah ke dalam kotak tulis pesan (kanan), lebih compact & WhatsApp-style.
 - Production gomesin.vercel.app live dengan perubahan.
+
+---
+Task ID: F-15
+Agent: orchestrator (kembalikan send, hapus emoji/gif icon)
+Task: Munculkan tombol send lagi di kanan. Icon emoji & GIF dihapus dari input bar.
+
+Work Log:
+- Restructure chat input form (profile.tsx ~line 1032):
+  • HAPUS tombol Emoji (Smile icon) dari input bar.
+  • HAPUS tombol GIF & Sticker (Sticker icon) dari input bar.
+  • KEMBALIKAN tombol Send (Button type="submit", size-10, rounded-full, bg-[#075E54], icon Send/Loader2) di kanan.
+  • Paperclip tetap di DALAM kotak input (kanan, absolute positioned).
+  • Layout: `[kotak input dengan paperclip di dalam]  [send button hijau]`.
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, admin login, chat joni):
+  • DOM: no "Emoji"/"GIF & Sticker" buttons, send button present (disabled saat input kosong, active saat ada text). ✓
+  • VLM: "teal/green circular send button on right, paperclip inside text field, no emoji/sticker icons outside". ✓
+- Deploy ke Vercel production: Ready in 50s, aliased gomesin.vercel.app. HTTP 200. ✓
+
+Stage Summary:
+- Input bar sekarang: kotak text (dengan paperclip di dalam) + tombol send hijau di kanan.
+- Icon emoji & sticker dihapus dari input bar (emoji/sticker picker code tetap ada tapi tidak ada trigger — bisa dihapus nanti kalau tidak dipakai).
+- Production gomesin.vercel.app live.
