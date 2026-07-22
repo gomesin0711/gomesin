@@ -816,11 +816,11 @@ export function ProfileView() {
 
         {/* (mobile dropdown menu removed — replaced by hamburger drawer above) */}
 
-        {/* Content Area — full page for iklan-saya, favorit-saya, saldo, keamanan, pengaturan, bantuan, pesan; card for others */}
+        {/* Content Area — full page (no card border) for iklan-saya, favorit-saya, saldo, keamanan, pengaturan, bantuan, pesan; card for others */}
         <div className={cn(
           "min-h-[400px]",
           (panel === "pesan" || panel === "iklan-saya" || panel === "favorit-saya" || panel === "saldo" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan")
-            ? "max-md:rounded-none max-md:border-0 max-md:p-0"
+            ? "rounded-none border-0 p-0 bg-transparent"
             : "rounded-xl border border-border bg-card"
         )}>
           {panel !== null ? (
@@ -1305,7 +1305,7 @@ export function ProfileView() {
               const totalOut = transactions.filter((t) => t.amount < 0).reduce((a, t) => a + Math.abs(t.amount), 0);
 
               return (
-                <div className="mx-auto max-w-4xl space-y-5 p-4 md:p-8">
+                <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
                   {/* Balance Card */}
                   <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-emerald-600 p-6 text-primary-foreground shadow-lg md:p-8">
                     <div className="absolute -right-8 -top-8 size-28 rounded-full bg-white/10 md:size-40" />
@@ -1559,7 +1559,7 @@ export function ProfileView() {
               ];
 
               return (
-                <div className="mx-auto max-w-4xl space-y-5 p-4 md:p-8">
+                <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
                   {/* Security Score Card */}
                   <div className="rounded-xl border border-border bg-gradient-to-br from-primary/5 to-emerald-500/5 p-5 md:p-6">
                     <div className="flex items-center justify-between">
@@ -1789,7 +1789,7 @@ export function ProfileView() {
 
             {/* PENGATURAN */}
             {panel === "pengaturan" && (
-              <div className="mx-auto max-w-4xl space-y-5 p-4 md:p-8">
+              <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
                 <div className="rounded-xl border border-border bg-card p-5 md:p-6">
                   <div className="mb-4 flex items-center justify-between">
                     <p className="text-base font-bold md:text-lg">Profil</p>
