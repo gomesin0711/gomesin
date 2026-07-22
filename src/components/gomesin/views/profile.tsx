@@ -1559,29 +1559,29 @@ export function ProfileView() {
               ];
 
               return (
-                <div className="space-y-4">
+                <div className="mx-auto max-w-4xl space-y-5 p-4 md:p-8">
                   {/* Security Score Card */}
-                  <div className="rounded-xl border border-border bg-gradient-to-br from-primary/5 to-emerald-500/5 p-4">
+                  <div className="rounded-xl border border-border bg-gradient-to-br from-primary/5 to-emerald-500/5 p-5 md:p-6">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={cn("grid size-10 place-items-center rounded-lg bg-card shadow-sm", scoreColor)}>
-                          <Shield className="size-5" />
+                      <div className="flex items-center gap-3">
+                        <span className={cn("grid size-12 place-items-center rounded-lg bg-card shadow-sm md:size-14", scoreColor)}>
+                          <Shield className="size-6 md:size-7" />
                         </span>
                         <div>
-                          <p className="text-sm font-bold">Skor Keamanan</p>
-                          <p className="text-xs text-muted-foreground">{score >= 75 ? "Akun terlindungi" : score >= 50 ? "Cukup aman" : "Perlu diperkuat"}</p>
+                          <p className="text-base font-bold md:text-lg">Skor Keamanan</p>
+                          <p className="text-sm text-muted-foreground md:text-base">{score >= 75 ? "Akun terlindungi" : score >= 50 ? "Cukup aman" : "Perlu diperkuat"}</p>
                         </div>
                       </div>
-                      <span className={cn("text-2xl font-extrabold", scoreColor)}>{score}%</span>
+                      <span className={cn("text-3xl font-extrabold md:text-4xl", scoreColor)}>{score}%</span>
                     </div>
-                    <Progress value={score} className={cn("mt-3 h-2", scoreBg)} />
-                    <div className="mt-3 grid grid-cols-2 gap-1.5">
+                    <Progress value={score} className={cn("mt-4 h-2.5 md:h-3", scoreBg)} />
+                    <div className="mt-4 grid grid-cols-2 gap-2">
                       {checks.map((c, i) => (
-                        <div key={i} className="flex items-center gap-1.5 text-xs">
+                        <div key={i} className="flex items-center gap-2 text-sm md:text-base">
                           {c.passed ? (
-                            <CheckCircle2 className="size-3.5 shrink-0 text-emerald-500" />
+                            <CheckCircle2 className="size-4 shrink-0 text-emerald-500 md:size-5" />
                           ) : (
-                            <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
+                            <AlertTriangle className="size-4 shrink-0 text-amber-500 md:size-5" />
                           )}
                           <span className={c.passed ? "text-foreground" : "text-muted-foreground"}>{c.label}</span>
                         </div>
@@ -1590,58 +1590,57 @@ export function ProfileView() {
                   </div>
 
                   {/* Change Password */}
-                  <div className="rounded-xl border border-border bg-card p-4">
+                  <div className="rounded-xl border border-border bg-card p-5 md:p-6">
                     <button
                       onClick={() => setShowPasswordForm(!showPasswordForm)}
                       className="flex w-full items-center gap-3 text-left"
                     >
-                      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                        <KeyRound className="size-4" />
+                      <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+                        <KeyRound className="size-5 md:size-6" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold">Ubah Kata Sandi</p>
-                        <p className="truncate text-xs text-muted-foreground">Perbarui kata sandi akun Anda</p>
+                        <p className="text-base font-semibold md:text-lg">Ubah Kata Sandi</p>
+                        <p className="truncate text-sm text-muted-foreground md:text-base">Perbarui kata sandi akun Anda</p>
                       </div>
-                      <ChevronRight className={cn("size-4 text-muted-foreground transition", showPasswordForm && "rotate-90")} />
+                      <ChevronRight className={cn("size-5 text-muted-foreground transition md:size-6", showPasswordForm && "rotate-90")} />
                     </button>
                     {showPasswordForm && (
-                      <div className="mt-3 space-y-2.5 border-t border-border pt-3">
+                      <div className="mt-4 space-y-3 border-t border-border pt-4">
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Kata Sandi Lama</Label>
+                          <Label className="text-sm text-muted-foreground md:text-base">Kata Sandi Lama</Label>
                           <Input
                             type="password"
                             value={currentPass}
                             onChange={(e) => setCurrentPass(e.target.value)}
                             placeholder="••••••••"
-                            className="h-9 text-sm"
+                            className="h-10 text-sm md:h-11 md:text-base"
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Kata Sandi Baru</Label>
+                          <Label className="text-sm text-muted-foreground md:text-base">Kata Sandi Baru</Label>
                           <Input
                             type="password"
                             value={newPass}
                             onChange={(e) => setNewPass(e.target.value)}
                             placeholder="Min. 6 karakter"
-                            className="h-9 text-sm"
+                            className="h-10 text-sm md:h-11 md:text-base"
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Ulangi Kata Sandi Baru</Label>
+                          <Label className="text-sm text-muted-foreground md:text-base">Ulangi Kata Sandi Baru</Label>
                           <Input
                             type="password"
                             value={confirmPass}
                             onChange={(e) => setConfirmPass(e.target.value)}
                             placeholder="Ulangi kata sandi baru"
-                            className="h-9 text-sm"
+                            className="h-10 text-sm md:h-11 md:text-base"
                           />
                           {confirmPass && newPass !== confirmPass && (
-                            <p className="text-xs text-destructive">Kata sandi tidak cocok</p>
+                            <p className="text-sm text-destructive md:text-base">Kata sandi tidak cocok</p>
                           )}
                         </div>
                         <Button
-                          size="sm"
-                          className="w-full"
+                          className="w-full md:h-11"
                           disabled={savingPass || !currentPass || !newPass || newPass !== confirmPass}
                           onClick={async () => {
                             if (!user?.id) return;
@@ -1681,13 +1680,13 @@ export function ProfileView() {
                   </div>
 
                   {/* 2FA Toggle */}
-                  <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                      <Smartphone className="size-4" />
+                  <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5 md:p-6">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+                      <Smartphone className="size-5 md:size-6" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">Autentikasi Dua Faktor</p>
-                      <p className="truncate text-xs text-muted-foreground">
+                      <p className="text-base font-semibold md:text-lg">Autentikasi Dua Faktor</p>
+                      <p className="truncate text-sm text-muted-foreground md:text-base">
                         {twoFAEnabled ? tr("prof2FAOn") : tr("prof2FAOff")}
                       </p>
                     </div>
@@ -1701,13 +1700,13 @@ export function ProfileView() {
                   </div>
 
                   {/* Login Alerts Toggle */}
-                  <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                      <BellRing className="size-4" />
+                  <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5 md:p-6">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+                      <BellRing className="size-5 md:size-6" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">Notifikasi Login</p>
-                      <p className="truncate text-xs text-muted-foreground">
+                      <p className="text-base font-semibold md:text-lg">Notifikasi Login</p>
+                      <p className="truncate text-sm text-muted-foreground md:text-base">
                         {loginAlerts ? tr("profAlertsOn") : tr("profAlertsOff")}
                       </p>
                     </div>
@@ -1721,65 +1720,65 @@ export function ProfileView() {
                   </div>
 
                   {/* Email & Phone Verification Status */}
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className={cn("flex items-center gap-2 rounded-xl border p-3", user?.email ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50")}>
-                      <Mail className={cn("size-4 shrink-0", user?.email ? "text-emerald-600" : "text-amber-600")} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className={cn("flex items-center gap-3 rounded-xl border p-4 md:p-5", user?.email ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50")}>
+                      <Mail className={cn("size-5 shrink-0 md:size-6", user?.email ? "text-emerald-600" : "text-amber-600")} />
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold">Email</p>
-                        <p className={cn("truncate text-[11px]", user?.email ? "text-emerald-700" : "text-amber-700")}>
+                        <p className="text-sm font-semibold md:text-base">Email</p>
+                        <p className={cn("truncate text-xs md:text-sm", user?.email ? "text-emerald-700" : "text-amber-700")}>
                           {user?.email ? tr("profVerified") : tr("profNotVerified")}
                         </p>
                       </div>
-                      <CheckCircle2 className={cn("ml-auto size-4 shrink-0", user?.email ? "text-emerald-600" : "text-amber-600/40")} />
+                      <CheckCircle2 className={cn("ml-auto size-5 shrink-0 md:size-6", user?.email ? "text-emerald-600" : "text-amber-600/40")} />
                     </div>
-                    <div className={cn("flex items-center gap-2 rounded-xl border p-3", user?.phone ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50")}>
-                      <Smartphone className={cn("size-4 shrink-0", user?.phone ? "text-emerald-600" : "text-amber-600")} />
+                    <div className={cn("flex items-center gap-3 rounded-xl border p-4 md:p-5", user?.phone ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50")}>
+                      <Smartphone className={cn("size-5 shrink-0 md:size-6", user?.phone ? "text-emerald-600" : "text-amber-600")} />
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold">Nomor HP</p>
-                        <p className={cn("truncate text-[11px]", user?.phone ? "text-emerald-700" : "text-amber-700")}>
+                        <p className="text-sm font-semibold md:text-base">Nomor HP</p>
+                        <p className={cn("truncate text-xs md:text-sm", user?.phone ? "text-emerald-700" : "text-amber-700")}>
                           {user?.phone ? tr("profVerified") : tr("profNotVerified")}
                         </p>
                       </div>
-                      <CheckCircle2 className={cn("ml-auto size-4 shrink-0", user?.phone ? "text-emerald-600" : "text-amber-600/40")} />
+                      <CheckCircle2 className={cn("ml-auto size-5 shrink-0 md:size-6", user?.phone ? "text-emerald-600" : "text-amber-600/40")} />
                     </div>
                   </div>
 
                   {/* Login History */}
-                  <div className="rounded-xl border border-border bg-card p-4">
+                  <div className="rounded-xl border border-border bg-card p-5 md:p-6">
                     <button
                       onClick={() => setShowLoginHistory(!showLoginHistory)}
                       className="flex w-full items-center gap-3 text-left"
                     >
-                      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                        <Monitor className="size-4" />
+                      <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+                        <Monitor className="size-5 md:size-6" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold">Riwayat Login</p>
-                        <p className="truncate text-xs text-muted-foreground">Lihat aktivitas login akun</p>
+                        <p className="text-base font-semibold md:text-lg">Riwayat Login</p>
+                        <p className="truncate text-sm text-muted-foreground md:text-base">Lihat aktivitas login akun</p>
                       </div>
-                      <ChevronRight className={cn("size-4 text-muted-foreground transition", showLoginHistory && "rotate-90")} />
+                      <ChevronRight className={cn("size-5 text-muted-foreground transition md:size-6", showLoginHistory && "rotate-90")} />
                     </button>
                     {showLoginHistory && (
-                      <div className="mt-3 space-y-2 border-t border-border pt-3">
+                      <div className="mt-4 space-y-2.5 border-t border-border pt-4">
                         {loginHistory.map((h, i) => (
-                          <div key={i} className={cn("flex items-start gap-2.5 rounded-lg p-2.5", h.current ? "bg-emerald-50" : "bg-secondary/40")}>
-                            <Monitor className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                          <div key={i} className={cn("flex items-start gap-3 rounded-lg p-3 md:p-4", h.current ? "bg-emerald-50" : "bg-secondary/40")}>
+                            <Monitor className="mt-0.5 size-5 shrink-0 text-muted-foreground md:size-6" />
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <p className="text-xs font-semibold">{h.device}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold md:text-base">{h.device}</p>
                                 {h.current && (
-                                  <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold text-white">SEKARANG</span>
+                                  <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white md:text-xs">SEKARANG</span>
                                 )}
                               </div>
-                              <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                <MapPin className="size-3" /> {h.loc} · {h.ip}
+                              <p className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+                                <MapPin className="size-3.5" /> {h.loc} · {h.ip}
                               </p>
                             </div>
-                            <span className="shrink-0 text-[11px] text-muted-foreground">{h.time}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground md:text-sm">{h.time}</span>
                           </div>
                         ))}
-                        <Button variant="ghost" size="sm" className="w-full text-destructive hover:bg-destructive/5" onClick={() => toast.success("Semua sesi lain telah diakhiri")}>
-                          <LogOut className="size-3.5" /> Akhiri Semua Sesi Lain
+                        <Button variant="ghost" className="w-full text-destructive hover:bg-destructive/5" onClick={() => toast.success("Semua sesi lain telah diakhiri")}>
+                          <LogOut className="size-4" /> Akhiri Semua Sesi Lain
                         </Button>
                       </div>
                     )}
