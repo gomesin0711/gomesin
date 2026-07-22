@@ -698,7 +698,6 @@ export function ProfileView() {
             { icon: Tag, label: tr("profMyAds"), action: () => { setPanel("iklan-saya"); setDrawerOpen(false); }, navigate: false, key: "iklan-saya" },
             { icon: Heart, label: tr("myFavorites"), action: () => { setPanel("favorit-saya"); setDrawerOpen(false); }, navigate: false, key: "favorit-saya" },
             { icon: MessageSquare, label: tr("messages"), action: () => { setPanel("pesan"); setDrawerOpen(false); }, navigate: false, key: "pesan" },
-            { icon: Package, label: tr("orders"), action: () => { setPanel("pesanan"); setDrawerOpen(false); }, navigate: false, key: "pesanan" },
             { icon: Wallet, label: tr("wallet"), action: () => { setPanel("saldo"); setDrawerOpen(false); }, navigate: false, key: "saldo" },
           ].map((m, i) => {
             const isActive = panel === m.key;
@@ -787,16 +786,15 @@ export function ProfileView() {
           </div>
         </div>
 
-        {/* Quick Stats — 4 compact cards (2x2 on mobile, 4-col on desktop). Hidden when in Pesan chat on mobile. */}
+        {/* Quick Stats — 3 compact cards. Hidden when in Pesan chat on mobile. */}
         <div className={cn(
-          "mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4",
+          "mb-4 grid grid-cols-3 gap-2",
           panel === "pesan" && "max-md:hidden"
         )}>
           {[
             { label: tr("myFavorites"), value: favCount, icon: Heart, color: "text-rose-500", bg: "bg-rose-50", action: () => setPanel("favorit-saya") },
             { label: tr("profMyAds"), value: myAdsCount, icon: Tag, color: "text-primary", bg: "bg-primary/10", action: () => setPanel("iklan-saya") },
             { label: tr("messages"), value: unreadCount, icon: MessageSquare, color: "text-blue-500", bg: "bg-blue-50", action: () => setPanel("pesan") },
-            { label: tr("orders"), value: orders.length, icon: Package, color: "text-amber-500", bg: "bg-amber-50", action: () => setPanel("pesanan") },
           ].map((s) => (
             <button
               key={s.label}
@@ -2450,10 +2448,6 @@ export function ProfileView() {
                   <button onClick={() => setPanel("pesan")} className="flex w-full items-center justify-between px-4 py-2.5 text-sm transition hover:bg-accent">
                     <span className="flex items-center gap-2.5 text-muted-foreground"><MessageSquare className="size-4" /> Pesan Belum Dibaca</span>
                     <span className="font-bold">{unreadCount}</span>
-                  </button>
-                  <button onClick={() => setPanel("pesanan")} className="flex w-full items-center justify-between px-4 py-2.5 text-sm transition hover:bg-accent">
-                    <span className="flex items-center gap-2.5 text-muted-foreground"><Package className="size-4" /> Transaksi</span>
-                    <span className="font-bold">{orders.length}</span>
                   </button>
                 </div>
               </div>
