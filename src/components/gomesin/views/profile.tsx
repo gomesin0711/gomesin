@@ -1305,35 +1305,33 @@ export function ProfileView() {
               const totalOut = transactions.filter((t) => t.amount < 0).reduce((a, t) => a + Math.abs(t.amount), 0);
 
               return (
-                <div className="space-y-4">
+                <div className="mx-auto max-w-4xl space-y-5 p-4 md:p-8">
                   {/* Balance Card */}
-                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-emerald-600 p-5 text-primary-foreground shadow-lg">
-                    <div className="absolute -right-8 -top-8 size-28 rounded-full bg-white/10" />
-                    <div className="absolute -bottom-10 right-16 size-20 rounded-full bg-white/10" />
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-emerald-600 p-6 text-primary-foreground shadow-lg md:p-8">
+                    <div className="absolute -right-8 -top-8 size-28 rounded-full bg-white/10 md:size-40" />
+                    <div className="absolute -bottom-10 right-16 size-20 rounded-full bg-white/10 md:size-28" />
                     <div className="relative">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="flex items-center gap-1.5 text-xs text-primary-foreground/80">
-                            <Wallet className="size-3.5" /> Saldo Gomesin
+                          <p className="flex items-center gap-1.5 text-sm text-primary-foreground/80 md:text-base">
+                            <Wallet className="size-4 md:size-5" /> Saldo Gomesin
                           </p>
-                          <p className="mt-1 text-3xl font-extrabold">Rp {balance.toLocaleString("id-ID")}</p>
+                          <p className="mt-2 text-4xl font-extrabold md:text-5xl">Rp {balance.toLocaleString("id-ID")}</p>
                         </div>
-                        <span className="grid size-12 place-items-center rounded-xl bg-white/20 backdrop-blur">
-                          <Wallet className="size-6" />
+                        <span className="grid size-14 place-items-center rounded-xl bg-white/20 backdrop-blur md:size-20">
+                          <Wallet className="size-7 md:size-10" />
                         </span>
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="mt-5 grid grid-cols-2 gap-3">
                         <Button
-                          size="sm"
-                          className="bg-white text-primary hover:bg-white/90"
+                          className="bg-white text-primary hover:bg-white/90 md:h-11"
                           onClick={() => toast.success(tr("profTopUpSuccess"))}
                         >
                           <Plus className="size-4" /> Top Up
                         </Button>
                         <Button
-                          size="sm"
                           variant="secondary"
-                          className="bg-white/20 backdrop-blur hover:bg-white/30"
+                          className="bg-white/20 backdrop-blur hover:bg-white/30 md:h-11"
                           onClick={() => toast.info(tr("profTxHistoryInfo"))}
                         >
                           <CreditCard className="size-4" /> Riwayat
@@ -1343,28 +1341,28 @@ export function ProfileView() {
                   </div>
 
                   {/* Income/Expense Summary */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                      <p className="flex items-center gap-1 text-[11px] text-emerald-700">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 md:p-5">
+                      <p className="flex items-center gap-1 text-sm text-emerald-700 md:text-base">
                         <span className="text-emerald-500">↓</span> Masuk
                       </p>
-                      <p className="mt-1 text-sm font-bold text-emerald-700">Rp {totalIn.toLocaleString("id-ID")}</p>
+                      <p className="mt-1.5 text-lg font-bold text-emerald-700 md:text-2xl">Rp {totalIn.toLocaleString("id-ID")}</p>
                     </div>
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-3">
-                      <p className="flex items-center gap-1 text-[11px] text-red-700">
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 md:p-5">
+                      <p className="flex items-center gap-1 text-sm text-red-700 md:text-base">
                         <span className="text-red-500">↑</span> Keluar
                       </p>
-                      <p className="mt-1 text-sm font-bold text-red-700">Rp {totalOut.toLocaleString("id-ID")}</p>
+                      <p className="mt-1.5 text-lg font-bold text-red-700 md:text-2xl">Rp {totalOut.toLocaleString("id-ID")}</p>
                     </div>
                   </div>
 
                   {/* Payment Methods */}
                   <div>
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-sm font-bold">Metode Pembayaran</p>
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-base font-bold md:text-lg">Metode Pembayaran</p>
                       <button
                         onClick={() => setShowAddPayment(!showAddPayment)}
-                        className="text-xs font-medium text-primary hover:underline"
+                        className="text-sm font-medium text-primary hover:underline md:text-base"
                       >
                         {showAddPayment ? tr("profCancel") : tr("profAdd")}
                       </button>
@@ -1372,9 +1370,9 @@ export function ProfileView() {
 
                     {/* Add Payment Form */}
                     {showAddPayment && (
-                      <div className="mb-3 space-y-2.5 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                      <div className="mb-3 space-y-2.5 rounded-xl border border-primary/30 bg-primary/5 p-4 md:p-5">
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Tipe</Label>
+                          <Label className="text-xs text-muted-foreground md:text-sm">Tipe</Label>
                           <div className="flex gap-2">
                             {[
                               { v: "bank", l: tr("commonBank") },
@@ -1385,7 +1383,7 @@ export function ProfileView() {
                                 key={t.v}
                                 onClick={() => setNewPaymentType(t.v)}
                                 className={cn(
-                                  "flex-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition",
+                                  "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition md:text-base",
                                   newPaymentType === t.v
                                     ? "border-primary bg-primary text-primary-foreground"
                                     : "border-border bg-card hover:bg-accent"
@@ -1440,23 +1438,23 @@ export function ProfileView() {
                     )}
 
                     {/* Payment List */}
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {paymentList.map((p) => (
-                        <div key={p.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+                        <div key={p.id} className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
                           <span className={cn(
-                            "grid size-10 shrink-0 place-items-center rounded-lg",
+                            "grid size-12 shrink-0 place-items-center rounded-lg md:size-14",
                             p.type === "bank" && "bg-blue-50 text-blue-600",
                             p.type === "ewallet" && "bg-purple-50 text-purple-600",
                             p.type === "qris" && "bg-emerald-50 text-emerald-600"
                           )}>
-                            {p.type === "qris" ? <Smartphone className="size-5" /> : <CreditCard className="size-5" />}
+                            {p.type === "qris" ? <Smartphone className="size-6 md:size-7" /> : <CreditCard className="size-6 md:size-7" />}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold">{p.name}</p>
-                            <p className="truncate text-xs text-muted-foreground">{p.number} · {p.holder}</p>
+                            <p className="text-base font-semibold md:text-lg">{p.name}</p>
+                            <p className="truncate text-sm text-muted-foreground md:text-base">{p.number} · {p.holder}</p>
                           </div>
                           {p.isPrimary && (
-                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">Utama</span>
+                            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary md:text-sm">Utama</span>
                           )}
                           {!p.isPrimary && (
                             <button
@@ -1464,7 +1462,7 @@ export function ProfileView() {
                                 setPaymentList(paymentList.map((x) => ({ ...x, isPrimary: x.id === p.id })));
                                 toast.success(`${p.name} dijadikan metode utama`);
                               }}
-                              className="text-[10px] font-medium text-primary hover:underline"
+                              className="text-xs font-medium text-primary hover:underline md:text-sm"
                             >
                               Jadikan Utama
                             </button>
@@ -1474,15 +1472,15 @@ export function ProfileView() {
                               setPaymentList(paymentList.filter((x) => x.id !== p.id));
                               toast.success(tr("profPaymentDeleted"));
                             }}
-                            className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            className="grid size-8 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive md:size-9"
                             aria-label="Hapus"
                           >
-                            <X className="size-3.5" />
+                            <X className="size-4 md:size-5" />
                           </button>
                         </div>
                       ))}
                       {paymentList.length === 0 && (
-                        <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground md:text-base">
                           Belum ada metode pembayaran. Klik "+ Tambah" untuk menambah.
                         </div>
                       )}
@@ -1491,22 +1489,22 @@ export function ProfileView() {
 
                   {/* Transaction History */}
                   <div>
-                    <p className="mb-2 text-sm font-bold">Riwayat Transaksi</p>
-                    <div className="space-y-1.5">
+                    <p className="mb-3 text-base font-bold md:text-lg">Riwayat Transaksi</p>
+                    <div className="space-y-2">
                       {transactions.map((t) => (
-                        <div key={t.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+                        <div key={t.id} className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
                           <span className={cn(
-                            "grid size-9 shrink-0 place-items-center rounded-lg",
+                            "grid size-11 shrink-0 place-items-center rounded-lg md:size-14",
                             t.amount > 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
                           )}>
-                            {t.amount > 0 ? <Plus className="size-4" /> : <CreditCard className="size-4" />}
+                            {t.amount > 0 ? <Plus className="size-5 md:size-6" /> : <CreditCard className="size-5 md:size-6" />}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold">{t.title}</p>
-                            <p className="text-[11px] text-muted-foreground">{t.date}</p>
+                            <p className="text-base font-semibold md:text-lg">{t.title}</p>
+                            <p className="text-xs text-muted-foreground md:text-sm">{t.date}</p>
                           </div>
                           <span className={cn(
-                            "shrink-0 text-sm font-bold",
+                            "shrink-0 text-base font-bold md:text-xl",
                             t.amount > 0 ? "text-emerald-600" : "text-red-600"
                           )}>
                             {t.amount > 0 ? "+" : ""}Rp {Math.abs(t.amount).toLocaleString("id-ID")}
