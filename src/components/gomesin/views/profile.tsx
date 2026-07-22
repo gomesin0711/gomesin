@@ -745,8 +745,11 @@ export function ProfileView() {
           </div>
         </div>
 
-        {/* Quick Stats — 4 compact cards (desktop only, hidden on mobile) */}
-        <div className="mb-4 hidden grid-cols-2 gap-2 sm:grid-cols-4 md:grid">
+        {/* Quick Stats — 4 compact cards (2x2 on mobile, 4-col on desktop). Hidden when in Pesan chat on mobile. */}
+        <div className={cn(
+          "mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4",
+          panel === "pesan" && "max-md:hidden"
+        )}>
           {[
             { label: tr("myFavorites"), value: favCount, icon: Heart, color: "text-rose-500", bg: "bg-rose-50", action: () => setPanel("favorit-saya") },
             { label: tr("profMyAds"), value: myAdsCount, icon: Tag, color: "text-primary", bg: "bg-primary/10", action: () => setPanel("iklan-saya") },
@@ -777,6 +780,8 @@ export function ProfileView() {
               const v = e.target.value;
               if (v === "admin") {
                 goToAdmin();
+              } else if (v === "logout") {
+                if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); }
               } else {
                 setPanel(v || null);
               }
@@ -799,6 +804,9 @@ export function ProfileView() {
             </optgroup>
             <optgroup label="Bantuan">
               <option value="bantuan">{tr("help")}</option>
+            </optgroup>
+            <optgroup label="Sesi">
+              <option value="logout">{user ? tr("logout") : tr("loginRegister")}</option>
             </optgroup>
           </select>
         </div>
@@ -2319,9 +2327,109 @@ export function ProfileView() {
                 </div>
               </div>
           ) : (
-            <div className="flex h-full flex-col items-center justify-center py-16 text-center">
-              <Settings className="size-10 text-muted-foreground/30" />
-              <p className="mt-3 text-sm text-muted-foreground">Pilih menu di samping untuk melihat detail</p>
+            <div className="p-4 space-y-4">
+              {/* User Profile Card — CRUD style */}
+              <div className="rounded-lg border border-border bg-card overflow-hidden">
+                <div className="flex items-center gap-3 border-b border-border bg-muted/30 p-4">
+                  <Avatar className="size-14 border-2 border-primary/20">
+                    <AvatarFallback className="bg-primary/10 text-lg font-bold text-primary">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-base font-bold">{user?.name || "Pengguna"}</p>
+                      {user?.role === "admin" && (
+                        <span className="inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
+                          <ShieldCheck className="size-2.5" /> Admin
+                        </span>
+                      )}
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">{user?.email || "-"}</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setPanel("pengaturan")} className="shrink-0 gap-1.5">
+                    <SlidersHorizontal className="size-3.5" /> Edit
+                  </Button>
+                </div>
+                {/* Info table */}
+                <div className="divide-y divide-border text-sm">
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-muted-foreground">Nama Lengkap</span>
+                    <span className="font-medium">{user?.name || "-"}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="max-w-[60%] truncate text-right font-medium">{user?.email || "-"}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-muted-foreground">No. HP</span>
+                    <span className="font-medium">{user?.phone || "-"}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-muted-foreground">Kota</span>
+                    <span className="font-medium">{user?.city || "-"}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-muted-foreground">Bergabung</span>
+                    <span className="font-medium">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats Summary — table style */}
+              <div className="rounded-lg border border-border bg-card overflow-hidden">
+                <div className="border-b border-border bg-muted/30 px-4 py-2.5">
+                  <p className="text-sm font-bold">Ringkasan Aktivitas</p>
+                </div>
+                <div className="divide-y divide-border">
+                  <button onClick={() => setPanel("iklan-saya")} className="flex w-full items-center justify-between px-4 py-2.5 text-sm transition hover:bg-accent">
+                    <span className="flex items-center gap-2.5 text-muted-foreground"><Tag className="size-4" /> Iklan Dipasang</span>
+                    <span className="font-bold">{myAdsCount}</span>
+                  </button>
+                  <button onClick={() => setPanel("favorit-saya")} className="flex w-full items-center justify-between px-4 py-2.5 text-sm transition hover:bg-accent">
+                    <span className="flex items-center gap-2.5 text-muted-foreground"><Heart className="size-4" /> Favorit</span>
+                    <span className="font-bold">{favCount}</span>
+                  </button>
+                  <button onClick={() => setPanel("pesan")} className="flex w-full items-center justify-between px-4 py-2.5 text-sm transition hover:bg-accent">
+                    <span className="flex items-center gap-2.5 text-muted-foreground"><MessageSquare className="size-4" /> Pesan Belum Dibaca</span>
+                    <span className="font-bold">{unreadCount}</span>
+                  </button>
+                  <button onClick={() => setPanel("pesanan")} className="flex w-full items-center justify-between px-4 py-2.5 text-sm transition hover:bg-accent">
+                    <span className="flex items-center gap-2.5 text-muted-foreground"><Package className="size-4" /> Transaksi</span>
+                    <span className="font-bold">{orders.length}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Button variant="outline" className="flex-col h-auto py-3 gap-1.5" onClick={() => setPanel("iklan-saya")}>
+                  <Tag className="size-5" />
+                  <span className="text-[11px]">{tr("profMyAds")}</span>
+                </Button>
+                <Button variant="outline" className="flex-col h-auto py-3 gap-1.5" onClick={() => setPanel("pesan")}>
+                  <MessageSquare className="size-5" />
+                  <span className="text-[11px]">{tr("messages")}</span>
+                </Button>
+                <Button variant="outline" className="flex-col h-auto py-3 gap-1.5" onClick={() => setPanel("saldo")}>
+                  <Wallet className="size-5" />
+                  <span className="text-[11px]">{tr("wallet")}</span>
+                </Button>
+                <Button variant="outline" className="flex-col h-auto py-3 gap-1.5" onClick={() => setPanel("pengaturan")}>
+                  <Settings className="size-5" />
+                  <span className="text-[11px]">{tr("settings")}</span>
+                </Button>
+              </div>
+
+              {/* Logout */}
+              <Button
+                variant="outline"
+                className="w-full gap-2 text-destructive hover:bg-destructive/5"
+                onClick={() => { if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
+              >
+                <LogOut className="size-4" />
+                {user ? tr("logout") : tr("loginRegister")}
+              </Button>
             </div>
           )}
         </div>
