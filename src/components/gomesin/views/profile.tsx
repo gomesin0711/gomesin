@@ -2297,7 +2297,7 @@ export function ProfileView() {
 
             {/* ===== IKLAN SAYA PANEL ===== */}
             {panel === "iklan-saya" && (
-              <div className="space-y-3 p-4">
+              <div className="space-y-3 p-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold">Iklan Saya ({myAdsCount})</h3>
                   <Button size="sm" className="gap-1.5" onClick={goToPost}>
@@ -2305,32 +2305,33 @@ export function ProfileView() {
                   </Button>
                 </div>
                 {myAdsCount > 0 ? (
-                  <div className="space-y-2">
-                    {myListings.slice(0, 5).map((l: any) => (
-                      <div key={l.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-2.5">
-                        <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-muted">
-                          {(() => {
-                            let imgs: string[] = [];
-                            try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
-                            return imgs[0] ? <img src={imgs[0]} alt="" className="size-full object-cover" /> : <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-4" /></div>;
-                          })()}
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {myListings.slice(0, 10).map((l: any) => {
+                      let imgs: string[] = [];
+                      try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
+                      return (
+                        <div key={l.id} className="overflow-hidden rounded-lg border border-border bg-card">
+                          <div className="relative aspect-square w-full overflow-hidden bg-muted">
+                            {imgs[0] ? (
+                              <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
+                            ) : (
+                              <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-6" /></div>
+                            )}
+                            <span className={cn(
+                              "absolute right-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow",
+                              l.status === "active" ? "bg-emerald-500 text-white" :
+                              l.status === "pending" ? "bg-amber-500 text-white" :
+                              "bg-muted text-muted-foreground"
+                            )}>{l.status}</span>
+                          </div>
+                          <div className="p-2">
+                            <p className="line-clamp-2 text-xs font-semibold leading-tight">{l.title}</p>
+                            <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{l.city || "-"} • {l.condition}</p>
+                            <p className="mt-0.5 text-xs font-bold text-primary">Rp {(l.price ?? 0).toLocaleString("id-ID")}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">{l.title}</p>
-                          <p className="text-xs text-muted-foreground">{l.city || "-"} • {l.condition}</p>
-                          <p className="text-xs font-bold text-primary">Rp {(l.price ?? 0).toLocaleString("id-ID")}</p>
-                        </div>
-                        <span className={cn(
-                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold",
-                          l.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                          l.status === "pending" ? "bg-amber-100 text-amber-700" :
-                          "bg-muted text-muted-foreground"
-                        )}>{l.status}</span>
-                      </div>
-                    ))}
-                    {myAdsCount > 5 && (
-                      <Button variant="outline" size="sm" className="w-full" onClick={goToDashboard}>Lihat semua {myAdsCount} iklan</Button>
-                    )}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="py-8 text-center">
@@ -2338,35 +2339,44 @@ export function ProfileView() {
                     <p className="mt-2 text-sm text-muted-foreground">Belum ada iklan dipasang.</p>
                   </div>
                 )}
+                {myAdsCount > 10 && (
+                  <Button variant="outline" size="sm" className="w-full" onClick={goToDashboard}>Lihat semua {myAdsCount} iklan</Button>
+                )}
               </div>
             )}
 
             {/* ===== FAVORIT SAYA PANEL ===== */}
             {panel === "favorit-saya" && (
-              <div className="space-y-3 p-4">
+              <div className="space-y-3 p-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold">Favorit Saya ({favCount})</h3>
                   <Button size="sm" variant="outline" onClick={goHome}>Jelajahi Iklan</Button>
                 </div>
                 {favCount > 0 ? (
-                  <div className="space-y-2">
-                    {favListings.map((l: any) => (
-                      <div key={l.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-2.5">
-                        <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-muted">
-                          {(() => {
-                            let imgs: string[] = [];
-                            try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
-                            return imgs[0] ? <img src={imgs[0]} alt="" className="size-full object-cover" /> : <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-4" /></div>;
-                          })()}
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {favListings.map((l: any) => {
+                      let imgs: string[] = [];
+                      try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
+                      return (
+                        <div key={l.id} className="overflow-hidden rounded-lg border border-border bg-card">
+                          <div className="relative aspect-square w-full overflow-hidden bg-muted">
+                            {imgs[0] ? (
+                              <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
+                            ) : (
+                              <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-6" /></div>
+                            )}
+                            <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-white/90 shadow">
+                              <Heart className="size-3.5 fill-rose-500 text-rose-500" />
+                            </span>
+                          </div>
+                          <div className="p-2">
+                            <p className="line-clamp-2 text-xs font-semibold leading-tight">{l.title}</p>
+                            <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{l.city || "-"} • {l.condition}</p>
+                            <p className="mt-0.5 text-xs font-bold text-primary">Rp {(l.price ?? 0).toLocaleString("id-ID")}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">{l.title}</p>
-                          <p className="text-xs text-muted-foreground">{l.city || "-"} • {l.condition}</p>
-                          <p className="text-xs font-bold text-primary">Rp {(l.price ?? 0).toLocaleString("id-ID")}</p>
-                        </div>
-                        <Heart className="size-4 shrink-0 fill-rose-500 text-rose-500" />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="py-8 text-center">
