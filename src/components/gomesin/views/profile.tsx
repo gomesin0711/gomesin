@@ -55,6 +55,7 @@ import {
   X as XIcon,
   Sticker,
   Camera,
+  Menu,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -117,6 +118,23 @@ export function ProfileView() {
     staleTime: 0,
   });
   const myAdsCount = myListingsData?.listings?.length ?? 0;
+  const myListings: any[] = myListingsData?.listings ?? [];
+
+  // Fetch favorited listings (fetch all, filter by id client-side)
+  const favIds = useStore((s) => s.favorites);
+  const { data: favListingsData } = useQuery({
+    queryKey: ["fav-listings", favIds.join(",")],
+    queryFn: async () => {
+      if (favIds.length === 0) return { listings: [] };
+      const res = await fetch(`/api/listings?limit=200`);
+      if (!res.ok) throw new Error("fail");
+      const data = await res.json();
+      return { listings: (data.listings || []).filter((l: any) => favIds.includes(l.id)) };
+    },
+    enabled: favIds.length > 0,
+    staleTime: 0,
+  });
+  const favListings: any[] = favListingsData?.listings ?? [];
 
   const { t, lang } = useLang();
   const mounted = useMounted();
@@ -152,6 +170,7 @@ export function ProfileView() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [msgMenu, setMsgMenu] = useState<{ visible: boolean; x: number; y: number; msgIndex: number | null }>({ visible: false, x: 0, y: 0, msgIndex: null });
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; msgIndex: number | null }>({ timer: null, msgIndex: null });
   const [gifQuery, setGifQuery] = useState("");
   const [gifResults, setGifResults] = useState<{ id: string; emoji: string; label: string; animation: string }[]>([]);
@@ -626,40 +645,61 @@ export function ProfileView() {
   };
 
   return (
-    <div className="flex animate-fade-up">
-      {/* ===== LEFT — SIDEBAR (sticky, like admin panel) ===== */}
-      <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 overflow-y-auto border-r border-border bg-card md:block">
-        {/* User info at top of sidebar */}
-        <div className="border-b border-border p-4">
-          <div className="flex items-center gap-3">
-            <Avatar className="size-10 border-2 border-primary/20">
-              <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold">{user?.name || "Pengguna"}</p>
-              <p className="truncate text-xs text-muted-foreground">{user?.email || "Belum login"}</p>
-            </div>
-          </div>
-          {user?.role === "admin" && (
-            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
-              <ShieldCheck className="size-3" /> Admin
-            </span>
-          )}
-        </div>
+    <div className="animate-fade-up">
+      {/* ===== HAMBURGER MENU BUTTON (top-left, opens drawer) ===== */}
+      <div className={cn("flex items-center gap-2 px-4 pt-4 md:px-6", panel === "pesan" && "max-md:hidden")}>
+        <button
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Menu"
+          className="grid size-10 place-items-center rounded-lg border border-border bg-card hover:bg-accent"
+        >
+          <Menu className="size-5" />
+        </button>
+        <h1 className="text-lg font-bold sm:text-xl">{tr("account")}</h1>
+      </div>
 
+      {/* ===== DRAWER (hamburger menu — slide-in from left) ===== */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-[90] flex">
+          {/* backdrop */}
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} />
+          {/* drawer panel */}
+          <aside className="relative z-10 flex h-full w-72 max-w-[85vw] flex-col overflow-y-auto bg-card shadow-2xl">
+            {/* drawer header */}
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="size-10 border-2 border-primary/20">
+                  <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{user?.name || "Pengguna"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user?.email || "Belum login"}</p>
+                </div>
+              </div>
+              <button onClick={() => setDrawerOpen(false)} className="grid size-8 place-items-center rounded-full hover:bg-accent">
+                <X className="size-4" />
+              </button>
+            </div>
+            {user?.role === "admin" && (
+              <div className="px-4 pt-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                  <ShieldCheck className="size-3" /> Admin
+                </span>
+              </div>
+            )}
         {/* Menu items */}
         <nav className="p-2">
           {/* Section: Iklan & Transaksi */}
           <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">Iklan & Transaksi</p>
           {[
             ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), action: goToAdmin, navigate: true, key: "admin" }] : []),
-            { icon: Tag, label: tr("profMyAds"), action: () => setPanel("iklan-saya"), navigate: false, key: "iklan-saya" },
-            { icon: Heart, label: tr("myFavorites"), action: () => setPanel("favorit-saya"), navigate: false, key: "favorit-saya" },
-            { icon: MessageSquare, label: tr("messages"), action: () => setPanel("pesan"), navigate: false, key: "pesan" },
-            { icon: Package, label: tr("orders"), action: () => setPanel("pesanan"), navigate: false, key: "pesanan" },
-            { icon: Wallet, label: tr("wallet"), action: () => setPanel("saldo"), navigate: false, key: "saldo" },
+            { icon: Tag, label: tr("profMyAds"), action: () => { setPanel("iklan-saya"); setDrawerOpen(false); }, navigate: false, key: "iklan-saya" },
+            { icon: Heart, label: tr("myFavorites"), action: () => { setPanel("favorit-saya"); setDrawerOpen(false); }, navigate: false, key: "favorit-saya" },
+            { icon: MessageSquare, label: tr("messages"), action: () => { setPanel("pesan"); setDrawerOpen(false); }, navigate: false, key: "pesan" },
+            { icon: Package, label: tr("orders"), action: () => { setPanel("pesanan"); setDrawerOpen(false); }, navigate: false, key: "pesanan" },
+            { icon: Wallet, label: tr("wallet"), action: () => { setPanel("saldo"); setDrawerOpen(false); }, navigate: false, key: "saldo" },
           ].map((m, i) => {
             const isActive = panel === m.key;
             return (
@@ -683,9 +723,9 @@ export function ProfileView() {
           {/* Section: Akun & Keamanan */}
           <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">Akun & Keamanan</p>
           {[
-            { icon: Bell, label: tr("notifications"), action: () => setPanel("notifikasi"), key: "notifikasi" },
-            { icon: Lock, label: tr("security"), action: () => setPanel("keamanan"), key: "keamanan" },
-            { icon: Settings, label: tr("settings"), action: () => setPanel("pengaturan"), key: "pengaturan" },
+            { icon: Bell, label: tr("notifications"), action: () => { setPanel("notifikasi"); setDrawerOpen(false); }, key: "notifikasi" },
+            { icon: Lock, label: tr("security"), action: () => { setPanel("keamanan"); setDrawerOpen(false); }, key: "keamanan" },
+            { icon: Settings, label: tr("settings"), action: () => { setPanel("pengaturan"); setDrawerOpen(false); }, key: "pengaturan" },
           ].map((m, i) => {
             const isActive = panel === m.key;
             return (
@@ -706,7 +746,7 @@ export function ProfileView() {
           {/* Section: Bantuan */}
           <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">Bantuan</p>
           <button
-            onClick={() => setPanel("bantuan")}
+            onClick={() => { setPanel("bantuan"); setDrawerOpen(false); }}
             className={cn(
               "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
               panel === "bantuan" ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
@@ -716,17 +756,19 @@ export function ProfileView() {
             <span className="truncate">{tr("help")}</span>
           </button>
           <button
-            onClick={() => { if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
+            onClick={() => { setDrawerOpen(false); if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
             className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-destructive transition hover:bg-destructive/5"
           >
             <LogOut className="size-4 shrink-0" />
             <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
           </button>
         </nav>
-      </aside>
+          </aside>
+        </div>
+      )}
 
-      {/* ===== RIGHT — MAIN CONTENT (like admin panel) ===== */}
-      <main className={cn("min-w-0 flex-1 px-4 py-6 md:px-6", panel === "pesan" && "max-md:px-0 max-md:pt-2 max-md:pb-0")}>
+      {/* ===== MAIN CONTENT (full width — no permanent sidebar) ===== */}
+      <main className={cn("min-w-0 px-4 py-4 md:px-6 md:py-6", panel === "pesan" && "max-md:px-0 max-md:pt-2 max-md:pb-0")}>
         {/* breadcrumb — hidden on mobile when Pesan (cleaner chat view) */}
         <div className={cn("mb-4 flex items-center gap-1 text-xs text-muted-foreground", panel === "pesan" && "max-md:hidden")}>
           <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
@@ -772,56 +814,21 @@ export function ProfileView() {
           ))}
         </div>
 
-        {/* Mobile menu selector (hidden on desktop — sidebar handles it; hidden on mobile when in Pesan chat) */}
-        <div className={cn("mb-4 md:hidden", panel === "pesan" && "max-md:hidden")}>
-          <select
-            value={panel || ""}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === "admin") {
-                goToAdmin();
-              } else if (v === "logout") {
-                if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); }
-              } else {
-                setPanel(v || null);
-              }
-            }}
-            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
-          >
-            <option value="">— Pilih Menu —</option>
-            <optgroup label="Iklan & Transaksi">
-              {user?.role === "admin" && <option value="admin">Panel Admin</option>}
-              <option value="iklan-saya">{tr("profMyAds")}</option>
-              <option value="favorit-saya">{tr("myFavorites")}</option>
-              <option value="pesan">{tr("messages")}</option>
-              <option value="pesanan">{tr("orders")}</option>
-              <option value="saldo">{tr("wallet")}</option>
-            </optgroup>
-            <optgroup label="Akun & Keamanan">
-              <option value="notifikasi">{tr("notifications")}</option>
-              <option value="keamanan">{tr("security")}</option>
-              <option value="pengaturan">{tr("settings")}</option>
-            </optgroup>
-            <optgroup label="Bantuan">
-              <option value="bantuan">{tr("help")}</option>
-            </optgroup>
-            <optgroup label="Sesi">
-              <option value="logout">{user ? tr("logout") : tr("loginRegister")}</option>
-            </optgroup>
-          </select>
-        </div>
+        {/* (mobile dropdown menu removed — replaced by hamburger drawer above) */}
 
-        {/* Content Area */}
+        {/* Content Area — full page for iklan-saya, favorit-saya, saldo, keamanan, pengaturan, bantuan, pesan; card for others */}
         <div className={cn(
-          "min-h-[400px] rounded-xl border border-border bg-card",
-          panel === "pesan" && "max-md:rounded-none max-md:border-0"
+          "min-h-[400px]",
+          (panel === "pesan" || panel === "iklan-saya" || panel === "favorit-saya" || panel === "saldo" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan")
+            ? "max-md:rounded-none max-md:border-0 max-md:p-0"
+            : "rounded-xl border border-border bg-card"
         )}>
           {panel !== null ? (
             <div className="h-full">
-              {/* Panel header — hidden on mobile when Pesan */}
+              {/* Panel header — hidden on mobile for full-page panels */}
               <div className={cn(
                 "flex items-center justify-between border-b border-border p-3",
-                panel === "pesan" && "max-md:hidden"
+                (panel === "pesan" || panel === "iklan-saya" || panel === "favorit-saya" || panel === "saldo" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan") && "max-md:hidden"
               )}>
                 <h2 className="text-sm font-bold">{panelTitle[panel]}</h2>
                 <button onClick={closePanel} className="grid size-7 place-items-center rounded-full hover:bg-accent">
@@ -2290,18 +2297,45 @@ export function ProfileView() {
 
             {/* ===== IKLAN SAYA PANEL ===== */}
             {panel === "iklan-saya" && (
-              <div className="space-y-2">
-                {myAdsCount > 0 ? (
-                  <Button onClick={goToDashboard} className="w-full gap-2">
-                    <Tag className="size-4" /> Kelola {myAdsCount} Iklan
+              <div className="space-y-3 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold">Iklan Saya ({myAdsCount})</h3>
+                  <Button size="sm" className="gap-1.5" onClick={goToPost}>
+                    <Plus className="size-4" /> Pasang Iklan
                   </Button>
+                </div>
+                {myAdsCount > 0 ? (
+                  <div className="space-y-2">
+                    {myListings.slice(0, 5).map((l: any) => (
+                      <div key={l.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-2.5">
+                        <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-muted">
+                          {(() => {
+                            let imgs: string[] = [];
+                            try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
+                            return imgs[0] ? <img src={imgs[0]} alt="" className="size-full object-cover" /> : <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-4" /></div>;
+                          })()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{l.title}</p>
+                          <p className="text-xs text-muted-foreground">{l.city || "-"} • {l.condition}</p>
+                          <p className="text-xs font-bold text-primary">Rp {(l.price ?? 0).toLocaleString("id-ID")}</p>
+                        </div>
+                        <span className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                          l.status === "active" ? "bg-emerald-100 text-emerald-700" :
+                          l.status === "pending" ? "bg-amber-100 text-amber-700" :
+                          "bg-muted text-muted-foreground"
+                        )}>{l.status}</span>
+                      </div>
+                    ))}
+                    {myAdsCount > 5 && (
+                      <Button variant="outline" size="sm" className="w-full" onClick={goToDashboard}>Lihat semua {myAdsCount} iklan</Button>
+                    )}
+                  </div>
                 ) : (
                   <div className="py-8 text-center">
                     <Tag className="mx-auto size-8 text-muted-foreground/40" />
                     <p className="mt-2 text-sm text-muted-foreground">Belum ada iklan dipasang.</p>
-                    <Button size="sm" className="mt-3 gap-1.5" onClick={goToPost}>
-                      <Plus className="size-4" /> Pasang Iklan
-                    </Button>
                   </div>
                 )}
               </div>
@@ -2309,17 +2343,36 @@ export function ProfileView() {
 
             {/* ===== FAVORIT SAYA PANEL ===== */}
             {panel === "favorit-saya" && (
-              <div className="space-y-2">
+              <div className="space-y-3 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold">Favorit Saya ({favCount})</h3>
+                  <Button size="sm" variant="outline" onClick={goHome}>Jelajahi Iklan</Button>
+                </div>
                 {favCount > 0 ? (
-                  <Button onClick={goToFavorites} className="w-full gap-2">
-                    <Heart className="size-4" /> Lihat {favCount} Favorit
-                  </Button>
+                  <div className="space-y-2">
+                    {favListings.map((l: any) => (
+                      <div key={l.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-2.5">
+                        <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-muted">
+                          {(() => {
+                            let imgs: string[] = [];
+                            try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
+                            return imgs[0] ? <img src={imgs[0]} alt="" className="size-full object-cover" /> : <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-4" /></div>;
+                          })()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{l.title}</p>
+                          <p className="text-xs text-muted-foreground">{l.city || "-"} • {l.condition}</p>
+                          <p className="text-xs font-bold text-primary">Rp {(l.price ?? 0).toLocaleString("id-ID")}</p>
+                        </div>
+                        <Heart className="size-4 shrink-0 fill-rose-500 text-rose-500" />
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="py-8 text-center">
                     <Heart className="mx-auto size-8 text-muted-foreground/40" />
                     <p className="mt-2 text-sm text-muted-foreground">Belum ada favorit.</p>
                     <p className="mt-1 text-xs text-muted-foreground">Tekan ikon hati pada iklan untuk menyimpan.</p>
-                    <Button size="sm" variant="outline" className="mt-3" onClick={goHome}>Jelajahi Iklan</Button>
                   </div>
                 )}
               </div>
