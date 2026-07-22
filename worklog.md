@@ -4103,3 +4103,37 @@ Stage Summary:
 - Gambar/foto otomatis compress max 200KB + convert ke PNG (canvas-based, progressive dimension reduction).
 - Admin panel mobile (dari halaman akun) sekarang menampilkan konten (sebelumnya blank).
 - Production gomesin.vercel.app live.
+
+---
+Task ID: F-19
+Agent: orchestrator (quick stats mobile + dashboard CRUD + menu logout)
+Task: 4 kotak quick stats tidak muncul di mobile + sidebar menu tidak lengkap. Rubah tampilan halaman akun lebih CRUD. Deploy.
+
+Work Log:
+- Fix 1 (4 kotak quick stats tampil di mobile):
+  • Quick stats div: `hidden md:grid` → `grid grid-cols-2 sm:grid-cols-4` (tampil di mobile 2x2, desktop 4-col).
+  • Hidden saat panel="pesan" di mobile (`max-md:hidden`).
+- Fix 2 (mobile menu lengkap + logout):
+  • Tambah `<optgroup label="Sesi"><option value="logout">Keluar</option></optgroup>` ke mobile dropdown.
+  • onChange handler: handle "logout" → logout() + toast + goHome() (atau goToLogin jika belum login).
+  • Mobile menu sekarang 11 opsi: Panel Admin, Iklan Saya, Favorit Saya, Pesan, Pesanan, Saldo, Notifikasi, Keamanan, Pengaturan, Bantuan, Keluar.
+- Fix 3 (dashboard CRUD-style default view):
+  • Replace placeholder "Pilih menu di samping" dengan CRUD dashboard:
+    - User Profile Card: avatar + name + email + admin badge + Edit button. Info table (Nama, Email, No HP, Kota, Bergabung) dengan divide-y.
+    - Ringkasan Aktivitas table: Iklan Dipasang, Favorit, Pesan Belum Dibaca, Transaksi (clickable, hover bg-accent).
+    - Quick Actions grid 2x2/4: Iklan Saya, Pesan, Saldo, Pengaturan (outline buttons dengan icon).
+    - Logout button (outline, destructive text).
+  • Style: rounded-lg border, bg-muted/30 headers, divide-y rows — clean admin/CRUD aesthetic.
+- Lint: 0 errors (19 pre-existing warnings).
+- Browser verify (iPhone 14, admin login):
+  • Profile card dengan info table (Nama, Email, No HP, Kota, Bergabung) + Edit button + ADMIN badge. ✓
+  • 4 quick stats cards (Favorit 0, Iklan 5, Pesan 0, Pesanan 0). ✓
+  • Quick action buttons (Iklan Saya, Pesan, Saldo, Pengaturan) + Logout button. ✓
+  • Mobile menu 11 opsi termasuk Keluar. ✓
+- Deploy ke Vercel production: relink to gomesin project, Ready in 47s, aliased gomesin.vercel.app. HTTP 200. ✓
+
+Stage Summary:
+- Halaman akun sekarang CRUD-style: profile card + info table + activity summary + quick actions + logout.
+- 4 quick stats cards tampil di mobile (2x2 grid).
+- Mobile menu lengkap dengan opsi Keluar (logout).
+- Production gomesin.vercel.app live.
