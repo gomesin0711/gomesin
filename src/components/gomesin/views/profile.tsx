@@ -1789,14 +1789,13 @@ export function ProfileView() {
 
             {/* PENGATURAN */}
             {panel === "pengaturan" && (
-              <div className="space-y-4">
-                <div className="rounded-lg border border-border bg-card p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-bold">Profil</p>
+              <div className="mx-auto max-w-4xl space-y-5 p-4 md:p-8">
+                <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="text-base font-bold md:text-lg">Profil</p>
                     {!editMode ? (
                       <Button
                         variant="outline"
-                        size="sm"
                         onClick={() => {
                           setEditName(user?.name || "");
                           setEditPhone(user?.phone || "");
@@ -1810,14 +1809,12 @@ export function ProfileView() {
                       <div className="flex gap-2">
                         <Button
                           variant="ghost"
-                          size="sm"
                           onClick={() => setEditMode(false)}
                           disabled={savingProfile}
                         >
                           Batal
                         </Button>
                         <Button
-                          size="sm"
                           disabled={savingProfile}
                           onClick={async () => {
                             if (!user?.id) return;
@@ -1860,71 +1857,71 @@ export function ProfileView() {
                   </div>
 
                   {!editMode ? (
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Nama</span><span className="font-medium">{user?.name || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="max-w-[60%] truncate text-right font-medium">{user?.email || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">No. HP</span><span className="font-medium">{user?.phone || "-"}</span></div>
+                    <div className="space-y-3 text-sm md:text-base">
+                      <div className="flex justify-between border-b border-border/50 pb-2"><span className="text-muted-foreground">Nama</span><span className="font-medium">{user?.name || "-"}</span></div>
+                      <div className="flex justify-between border-b border-border/50 pb-2"><span className="text-muted-foreground">Email</span><span className="max-w-[60%] truncate text-right font-medium">{user?.email || "-"}</span></div>
+                      <div className="flex justify-between border-b border-border/50 pb-2"><span className="text-muted-foreground">No. HP</span><span className="font-medium">{user?.phone || "-"}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Kota</span><span className="font-medium">{user?.city || "-"}</span></div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Nama</Label>
+                        <Label className="text-sm text-muted-foreground md:text-base">Nama</Label>
                         <Input
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           placeholder="Nama lengkap"
-                          className="h-9 text-sm"
+                          className="h-10 text-sm md:h-11 md:text-base"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Email</Label>
+                        <Label className="text-sm text-muted-foreground md:text-base">Email</Label>
                         <Input
                           value={user?.email || ""}
                           disabled
-                          className="h-9 text-sm text-muted-foreground"
+                          className="h-10 text-sm text-muted-foreground md:h-11 md:text-base"
                         />
-                        <p className="text-[10px] text-muted-foreground">Email tidak dapat diubah</p>
+                        <p className="text-xs text-muted-foreground md:text-sm">Email tidak dapat diubah</p>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">No. HP</Label>
+                        <Label className="text-sm text-muted-foreground md:text-base">No. HP</Label>
                         <Input
                           value={editPhone}
                           onChange={(e) => setEditPhone(e.target.value)}
                           placeholder="0812-xxxx-xxxx"
-                          className="h-9 text-sm"
+                          className="h-10 text-sm md:h-11 md:text-base"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Kota</Label>
+                        <Label className="text-sm text-muted-foreground md:text-base">Kota</Label>
                         <Input
                           value={editCity}
                           onChange={(e) => setEditCity(e.target.value)}
                           placeholder="Kota"
-                          className="h-9 text-sm"
+                          className="h-10 text-sm md:h-11 md:text-base"
                         />
                       </div>
                     </div>
                   )}
                 </div>
-                <div className="rounded-lg border border-border bg-card p-4">
-                  <p className="mb-3 text-sm font-bold">Preferensi</p>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between text-sm">
+                <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+                  <p className="mb-4 text-base font-bold md:text-lg">Preferensi</p>
+                  <div className="space-y-4">
+                    <label className="flex items-center justify-between text-sm md:text-base">
                       <span>Notifikasi push</span>
-                      <input type="checkbox" defaultChecked className="accent-primary" />
+                      <input type="checkbox" defaultChecked className="size-4 accent-primary md:size-5" />
                     </label>
-                    <label className="flex items-center justify-between text-sm">
+                    <label className="flex items-center justify-between text-sm md:text-base">
                       <span>Email newsletter</span>
-                      <input type="checkbox" defaultChecked className="accent-primary" />
+                      <input type="checkbox" defaultChecked className="size-4 accent-primary md:size-5" />
                     </label>
-                    <label className="flex items-center justify-between text-sm">
+                    <label className="flex items-center justify-between text-sm md:text-base">
                       <span>Tampilkan iklan disarankan</span>
-                      <input type="checkbox" className="accent-primary" />
+                      <input type="checkbox" className="size-4 accent-primary md:size-5" />
                     </label>
                   </div>
                 </div>
-                <Button variant="destructive" className="w-full" onClick={() => {
+                <Button variant="destructive" className="w-full md:h-11" onClick={() => {
                   if (confirm(tr("profDeleteAccountConfirm"))) {
                     toast.info(tr("profDeleteAccountProcessing"));
                   }
