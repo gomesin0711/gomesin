@@ -799,15 +799,13 @@ export function ProfileView() {
             <button
               key={s.label}
               onClick={s.action}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition hover:border-primary hover:shadow-sm"
+              className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-3 text-center transition hover:border-primary hover:shadow-sm"
             >
               <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg", s.bg)}>
                 <s.icon className={cn("size-4", s.color)} />
               </span>
-              <div className="min-w-0 text-left">
-                <p className="text-xl font-bold leading-tight">{s.value}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{s.label}</p>
-              </div>
+              <p className="text-xl font-bold leading-tight">{s.value}</p>
+              <p className="text-[11px] leading-tight text-muted-foreground">{s.label}</p>
             </button>
           ))}
         </div>
