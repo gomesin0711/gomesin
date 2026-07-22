@@ -168,6 +168,7 @@ export function ProfileView() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const addPaymentRef = useRef<HTMLDivElement>(null);
   const [msgMenu, setMsgMenu] = useState<{ visible: boolean; x: number; y: number; msgIndex: number | null }>({ visible: false, x: 0, y: 0, msgIndex: null });
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1357,7 +1358,15 @@ export function ProfileView() {
                     <div className="mb-3 flex items-center justify-between">
                       <p className="text-base font-bold md:text-lg">Metode Pembayaran</p>
                       <button
-                        onClick={() => setShowAddPayment(!showAddPayment)}
+                        onClick={() => {
+                          const next = !showAddPayment;
+                          setShowAddPayment(next);
+                          if (next) {
+                            setTimeout(() => {
+                              addPaymentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }, 100);
+                          }
+                        }}
                         className="text-sm font-medium text-primary hover:underline md:text-base"
                       >
                         {showAddPayment ? tr("profCancel") : tr("profAdd")}
@@ -1366,7 +1375,7 @@ export function ProfileView() {
 
                     {/* Add Payment Form */}
                     {showAddPayment && (
-                      <div className="mb-3 space-y-2.5 rounded-xl border border-primary/30 bg-primary/5 p-4 md:p-5">
+                      <div ref={addPaymentRef} className="mb-3 space-y-2.5 rounded-xl border border-primary/30 bg-primary/5 p-4 md:p-5">
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground md:text-sm">Tipe</Label>
                           <div className="flex gap-2">
