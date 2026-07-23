@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 import { compressImage } from "@/lib/image";
 import { shareImageToWhatsApp } from "@/lib/share-image";
+import { useChatSocket } from "@/lib/use-chat-socket";
 import {
   Popover,
   PopoverContent,
@@ -93,6 +94,8 @@ export function PostAdView() {
   const goHome = useStore((s) => s.goHome);
   const goToDashboard = useStore((s) => s.goToDashboard);
   const user = useStore((s) => s.user);
+  const { sendMessage } = useChatSocket();
+  const ADMIN_ID = "cmqxf56hi0000sr1t5e852swg";
 
   const { t, lang } = useLang();
   const mounted = useMounted();
@@ -815,6 +818,36 @@ export function PostAdView() {
                         if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
                         else if (result.status === "opened") toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
+
+                        // Kirim juga ke chat admin (internal Gomesin) dengan gambar bukti.
+                        if (user) {
+                          try {
+                            const ack = await sendMessage({
+                              senderId: user.id,
+                              receiverId: ADMIN_ID,
+                              content: caption,
+                              image: proofImage,
+                              listingTitle: title || undefined,
+                            });
+                            if (!ack?.ok) {
+                              // Fallback REST
+                              await fetch("/api/messages", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  senderId: user.id,
+                                  receiverId: ADMIN_ID,
+                                  content: caption,
+                                  image: proofImage,
+                                  listingTitle: title || undefined,
+                                }),
+                              });
+                            }
+                            toast.success("Bukti pembayaran dikirim ke chat admin");
+                          } catch {
+                            toast.error("Gagal kirim chat ke admin");
+                          }
+                        }
                       } catch {
                         toast.error("Gagal mengirim bukti");
                       } finally {
