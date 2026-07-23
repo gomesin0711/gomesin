@@ -2260,42 +2260,45 @@ export function ProfileView() {
 
             {/* ===== FAVORIT SAYA PANEL ===== */}
             {panel === "favorit-saya" && (
-              <div className="space-y-3 p-3">
+              <div className="space-y-4 p-3 md:p-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold">Favorit Saya ({favCount})</h3>
+                  <h3 className="text-base font-bold md:text-lg">Favorit Saya ({favCount})</h3>
                   <Button size="sm" variant="outline" onClick={goHome}>Jelajahi Iklan</Button>
                 </div>
                 {favCount > 0 ? (
-                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                     {favListings.map((l: any) => {
                       let imgs: string[] = [];
                       try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
                       return (
-                        <div key={l.id} className="overflow-hidden rounded-lg border border-border bg-card">
+                        <div key={l.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:shadow-md">
                           <div className="relative aspect-square w-full overflow-hidden bg-muted">
                             {imgs[0] ? (
                               <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
                             ) : (
-                              <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-6" /></div>
+                              <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-8" /></div>
                             )}
-                            <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-white/90 shadow">
-                              <Heart className="size-3.5 fill-rose-500 text-rose-500" />
+                            <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-white/90 shadow md:size-8">
+                              <Heart className="size-4 fill-rose-500 text-rose-500" />
                             </span>
                           </div>
-                          <div className="p-2">
-                            <p className="line-clamp-2 text-xs font-semibold leading-tight">{l.title}</p>
-                            <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{l.city || "-"} • {l.condition}</p>
-                            <p className="mt-0.5 text-xs font-bold text-primary">Rp {(l.price ?? 0).toLocaleString("id-ID")}</p>
+                          <div className="p-2.5 md:p-3">
+                            <p className="line-clamp-2 text-xs font-semibold leading-tight md:text-sm">{l.title}</p>
+                            <p className="mt-1 truncate text-[10px] text-muted-foreground md:text-xs">{l.city || "-"} • {l.condition}</p>
+                            <p className="mt-1 text-xs font-bold text-primary md:text-sm">Rp {(l.price ?? 0).toLocaleString("id-ID")}</p>
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="py-8 text-center">
-                    <Heart className="mx-auto size-8 text-muted-foreground/40" />
-                    <p className="mt-2 text-sm text-muted-foreground">Belum ada favorit.</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Tekan ikon hati pada iklan untuk menyimpan.</p>
+                  <div className="rounded-xl border border-dashed border-border p-10 text-center">
+                    <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted">
+                      <Heart className="size-7 text-muted-foreground/50" />
+                    </div>
+                    <p className="mt-3 text-base font-semibold">Belum ada favorit</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Tekan ikon hati pada iklan untuk menyimpan.</p>
+                    <Button className="mt-4 gap-1.5" onClick={goHome}>Jelajahi Iklan</Button>
                   </div>
                 )}
               </div>
