@@ -247,7 +247,13 @@ export function ProfileView() {
   // sample data for panels — per-user (empty for new users)
   const orders: any[] = [];
   const wallets: any[] = [];
-  const notifications: any[] = [];
+  const notifications: any[] = [
+    { id: 1, icon: MessageSquare, title: "Pesan baru", desc: "Anda memiliki pesan baru dari pembeli.", time: "Baru saja", color: "text-blue-500", unread: true },
+    { id: 2, icon: Tag, title: "Iklan disetujui", desc: "Iklan 'TEST DOWNLOAD BUKTI' telah diverifikasi admin.", time: "2 jam lalu", color: "text-emerald-500", unread: true },
+    { id: 3, icon: Heart, title: "Iklan difavoritkan", desc: "Iklan Anda ditambahkan ke favorit oleh pengguna.", time: "5 jam lalu", color: "text-rose-500", unread: false },
+    { id: 4, icon: Clock, title: "Iklan akan kedaluwarsa", desc: "Iklan 'tes' akan kedaluwarsa dalam 3 hari.", time: "1 hari lalu", color: "text-amber-500", unread: false },
+    { id: 5, icon: CheckCircle2, title: "Pembayaran diterima", desc: "Pembayaran Rp 99.000 untuk paket Titanium telah diterima.", time: "2 hari lalu", color: "text-emerald-500", unread: false },
+  ];
 
   const faqs = [
     { q: tr("profFaqQ1"), a: tr("profFaqA1") },
@@ -834,10 +840,10 @@ export function ProfileView() {
 
         {/* (mobile dropdown menu removed — replaced by hamburger drawer above) */}
 
-        {/* Content Area — full page (no card border) for iklan-saya, favorit-saya, saldo, keamanan, pengaturan, bantuan, pesan; card for others */}
+        {/* Content Area — full page (no card border) for iklan-saya, favorit-saya, saldo, notifikasi, keamanan, pengaturan, bantuan, pesan; card for others */}
         <div className={cn(
           "min-h-[400px]",
-          (panel === "pesan" || panel === "iklan-saya" || panel === "favorit-saya" || panel === "saldo" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan")
+          (panel === "pesan" || panel === "iklan-saya" || panel === "favorit-saya" || panel === "saldo" || panel === "notifikasi" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan")
             ? "rounded-none border-0 p-0 bg-transparent"
             : "rounded-xl border border-border bg-card"
         )}>
@@ -846,7 +852,7 @@ export function ProfileView() {
               {/* Panel header — hidden on mobile for full-page panels */}
               <div className={cn(
                 "flex items-center justify-between border-b border-border p-3",
-                (panel === "pesan" || panel === "iklan-saya" || panel === "favorit-saya" || panel === "saldo" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan") && "max-md:hidden"
+                (panel === "pesan" || panel === "iklan-saya" || panel === "favorit-saya" || panel === "saldo" || panel === "notifikasi" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan") && "max-md:hidden"
               )}>
                 <h2 className="text-sm font-bold">{panelTitle[panel]}</h2>
                 <button onClick={closePanel} className="grid size-7 place-items-center rounded-full hover:bg-accent">
@@ -1436,27 +1442,59 @@ export function ProfileView() {
             })()}
 
             {/* NOTIFIKASI */}
-            {panel === "notifikasi" && (
-              <div className="space-y-2">
-                {notifications.map((n) => (
-                  <div key={n.id} className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10">
-                      <n.icon className={cn("size-4", n.color)} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold">{n.title}</p>
-                        <span className="shrink-0 text-[10px] text-muted-foreground">{n.time}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{n.desc}</p>
+            {panel === "notifikasi" && (() => {
+              const unreadCount = notifications.filter((n) => n.unread).length;
+              return (
+                <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-8">
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-base font-bold md:text-lg">Notifikasi</p>
+                      <p className="text-sm text-muted-foreground">{unreadCount} belum dibaca dari {notifications.length} total</p>
                     </div>
+                    {unreadCount > 0 && (
+                      <Button variant="outline" size="sm" onClick={() => { toast.success("Semua notifikasi ditandai dibaca"); }}>
+                        Tandai dibaca
+                      </Button>
+                    )}
                   </div>
-                ))}
-                <Button variant="outline" className="mt-2 w-full" onClick={() => { setPanel(null); toast.success("Semua notifikasi ditandai dibaca"); }}>
-                  Tandai semua dibaca
-                </Button>
-              </div>
-            )}
+
+                  {/* Notification list */}
+                  {notifications.length > 0 ? (
+                    <div className="space-y-2">
+                      {notifications.map((n) => (
+                        <div key={n.id} className={cn(
+                          "flex items-start gap-3 rounded-xl border bg-card p-4 transition hover:shadow-sm md:p-5",
+                          n.unread ? "border-primary/30 bg-primary/5" : "border-border"
+                        )}>
+                          <span className={cn("grid size-10 shrink-0 place-items-center rounded-lg bg-muted md:size-12", n.color)}>
+                            <n.icon className="size-5 md:size-6" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold md:text-base">{n.title}</p>
+                              <span className="shrink-0 text-[10px] text-muted-foreground md:text-xs">{n.time}</span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{n.desc}</p>
+                          </div>
+                          {n.unread && (
+                            <span className="mt-1 size-2.5 shrink-0 rounded-full bg-primary" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border p-10 text-center">
+                      <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted">
+                        <Bell className="size-7 text-muted-foreground/50" />
+                      </div>
+                      <p className="mt-3 text-base font-semibold">Belum ada notifikasi</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Notifikasi tentang pesan, iklan, dan pembayaran akan muncul di sini.</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* KEAMANAN */}
             {panel === "keamanan" && (() => {
