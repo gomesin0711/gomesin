@@ -72,3 +72,6 @@ upload/
 
 # mini-service deps
 /mini-services/*/node_modules
+
+# download archives (not part of source)
+download/
