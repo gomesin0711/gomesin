@@ -1367,10 +1367,10 @@ export function ProfileView() {
                     </div>
                   )}
 
-                  {/* Listing cards — 1 col mobile, 2 col tablet, 3 col desktop */}
+                  {/* Listing cards — grid 2 col mobile, 3 col tablet, 4-5 col desktop */}
                   <div>
                     {myAdsCount > 0 ? (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                         {filtered.map((l: any) => {
                           let imgs: string[] = [];
                           try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
