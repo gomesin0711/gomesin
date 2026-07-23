@@ -136,6 +136,26 @@ export function ProfileView() {
   });
   const favListings: any[] = favListingsData?.listings ?? [];
 
+  // Fetch paket prices (for Riwayat Pembayaran — show ad package price per listing)
+  const { data: paketData } = useQuery({
+    queryKey: ["paket-prices"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/paket`);
+      if (!res.ok) throw new Error("fail");
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+  const paketMap: Record<string, number> = (() => {
+    const m: Record<string, number> = {};
+    for (const p of paketData?.pakets || []) m[p.key] = p.price;
+    return m;
+  })();
+  const formatAdFee = (pkg: string) => {
+    const price = paketMap[pkg] ?? 0;
+    return price > 0 ? `Rp ${price.toLocaleString("id-ID")}` : "-";
+  };
+
   const { t, lang } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
@@ -1296,14 +1316,12 @@ export function ProfileView() {
               </div>
             )}
 
-            {/* SALDO & PEMBAYARAN */}
+            {/* RIWAYAT PEMBAYARAN — daftar iklan yang pernah dipasang + harga paket iklan */}
             {panel === "saldo" && (() => {
-              const totalIn = transactions.filter((t) => t.amount > 0).reduce((a, t) => a + t.amount, 0);
-              const totalOut = transactions.filter((t) => t.amount < 0).reduce((a, t) => a + Math.abs(t.amount), 0);
-
+              const totalAdFee = myListings.reduce((sum: number, l: any) => sum + (paketMap[l.packageType] ?? 0), 0);
               return (
                 <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
-                  {/* Balance Card */}
+                  {/* Summary Card */}
                   <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-emerald-600 p-6 text-primary-foreground shadow-lg md:p-8">
                     <div className="absolute -right-8 -top-8 size-28 rounded-full bg-white/10 md:size-40" />
                     <div className="absolute -bottom-10 right-16 size-20 rounded-full bg-white/10 md:size-28" />
@@ -1311,212 +1329,68 @@ export function ProfileView() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="flex items-center gap-1.5 text-sm text-primary-foreground/80 md:text-base">
-                            <Wallet className="size-4 md:size-5" /> Saldo Gomesin
+                            <Wallet className="size-4 md:size-5" /> Total Pembayaran Iklan
                           </p>
-                          <p className="mt-2 text-4xl font-extrabold md:text-5xl">Rp {balance.toLocaleString("id-ID")}</p>
+                          <p className="mt-2 text-4xl font-extrabold md:text-5xl">Rp {totalAdFee.toLocaleString("id-ID")}</p>
                         </div>
                         <span className="grid size-14 place-items-center rounded-xl bg-white/20 backdrop-blur md:size-20">
-                          <Wallet className="size-7 md:size-10" />
+                          <Tag className="size-7 md:size-10" />
                         </span>
                       </div>
-                      <div className="mt-5 grid grid-cols-2 gap-3">
-                        <Button
-                          className="bg-white text-primary hover:bg-white/90 md:h-11"
-                          onClick={() => toast.success(tr("profTopUpSuccess"))}
-                        >
-                          <Plus className="size-4" /> Top Up
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          className="bg-white/20 backdrop-blur hover:bg-white/30 md:h-11"
-                          onClick={() => toast.info(tr("profTxHistoryInfo"))}
-                        >
-                          <CreditCard className="size-4" /> Riwayat
-                        </Button>
-                      </div>
+                      <p className="mt-4 text-sm text-primary-foreground/80 md:text-base">
+                        {myAdsCount} iklan terpasang
+                      </p>
                     </div>
                   </div>
 
-                  {/* Income/Expense Summary */}
-                  <div className="grid grid-cols-2 gap-3 md:gap-4">
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 md:p-5">
-                      <p className="flex items-center gap-1 text-sm text-emerald-700 md:text-base">
-                        <span className="text-emerald-500">↓</span> Masuk
-                      </p>
-                      <p className="mt-1.5 text-lg font-bold text-emerald-700 md:text-2xl">Rp {totalIn.toLocaleString("id-ID")}</p>
-                    </div>
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 md:p-5">
-                      <p className="flex items-center gap-1 text-sm text-red-700 md:text-base">
-                        <span className="text-red-500">↑</span> Keluar
-                      </p>
-                      <p className="mt-1.5 text-lg font-bold text-red-700 md:text-2xl">Rp {totalOut.toLocaleString("id-ID")}</p>
-                    </div>
-                  </div>
-
-                  {/* Payment Methods */}
+                  {/* Listing list with ad package price */}
                   <div>
-                    <div className="mb-3 flex items-center justify-between">
-                      <p className="text-base font-bold md:text-lg">Metode Pembayaran</p>
-                      <button
-                        onClick={() => {
-                          const next = !showAddPayment;
-                          setShowAddPayment(next);
-                          if (next) {
-                            setTimeout(() => {
-                              addPaymentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                            }, 100);
-                          }
-                        }}
-                        className="text-sm font-medium text-primary hover:underline md:text-base"
-                      >
-                        {showAddPayment ? tr("profCancel") : tr("profAdd")}
-                      </button>
-                    </div>
-
-                    {/* Add Payment Form */}
-                    {showAddPayment && (
-                      <div ref={addPaymentRef} className="mb-3 space-y-2.5 rounded-xl border border-primary/30 bg-primary/5 p-4 md:p-5">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground md:text-sm">Tipe</Label>
-                          <div className="flex gap-2">
-                            {[
-                              { v: "bank", l: tr("commonBank") },
-                              { v: "ewallet", l: "E-Wallet" },
-                              { v: "qris", l: "QRIS" },
-                            ].map((t) => (
-                              <button
-                                key={t.v}
-                                onClick={() => setNewPaymentType(t.v)}
-                                className={cn(
-                                  "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition md:text-base",
-                                  newPaymentType === t.v
-                                    ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-border bg-card hover:bg-accent"
+                    <p className="mb-3 text-base font-bold md:text-lg">Iklan yang Pernah Dipasang</p>
+                    {myAdsCount > 0 ? (
+                      <div className="space-y-2.5">
+                        {myListings.map((l: any) => {
+                          let imgs: string[] = [];
+                          try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
+                          const pkgName = l.packageType === "spotlight" ? "Titanium" : l.packageType === "highlight" ? "Platinum" : l.packageType === "sundul" ? "Colek" : "Gold";
+                          return (
+                            <div key={l.id} className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
+                              <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted md:size-16">
+                                {imgs[0] ? (
+                                  <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
+                                ) : (
+                                  <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-6" /></div>
                                 )}
-                              >
-                                {t.l}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Nama {newPaymentType === "bank" ? "Bank" : newPaymentType === "ewallet" ? "E-Wallet" : ""}</Label>
-                          <Input
-                            value={newPaymentName}
-                            onChange={(e) => setNewPaymentName(e.target.value)}
-                            placeholder={newPaymentType === "bank" ? "BCA, Mandiri, BNI..." : newPaymentType === "ewallet" ? "GoPay, OVO, DANA..." : "QRIS"}
-                            className="h-9 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">{newPaymentType === "qris" ? "ID QRIS" : "Nomor Rekening / HP"}</Label>
-                          <Input
-                            value={newPaymentNumber}
-                            onChange={(e) => setNewPaymentNumber(e.target.value)}
-                            placeholder={newPaymentType === "bank" ? "1234567890" : "0812-xxxx-xxxx"}
-                            className="h-9 text-sm"
-                          />
-                        </div>
-                        <Button
-                          size="sm"
-                          className="w-full"
-                          disabled={!newPaymentName.trim() || !newPaymentNumber.trim()}
-                          onClick={() => {
-                            const newPayment = {
-                              id: Date.now(),
-                              type: newPaymentType,
-                              name: newPaymentName.trim(),
-                              number: newPaymentType === "bank" ? "**** " + newPaymentNumber.trim().slice(-4) : newPaymentNumber.trim(),
-                              holder: user?.name || tr("commonGomesinUser"),
-                              isPrimary: paymentList.length === 0,
-                            };
-                            setPaymentList([...paymentList, newPayment]);
-                            setNewPaymentName("");
-                            setNewPaymentNumber("");
-                            setShowAddPayment(false);
-                            toast.success(tr("profPaymentAdded"));
-                          }}
-                        >
-                          <CheckCircle2 className="size-4" /> Simpan
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-base font-semibold md:text-lg">{l.title}</p>
+                                <p className="text-xs text-muted-foreground md:text-sm">
+                                  {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+                                </p>
+                                <div className="mt-1 flex items-center gap-2">
+                                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary md:text-xs">{pkgName}</span>
+                                  <span className={cn(
+                                    "rounded-full px-2 py-0.5 text-[10px] font-bold md:text-xs",
+                                    l.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                                  )}>{l.paymentStatus === "paid" ? "Lunas" : "Pending"}</span>
+                                </div>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <p className="text-xs text-muted-foreground md:text-sm">Harga Iklan</p>
+                                <p className="text-base font-bold text-primary md:text-xl">{formatAdFee(l.packageType)}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                        <Tag className="mx-auto size-8 text-muted-foreground/40" />
+                        <p className="mt-2 text-sm text-muted-foreground md:text-base">Belum ada iklan dipasang.</p>
+                        <Button size="sm" className="mt-3 gap-1.5" onClick={goToPost}>
+                          <Plus className="size-4" /> Pasang Iklan
                         </Button>
                       </div>
                     )}
-
-                    {/* Payment List */}
-                    <div className="space-y-2.5">
-                      {paymentList.map((p) => (
-                        <div key={p.id} className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
-                          <span className={cn(
-                            "grid size-12 shrink-0 place-items-center rounded-lg md:size-14",
-                            p.type === "bank" && "bg-blue-50 text-blue-600",
-                            p.type === "ewallet" && "bg-purple-50 text-purple-600",
-                            p.type === "qris" && "bg-emerald-50 text-emerald-600"
-                          )}>
-                            {p.type === "qris" ? <Smartphone className="size-6 md:size-7" /> : <CreditCard className="size-6 md:size-7" />}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-base font-semibold md:text-lg">{p.name}</p>
-                            <p className="truncate text-sm text-muted-foreground md:text-base">{p.number} · {p.holder}</p>
-                          </div>
-                          {p.isPrimary && (
-                            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary md:text-sm">Utama</span>
-                          )}
-                          {!p.isPrimary && (
-                            <button
-                              onClick={() => {
-                                setPaymentList(paymentList.map((x) => ({ ...x, isPrimary: x.id === p.id })));
-                                toast.success(`${p.name} dijadikan metode utama`);
-                              }}
-                              className="text-xs font-medium text-primary hover:underline md:text-sm"
-                            >
-                              Jadikan Utama
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              setPaymentList(paymentList.filter((x) => x.id !== p.id));
-                              toast.success(tr("profPaymentDeleted"));
-                            }}
-                            className="grid size-8 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive md:size-9"
-                            aria-label="Hapus"
-                          >
-                            <X className="size-4 md:size-5" />
-                          </button>
-                        </div>
-                      ))}
-                      {paymentList.length === 0 && (
-                        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground md:text-base">
-                          Belum ada metode pembayaran. Klik "+ Tambah" untuk menambah.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Transaction History */}
-                  <div>
-                    <p className="mb-3 text-base font-bold md:text-lg">Riwayat Transaksi</p>
-                    <div className="space-y-2">
-                      {transactions.map((t) => (
-                        <div key={t.id} className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
-                          <span className={cn(
-                            "grid size-11 shrink-0 place-items-center rounded-lg md:size-14",
-                            t.amount > 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
-                          )}>
-                            {t.amount > 0 ? <Plus className="size-5 md:size-6" /> : <CreditCard className="size-5 md:size-6" />}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-base font-semibold md:text-lg">{t.title}</p>
-                            <p className="text-xs text-muted-foreground md:text-sm">{t.date}</p>
-                          </div>
-                          <span className={cn(
-                            "shrink-0 text-base font-bold md:text-xl",
-                            t.amount > 0 ? "text-emerald-600" : "text-red-600"
-                          )}>
-                            {t.amount > 0 ? "+" : ""}Rp {Math.abs(t.amount).toLocaleString("id-ID")}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 </div>
               );
