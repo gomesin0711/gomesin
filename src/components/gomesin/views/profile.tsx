@@ -1326,20 +1326,20 @@ export function ProfileView() {
                 : payFilter === "pending" ? myListings.filter((l: any) => l.paymentStatus !== "paid")
                 : myListings;
               return (
-                <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
+                <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-8">
                   {/* Summary — 3 stat cards */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-xl border border-border bg-card p-4 text-center md:p-5">
-                      <p className="text-xs text-muted-foreground md:text-sm">Total Bayar</p>
-                      <p className="mt-1 text-lg font-extrabold text-primary md:text-2xl">Rp {totalAdFee.toLocaleString("id-ID")}</p>
+                  <div className="grid grid-cols-3 gap-3 md:gap-5">
+                    <div className="rounded-xl border border-border bg-card p-4 text-center md:p-6">
+                      <p className="text-xs text-muted-foreground md:text-base">Total Bayar</p>
+                      <p className="mt-1 text-lg font-extrabold text-primary md:text-3xl">Rp {totalAdFee.toLocaleString("id-ID")}</p>
                     </div>
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center md:p-5">
-                      <p className="text-xs text-emerald-700 md:text-sm">Lunas</p>
-                      <p className="mt-1 text-lg font-extrabold text-emerald-700 md:text-2xl">{paidCount}</p>
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center md:p-6">
+                      <p className="text-xs text-emerald-700 md:text-base">Lunas</p>
+                      <p className="mt-1 text-lg font-extrabold text-emerald-700 md:text-3xl">{paidCount}</p>
                     </div>
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center md:p-5">
-                      <p className="text-xs text-amber-700 md:text-sm">Pending</p>
-                      <p className="mt-1 text-lg font-extrabold text-amber-700 md:text-2xl">{pendingCount}</p>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center md:p-6">
+                      <p className="text-xs text-amber-700 md:text-base">Pending</p>
+                      <p className="mt-1 text-lg font-extrabold text-amber-700 md:text-3xl">{pendingCount}</p>
                     </div>
                   </div>
 
@@ -1367,10 +1367,10 @@ export function ProfileView() {
                     </div>
                   )}
 
-                  {/* Listing cards */}
+                  {/* Listing cards — 1 col mobile, 2 col tablet, 3 col desktop */}
                   <div>
                     {myAdsCount > 0 ? (
-                      <div className="space-y-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {filtered.map((l: any) => {
                           let imgs: string[] = [];
                           try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
@@ -1379,39 +1379,35 @@ export function ProfileView() {
                           const isPaid = l.paymentStatus === "paid";
                           return (
                             <div key={l.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:shadow-md">
-                              <div className="flex gap-3 p-3 md:gap-4 md:p-4">
-                                {/* Image */}
-                                <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted md:size-24">
-                                  {imgs[0] ? (
-                                    <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
-                                  ) : (
-                                    <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-8" /></div>
-                                  )}
-                                  <span className={cn(
-                                    "absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow md:text-[10px]",
-                                    pkgColor
-                                  )}>{pkgName}</span>
-                                </div>
-                                {/* Info */}
-                                <div className="flex min-w-0 flex-1 flex-col">
-                                  <p className="line-clamp-2 text-sm font-bold leading-tight md:text-base">{l.title}</p>
-                                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-                                    <Clock className="size-3" />
-                                    {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-                                  </p>
-                                  <div className="mt-auto flex items-center justify-between pt-2">
-                                    <span className={cn(
-                                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold md:text-xs",
-                                      isPaid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                                    )}>
-                                      {isPaid ? <CheckCircle2 className="size-3" /> : <Clock className="size-3" />}
-                                      {isPaid ? "Lunas" : "Pending"}
-                                    </span>
-                                    <div className="text-right">
-                                      <p className="text-[10px] text-muted-foreground md:text-xs">Harga Iklan</p>
-                                      <p className="text-base font-extrabold text-primary md:text-lg">{formatAdFee(l.packageType)}</p>
-                                    </div>
-                                  </div>
+                              {/* Image — top, full width */}
+                              <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                                {imgs[0] ? (
+                                  <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
+                                ) : (
+                                  <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-10" /></div>
+                                )}
+                                <span className={cn(
+                                  "absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold shadow md:text-xs",
+                                  pkgColor
+                                )}>{pkgName}</span>
+                                <span className={cn(
+                                  "absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold shadow md:text-xs",
+                                  isPaid ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"
+                                )}>
+                                  {isPaid ? <CheckCircle2 className="size-3" /> : <Clock className="size-3" />}
+                                  {isPaid ? "Lunas" : "Pending"}
+                                </span>
+                              </div>
+                              {/* Info — bottom */}
+                              <div className="flex flex-col p-3 md:p-4">
+                                <p className="line-clamp-2 text-sm font-bold leading-tight md:text-base">{l.title}</p>
+                                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+                                  <Clock className="size-3" />
+                                  {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                                </p>
+                                <div className="mt-2 flex items-end justify-between border-t border-border/50 pt-2">
+                                  <p className="text-[10px] text-muted-foreground md:text-xs">Harga Iklan</p>
+                                  <p className="text-base font-extrabold text-primary md:text-lg">{formatAdFee(l.packageType)}</p>
                                 </div>
                               </div>
                             </div>
