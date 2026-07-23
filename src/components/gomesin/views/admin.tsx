@@ -1490,121 +1490,155 @@ function TransaksiTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [pkgFilter, setPkgFilter] = useState<"all" | "spotlight" | "highlight" | "sundul" | "gratis">("all");
   if (isLoading || !data) return <SkeletonGrid count={3} />;
 
   const now = new Date();
   const startToday = new Date(now); startToday.setHours(0, 0, 0, 0);
   const startWeek = new Date(startToday); const dow = (startWeek.getDay() + 6) % 7; startWeek.setDate(startWeek.getDate() - dow);
   const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
   const all = data.listings;
-  // Harga pasang iklan diambil dari field `adFee` yang sudah dihitung di sisi
-  // server (/api/admin/listings) dari tabel Paket — sehingga realtime, tidak
-  // perlu fetch paket terpisah dan tidak ada race condition.
   const adFee = (l: any) => l.adFee ?? 0;
 
   const daily = all.filter((l: any) => new Date(l.createdAt) >= startToday);
   const weekly = all.filter((l: any) => new Date(l.createdAt) >= startWeek);
   const monthly = all.filter((l: any) => new Date(l.createdAt) >= startMonth && new Date(l.createdAt) < now);
-  const lastMonth = all.filter((l: any) => {
-    const d = new Date(l.createdAt);
-    return d >= startLastMonth && d < startMonth;
-  });
 
   const sumFee = (list: any[]) => list.reduce((a, l) => a + adFee(l), 0);
-  const sumViews = (list: any[]) => list.reduce((a, l) => a + (l.views || 0), 0);
+  const totalAll = sumFee(all);
 
-  const periods = [
-    { key: "harian", label: tr("admToday"), icon: Clock, data: daily, fee: sumFee(daily), views: sumViews(daily), color: "text-blue-500", bg: "bg-blue-50" },
-    { key: "mingguan", label: tr("admThisWeek"), icon: Clock, data: weekly, fee: sumFee(weekly), views: sumViews(weekly), color: "text-primary", bg: "bg-primary/10" },
-    { key: "bulanan", label: tr("admThisMonth"), icon: Clock, data: monthly, fee: sumFee(monthly), views: sumViews(monthly), color: "text-emerald-600", bg: "bg-emerald-50" },
-    { key: "bulanlalu", label: tr("admLastMonth"), icon: Clock, data: lastMonth, fee: sumFee(lastMonth), views: sumViews(lastMonth), color: "text-amber-500", bg: "bg-amber-50" },
-  ];
+  // Filtered list for table
+  const filtered = all.filter((l: any) => {
+    const matchSearch = !search || l.title?.toLowerCase().includes(search.toLowerCase()) || l.seller?.name?.toLowerCase().includes(search.toLowerCase());
+    const matchPkg = pkgFilter === "all" || l.packageType === pkgFilter;
+    return matchSearch && matchPkg;
+  });
 
-  const toggle = (key: string) => setExpanded(expanded === key ? null : key);
+  const pkgName = (p: string) => p === "spotlight" ? "Titanium" : p === "highlight" ? "Platinum" : p === "sundul" ? "Colek" : "Gold";
+  const pkgColor = (p: string) => p === "spotlight" ? "bg-amber-100 text-amber-700" : p === "highlight" ? "bg-orange-100 text-orange-700" : p === "sundul" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
 
   return (
     <div className="space-y-4">
-      <h2 className="text-base font-bold">Riwayat Penjualan</h2>
-
-      {/* summary cards — clickable to expand */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {periods.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => toggle(p.key)}
-            className={cn(
-              "rounded-xl border-2 p-4 text-left transition",
-              expanded === p.key ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-accent/30"
-            )}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">{p.label}</span>
-              <span className={cn("grid size-8 place-items-center rounded-lg", p.bg)}><p.icon className={cn("size-4", p.color)} /></span>
-            </div>
-            <p className="mt-2 text-lg font-bold text-emerald-600">{formatRupiahFull(p.fee)}</p>
-            <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
-              <span>{p.data.length} iklan</span>
-              <span>{p.views.toLocaleString("id-ID")} views</span>
-            </div>
-            <div className="mt-2 text-[10px] font-semibold text-primary">
-              {expanded === p.key ? "▲ Tutup Perincian" : "▼ Lihat Perincian"}
-            </div>
-          </button>
-        ))}
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-bold md:text-lg">Penjualan Iklan</h2>
+        <span className="text-sm text-muted-foreground">{all.length} transaksi · Total {formatRupiahFull(totalAll)}</span>
       </div>
 
-      {/* expanded detail table */}
-      {expanded && (() => {
-        const p = periods.find(x => x.key === expanded);
-        if (!p) return null;
-        return (
-          <div className="rounded-xl border border-border bg-card animate-fade-up">
-            <div className="border-b border-border p-3">
-              <h3 className="flex items-center gap-2 text-sm font-bold">
-                <p.icon className={cn("size-4", p.color)} />
-                {p.label} — {p.data.length} Iklan
-                <span className="ml-auto text-xs font-normal text-muted-foreground">Total: {formatRupiahFull(p.fee)}</span>
-              </h3>
-            </div>
-            {p.data.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">Belum ada iklan pada periode ini.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[560px] text-sm">
-                  <thead><tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
-                    <th className="p-2">Iklan</th><th className="hidden p-2 sm:table-cell">Penjual</th><th className="p-2 text-right">Harga Pasang</th><th className="hidden p-2 sm:table-cell">Tanggal</th><th className="p-2 text-center">Views</th>
-                  </tr></thead>
-                  <tbody>
-                    {p.data.map((l: any) => (
-                      <tr key={l.id} className="border-b border-border hover:bg-accent/30">
-                        <td className="p-2">
-                          <div className="flex items-center gap-2">
-                            {l.images?.[0] && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={l.images[0]} alt="" className="size-8 shrink-0 rounded object-cover" />
-                            )}
-                            <div className="min-w-0">
-                              <p className="line-clamp-1 text-xs font-medium">{l.title}</p>
-                              <p className="text-[10px] text-muted-foreground">{l.category?.name} · {l.city}</p>
-                            </div>
+      {/* Summary — 3 stat cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground md:text-sm">Hari Ini</p>
+          <p className="mt-1 text-base font-extrabold text-emerald-600 md:text-xl">{formatRupiahFull(sumFee(daily))}</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground md:text-xs">{daily.length} iklan</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground md:text-sm">Minggu Ini</p>
+          <p className="mt-1 text-base font-extrabold text-primary md:text-xl">{formatRupiahFull(sumFee(weekly))}</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground md:text-xs">{weekly.length} iklan</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground md:text-sm">Bulan Ini</p>
+          <p className="mt-1 text-base font-extrabold text-emerald-600 md:text-xl">{formatRupiahFull(sumFee(monthly))}</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground md:text-xs">{monthly.length} iklan</p>
+        </div>
+      </div>
+
+      {/* Search + Filter */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Cari iklan atau penjual..."
+          className="h-9 flex-1 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+        />
+        <div className="flex gap-1.5">
+          {[
+            { v: "all", l: "Semua" },
+            { v: "spotlight", l: "Titanium" },
+            { v: "highlight", l: "Platinum" },
+            { v: "sundul", l: "Colek" },
+            { v: "gratis", l: "Gold" },
+          ].map((f) => (
+            <button
+              key={f.v}
+              onClick={() => setPkgFilter(f.v as any)}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition",
+                pkgFilter === f.v ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:bg-accent"
+              )}
+            >
+              {f.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* CRUD Table */}
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+                <th className="p-3">Iklan</th>
+                <th className="hidden p-3 sm:table-cell">Penjual</th>
+                <th className="p-3">Paket</th>
+                <th className="p-3 text-right">Harga Iklan</th>
+                <th className="hidden p-3 md:table-cell">Tanggal</th>
+                <th className="p-3 text-center">Views</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
+                    Tidak ada data penjualan.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((l: any) => (
+                  <tr key={l.id} className="border-b border-border transition hover:bg-accent/30">
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        {l.images?.[0] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={l.images[0]} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
+                        ) : (
+                          <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                            <Tag className="size-4" />
                           </div>
-                        </td>
-                        <td className="hidden p-2 text-xs sm:table-cell">{l.seller?.name}</td>
-                        <td className="p-2 text-right text-xs font-bold text-emerald-600">{adFee(l) === 0 ? "Gratis" : formatRupiahFull(adFee(l))}</td>
-                        <td className="hidden p-2 text-xs sm:table-cell">{new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</td>
-                        <td className="p-2 text-center text-xs text-muted-foreground">{l.views?.toLocaleString("id-ID") || 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+                        )}
+                        <div className="min-w-0">
+                          <p className="line-clamp-1 text-xs font-semibold">{l.title}</p>
+                          <p className="text-[10px] text-muted-foreground">{l.category?.name} · {l.city}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="hidden p-3 text-xs sm:table-cell">{l.seller?.name || "-"}</td>
+                    <td className="p-3">
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", pkgColor(l.packageType))}>
+                        {pkgName(l.packageType)}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right text-xs font-bold text-emerald-600">
+                      {adFee(l) === 0 ? "Gratis" : formatRupiahFull(adFee(l))}
+                    </td>
+                    <td className="hidden p-3 text-xs md:table-cell">
+                      {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                    </td>
+                    <td className="p-3 text-center text-xs text-muted-foreground">{l.views?.toLocaleString("id-ID") || 0}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Footer count */}
+      <p className="text-xs text-muted-foreground">Menampilkan {filtered.length} dari {all.length} transaksi</p>
     </div>
   );
 }
