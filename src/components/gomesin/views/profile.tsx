@@ -192,6 +192,7 @@ export function ProfileView() {
   const [msgMenu, setMsgMenu] = useState<{ visible: boolean; x: number; y: number; msgIndex: number | null }>({ visible: false, x: 0, y: 0, msgIndex: null });
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [payFilter, setPayFilter] = useState<"all" | "paid" | "pending">("all");
   const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; msgIndex: number | null }>({ timer: null, msgIndex: null });
   const [gifQuery, setGifQuery] = useState("");
   const [gifResults, setGifResults] = useState<{ id: string; emoji: string; label: string; animation: string }[]>([]);
@@ -1316,77 +1317,120 @@ export function ProfileView() {
               </div>
             )}
 
-            {/* RIWAYAT PEMBAYARAN — daftar iklan yang pernah dipasang + harga paket iklan */}
+            {/* RIWAYAT PEMBAYARAN — user-friendly: summary stats + filter tabs + card list */}
             {panel === "saldo" && (() => {
               const totalAdFee = myListings.reduce((sum: number, l: any) => sum + (paketMap[l.packageType] ?? 0), 0);
+              const paidCount = myListings.filter((l: any) => l.paymentStatus === "paid").length;
+              const pendingCount = myListings.filter((l: any) => l.paymentStatus !== "paid").length;
+              const filtered = payFilter === "paid" ? myListings.filter((l: any) => l.paymentStatus === "paid")
+                : payFilter === "pending" ? myListings.filter((l: any) => l.paymentStatus !== "paid")
+                : myListings;
               return (
                 <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
-                  {/* Summary Card */}
-                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-emerald-600 p-6 text-primary-foreground shadow-lg md:p-8">
-                    <div className="absolute -right-8 -top-8 size-28 rounded-full bg-white/10 md:size-40" />
-                    <div className="absolute -bottom-10 right-16 size-20 rounded-full bg-white/10 md:size-28" />
-                    <div className="relative">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="flex items-center gap-1.5 text-sm text-primary-foreground/80 md:text-base">
-                            <Wallet className="size-4 md:size-5" /> Total Pembayaran Iklan
-                          </p>
-                          <p className="mt-2 text-4xl font-extrabold md:text-5xl">Rp {totalAdFee.toLocaleString("id-ID")}</p>
-                        </div>
-                        <span className="grid size-14 place-items-center rounded-xl bg-white/20 backdrop-blur md:size-20">
-                          <Tag className="size-7 md:size-10" />
-                        </span>
-                      </div>
-                      <p className="mt-4 text-sm text-primary-foreground/80 md:text-base">
-                        {myAdsCount} iklan terpasang
-                      </p>
+                  {/* Summary — 3 stat cards */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-border bg-card p-4 text-center md:p-5">
+                      <p className="text-xs text-muted-foreground md:text-sm">Total Bayar</p>
+                      <p className="mt-1 text-lg font-extrabold text-primary md:text-2xl">Rp {totalAdFee.toLocaleString("id-ID")}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center md:p-5">
+                      <p className="text-xs text-emerald-700 md:text-sm">Lunas</p>
+                      <p className="mt-1 text-lg font-extrabold text-emerald-700 md:text-2xl">{paidCount}</p>
+                    </div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center md:p-5">
+                      <p className="text-xs text-amber-700 md:text-sm">Pending</p>
+                      <p className="mt-1 text-lg font-extrabold text-amber-700 md:text-2xl">{pendingCount}</p>
                     </div>
                   </div>
 
-                  {/* Listing list with ad package price */}
+                  {/* Filter tabs */}
+                  {myAdsCount > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { v: "all", l: `Semua (${myAdsCount})` },
+                        { v: "paid", l: `Lunas (${paidCount})` },
+                        { v: "pending", l: `Pending (${pendingCount})` },
+                      ].map((t) => (
+                        <button
+                          key={t.v}
+                          onClick={() => setPayFilter(t.v as any)}
+                          className={cn(
+                            "rounded-full px-3 py-1.5 text-xs font-medium transition md:text-sm",
+                            payFilter === t.v
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "border border-border bg-card text-muted-foreground hover:bg-accent"
+                          )}
+                        >
+                          {t.l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Listing cards */}
                   <div>
-                    <p className="mb-3 text-base font-bold md:text-lg">Iklan yang Pernah Dipasang</p>
                     {myAdsCount > 0 ? (
-                      <div className="space-y-2.5">
-                        {myListings.map((l: any) => {
+                      <div className="space-y-3">
+                        {filtered.map((l: any) => {
                           let imgs: string[] = [];
                           try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
                           const pkgName = l.packageType === "spotlight" ? "Titanium" : l.packageType === "highlight" ? "Platinum" : l.packageType === "sundul" ? "Colek" : "Gold";
+                          const pkgColor = l.packageType === "spotlight" ? "bg-amber-100 text-amber-700" : l.packageType === "highlight" ? "bg-orange-100 text-orange-700" : l.packageType === "sundul" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
+                          const isPaid = l.paymentStatus === "paid";
                           return (
-                            <div key={l.id} className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 md:p-5">
-                              <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted md:size-16">
-                                {imgs[0] ? (
-                                  <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
-                                ) : (
-                                  <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-6" /></div>
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-base font-semibold md:text-lg">{l.title}</p>
-                                <p className="text-xs text-muted-foreground md:text-sm">
-                                  {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-                                </p>
-                                <div className="mt-1 flex items-center gap-2">
-                                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary md:text-xs">{pkgName}</span>
+                            <div key={l.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:shadow-md">
+                              <div className="flex gap-3 p-3 md:gap-4 md:p-4">
+                                {/* Image */}
+                                <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted md:size-24">
+                                  {imgs[0] ? (
+                                    <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
+                                  ) : (
+                                    <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-8" /></div>
+                                  )}
                                   <span className={cn(
-                                    "rounded-full px-2 py-0.5 text-[10px] font-bold md:text-xs",
-                                    l.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                                  )}>{l.paymentStatus === "paid" ? "Lunas" : "Pending"}</span>
+                                    "absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow md:text-[10px]",
+                                    pkgColor
+                                  )}>{pkgName}</span>
                                 </div>
-                              </div>
-                              <div className="shrink-0 text-right">
-                                <p className="text-xs text-muted-foreground md:text-sm">Harga Iklan</p>
-                                <p className="text-base font-bold text-primary md:text-xl">{formatAdFee(l.packageType)}</p>
+                                {/* Info */}
+                                <div className="flex min-w-0 flex-1 flex-col">
+                                  <p className="line-clamp-2 text-sm font-bold leading-tight md:text-base">{l.title}</p>
+                                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+                                    <Clock className="size-3" />
+                                    {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                                  </p>
+                                  <div className="mt-auto flex items-center justify-between pt-2">
+                                    <span className={cn(
+                                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold md:text-xs",
+                                      isPaid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                                    )}>
+                                      {isPaid ? <CheckCircle2 className="size-3" /> : <Clock className="size-3" />}
+                                      {isPaid ? "Lunas" : "Pending"}
+                                    </span>
+                                    <div className="text-right">
+                                      <p className="text-[10px] text-muted-foreground md:text-xs">Harga Iklan</p>
+                                      <p className="text-base font-extrabold text-primary md:text-lg">{formatAdFee(l.packageType)}</p>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           );
                         })}
+                        {filtered.length === 0 && (
+                          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                            <p className="text-sm text-muted-foreground">Tidak ada iklan dengan status ini.</p>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="rounded-lg border border-dashed border-border p-8 text-center">
-                        <Tag className="mx-auto size-8 text-muted-foreground/40" />
-                        <p className="mt-2 text-sm text-muted-foreground md:text-base">Belum ada iklan dipasang.</p>
-                        <Button size="sm" className="mt-3 gap-1.5" onClick={goToPost}>
+                      <div className="rounded-xl border border-dashed border-border p-10 text-center">
+                        <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted">
+                          <Tag className="size-7 text-muted-foreground/50" />
+                        </div>
+                        <p className="mt-3 text-base font-semibold">Belum ada iklan dipasang</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Pasang iklan pertama Anda dan riwayat pembayaran akan muncul di sini.</p>
+                        <Button className="mt-4 gap-1.5" onClick={goToPost}>
                           <Plus className="size-4" /> Pasang Iklan
                         </Button>
                       </div>
