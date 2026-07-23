@@ -853,12 +853,11 @@ export function ProfileView() {
                   <X className="size-4" />
                 </button>
               </div>
-              {/* Panel content — WhatsApp split view (desktop) / inline full-width (mobile Pesan) */}
+              {/* Panel content — WhatsApp split view (pesan) / normal flow (other panels) */}
               <div className={cn(
-                "flex overflow-hidden",
                 panel === "pesan"
-                  ? "h-[calc(100vh-12rem)] max-md:h-[calc(100dvh-11rem)]"
-                  : "h-[calc(100vh-12rem)]"
+                  ? "flex overflow-hidden h-[calc(100vh-12rem)] max-md:h-[calc(100dvh-11rem)]"
+                  : "block"
               )}>
 
                 {/* ===== LEFT: Conversation list (full pane on mobile, sidebar on desktop) ===== */}
