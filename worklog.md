@@ -267,3 +267,20 @@ Stage Summary:
 - Logo FOUC fixed: small image (96x96) + explicit HTML dimensions + preload
 - Mobile header overflow protection added
 - Database API on Vercel still needs DATABASE_URL fix in Vercel Dashboard
+---
+Task ID: 1
+Agent: main
+Task: Fix online display not matching offline - Tailwind CSS v4 production build issue
+
+Work Log:
+- Read and analyzed globals.css, layout.tsx, tailwind.config.ts, postcss.config.mjs, next.config.ts
+- Diagnosed root cause: `@theme inline` in Tailwind v4 behaves differently between dev (JIT on-demand) and production (pre-compiled) builds. The `inline` keyword prevents CSS custom properties from being emitted to the production CSS output, causing styles to not resolve correctly.
+- Fixed by changing `@theme inline` to `@theme` (non-inline) in globals.css. This ensures all theme values (--color-*, --radius-*, --font-*) are properly emitted as CSS custom properties in the production build's `@layer theme` block.
+- Added `@source "../../src"` directive to ensure Tailwind v4 scans all source files during production builds on Vercel.
+- Verified dev server compiled successfully with no errors after the change.
+- Deployed to Vercel production (https://gomesin.vercel.app) - build completed in 22s, no errors.
+
+Stage Summary:
+- Key fix: `@theme inline` → `@theme` in globals.css line 6
+- Added: `@source "../../src"` for explicit content scanning
+- Deployment: Successful, https://gomesin.vercel.app
