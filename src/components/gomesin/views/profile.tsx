@@ -2555,7 +2555,7 @@ export function ProfileView() {
                     "3. Isi judul iklan yang jelas, contoh: 'Mesin Cetak Offset Heidelberg SM 52 4 Warna'.",
                     "4. Tulis deskripsi lengkap: kondisi mesin, tahun produksi, kelengkapan, alasan jual.",
                     "5. Masukkan harga yang wajar. Pilih 'Bisa Nego' jika harga masih dapat ditawar.",
-                    "6. Unggah minimal 1 foto mesin (maks 200KB, otomatis dikompres).",
+                    "6. Unggah minimal 1 foto mesin (maks 120KB, otomatis dikompres).",
                     "7. Pilih paket: Gratis (365 hari), Premium (Rp 50.000/30 hari), atau Bisnis (Rp 150.000/90 hari).",
                     "8. Klik 'Pasang Iklan Sekarang'. Iklan akan masuk antrian verifikasi admin (1-2 jam).",
                     "9. Setelah diverifikasi, iklan tayang di beranda dan bisa dilihat pembeli.",

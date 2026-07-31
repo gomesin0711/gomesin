@@ -915,7 +915,7 @@ export function PostAdView() {
                     <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-center transition hover:border-primary hover:bg-accent">
                       <Upload className="size-8 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">Klik untuk upload bukti pembayaran</span>
-                      <span className="text-[10px] text-muted-foreground/70">JPG, PNG (maks 200KB)</span>
+                      <span className="text-[10px] text-muted-foreground/70">JPG, PNG (maks 120KB)</span>
                       <input
                         type="file"
                         accept="image/*"

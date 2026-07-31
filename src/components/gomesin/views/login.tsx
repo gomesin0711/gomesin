@@ -25,7 +25,7 @@ import {
   ShieldCheck,
   CheckCircle2,
 } from "lucide-react";
-import { PROVINCES } from "@/lib/types";
+import { PROVINCES, PROVINCE_CITIES } from "@/lib/types";
 import {
   Select,
   SelectContent,
@@ -386,16 +386,22 @@ function FormSection({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="r-city">{tr("cityLabel")}</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="r-city" value={rCity} onChange={(e) => setRCity(e.target.value)} placeholder={tr("cityLabelPlaceholder")} className="pl-9" />
-              </div>
+              <Label>{tr("cityLabel")}</Label>
+              <Select value={rCity} onValueChange={(v) => { setRCity(v); }} disabled={!rProvince}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={rProvince ? tr("selectCity") : tr("selectProvinceFirst")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(PROVINCE_CITIES[rProvince] || []).map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="space-y-1.5">
             <Label>{tr("province")}</Label>
-            <Select value={rProvince} onValueChange={setRProvince}>
+            <Select value={rProvince} onValueChange={(v) => { setRProvince(v); setRCity(""); }}>
               <SelectTrigger className="w-full"><SelectValue placeholder={tr("selectProvince")} /></SelectTrigger>
               <SelectContent>
                 {PROVINCES.map((p) => (
