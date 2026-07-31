@@ -248,3 +248,22 @@ Stage Summary:
 - TransaksiTab default view (line) is now a proper data table
 - Deployed to gomesin.vercel.app
 - Note: API endpoints return 500 on Vercel — DATABASE_URL env var needs to be configured/updated in Vercel dashboard for the SQLite database
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix online display - logo too big, layout issues
+
+Work Log:
+- Generated optimized 96x96 logo (logo-sm.jpeg, 2.8KB) from original 1254x1254 (43KB)
+- Updated header.tsx Logo: src="/logo-sm.jpeg", added width={36} height={36}
+- Added overflow-hidden to mobile header row as safety net
+- Added <link rel="preload" href="/logo-sm.jpeg"> in layout.tsx for instant loading
+- Deployed to https://gomesin.vercel.app (HTTP 200, logo fixed)
+- API still returns 500 on Vercel (DATABASE_URL needs reconfiguration in Vercel dashboard)
+- Pushed to GitHub (commit b12e33e)
+
+Stage Summary:
+- Logo FOUC fixed: small image (96x96) + explicit HTML dimensions + preload
+- Mobile header overflow protection added
+- Database API on Vercel still needs DATABASE_URL fix in Vercel Dashboard
