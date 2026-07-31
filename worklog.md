@@ -229,3 +229,22 @@ Stage Summary:
 - Chat now supports image upload with auto-compression (ImagePlus button)
 - Package cards on Pasang Iklan page are now compact (2 cols on mobile, 4 on desktop)
 - Code pushed to GitHub, Vercel needs auth re-login to deploy
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Admin Riwayat Penjualan line view → table, deploy to gomesin.vercel.app
+
+Work Log:
+- Replaced card-based line view in TransaksiTab with proper HTML table
+- Table columns: #, Iklan (thumbnail + title + category), Paket (badge), Penjual, Kota, Harga Iklan, Dipasang, Expired, Status (with remaining days badge), Views
+- Table is horizontally scrollable on mobile (min-w-[700px])
+- Grid view toggle still available
+- Fixed .vercel/project.json to point to correct Vercel project (prj_mJFlErTv5qJcEloX0EnCa2Scxxkt)
+- Deployed with user-provided token: https://gomesin.vercel.app (HTML 200, API 500 due to DATABASE_URL config)
+- Pushed to GitHub (commit 1606d4c)
+
+Stage Summary:
+- TransaksiTab default view (line) is now a proper data table
+- Deployed to gomesin.vercel.app
+- Note: API endpoints return 500 on Vercel — DATABASE_URL env var needs to be configured/updated in Vercel dashboard for the SQLite database
