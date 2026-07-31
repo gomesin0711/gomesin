@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { fallbackGetUserById, fallbackUpdateUser } from "@/lib/auth-fallback";
 
-// GET /api/auth/profile?userId=<id> — fetch latest user profile (for auto-refresh on mount)
+// GET /api/auth/profile?userId=<id> — fetch latest user profile
 export async function GET(req: NextRequest) {
+  const userId = req.nextUrl.searchParams.get("userId");
+  if (!userId) {
+    return NextResponse.json({ error: "User ID wajib" }, { status: 400 });
+  }
+
+  // Try SQLite/Prisma first
   try {
-    const userId = req.nextUrl.searchParams.get("userId");
-    if (!userId) {
-      return NextResponse.json({ error: "User ID wajib" }, { status: 400 });
-    }
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) {
       return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
@@ -30,36 +33,49 @@ export async function GET(req: NextRequest) {
             : user.createdAt,
       },
     });
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: "Gagal: " + (e?.message || "unknown") },
-      { status: 500 }
-    );
+  } catch {
+    // SQLite unavailable — use fallback
   }
+
+  const user = await fallbackGetUserById(userId);
+  if (!user) {
+    return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
+  }
+  return NextResponse.json({ user });
 }
 
-// PATCH /api/auth/profile — update user profile (name, phone, city)
+// PATCH /api/auth/profile — update user profile
 export async function PATCH(req: NextRequest) {
+  const body = await req.json();
+  const { userId, name, phone, city, company, address, bannerImage, logoImage } = body as {
+    userId?: string;
+    name?: string;
+    phone?: string;
+    city?: string;
+    company?: string;
+    address?: string;
+    bannerImage?: string;
+    logoImage?: string;
+  };
+
+  if (!userId) {
+    return NextResponse.json(
+      { error: "User ID wajib diisi." },
+      { status: 400 }
+    );
+  }
+
+  const updateData: { name?: string; phone?: string | null; city?: string | null; company?: string | null; address?: string | null; bannerImage?: string | null; logoImage?: string | null } = {};
+  if (name && name.trim()) updateData.name = name.trim();
+  if (phone !== undefined) updateData.phone = phone?.trim() || null;
+  if (city !== undefined) updateData.city = city?.trim() || null;
+  if (company !== undefined) updateData.company = company?.trim() || null;
+  if (address !== undefined) updateData.address = address?.trim() || null;
+  if (bannerImage !== undefined) updateData.bannerImage = bannerImage?.trim() || null;
+  if (logoImage !== undefined) updateData.logoImage = logoImage?.trim() || null;
+
+  // Try SQLite/Prisma first
   try {
-    const body = await req.json();
-    const { userId, name, phone, city, company, address, bannerImage, logoImage } = body as {
-      userId?: string;
-      name?: string;
-      phone?: string;
-      city?: string;
-      company?: string;
-      address?: string;
-      bannerImage?: string;
-      logoImage?: string;
-    };
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User ID wajib diisi." },
-        { status: 400 }
-      );
-    }
-
     const existing = await db.user.findUnique({ where: { id: userId } });
     if (!existing) {
       return NextResponse.json(
@@ -68,28 +84,16 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const data: { name?: string; phone?: string | null; city?: string | null; company?: string | null; address?: string | null; bannerImage?: string | null; logoImage?: string | null } = {};
-    if (name && name.trim()) data.name = name.trim();
-    if (phone !== undefined) data.phone = phone?.trim() || null;
-    if (city !== undefined) data.city = city?.trim() || null;
-    if (company !== undefined) data.company = company?.trim() || null;
-    if (address !== undefined) data.address = address?.trim() || null;
-    if (bannerImage !== undefined) data.bannerImage = bannerImage?.trim() || null;
-    if (logoImage !== undefined) data.logoImage = logoImage?.trim() || null;
-
     const updated = await db.user.update({
       where: { id: userId },
-      data,
+      data: updateData,
     });
 
-    // Sync: if phone or name was updated, also update the seller records
-    // owned by this user so listing detail shows the latest info.
-    if (data.phone !== undefined || data.name) {
+    // Sync seller records
+    if (updateData.phone !== undefined || updateData.name) {
       const sellerUpdate: { phone?: string | null; name?: string } = {};
-      if (data.phone !== undefined) sellerUpdate.phone = data.phone;
-      if (data.name) sellerUpdate.name = data.name;
-      // Find sellers whose phone matches the OLD phone or name matches
-      // (sellers were created with user's name + phone at ad-post time)
+      if (updateData.phone !== undefined) sellerUpdate.phone = updateData.phone;
+      if (updateData.name) sellerUpdate.name = updateData.name;
       await db.seller.updateMany({
         where: { listings: { some: { userId } } },
         data: sellerUpdate,
@@ -114,10 +118,16 @@ export async function PATCH(req: NextRequest) {
             : updated.createdAt,
       },
     });
-  } catch (e: any) {
+  } catch {
+    // SQLite unavailable — use fallback
+  }
+
+  const user = await fallbackUpdateUser(userId, updateData);
+  if (!user) {
     return NextResponse.json(
-      { error: "Gagal memperbarui profil: " + (e?.message || "unknown") },
-      { status: 500 }
+      { error: "User tidak ditemukan." },
+      { status: 404 }
     );
   }
+  return NextResponse.json({ user });
 }
