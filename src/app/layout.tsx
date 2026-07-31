@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Sora } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -10,11 +10,6 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
 });
 
-const sora = Sora({
-  variable: "--font-sora",
-  weight: "700",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Gomesin — Jual baru/bekas Mesin Cetak, Mesin Industri & Jasa Teknisi Berkualitas",
@@ -84,7 +79,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${spaceGrotesk.variable} ${sora.variable} font-sans antialiased bg-background text-foreground overflow-x-hidden`}>
+      <body className={`${spaceGrotesk.variable} font-sans antialiased bg-background text-foreground overflow-x-hidden`}>
         <Providers>{children}</Providers>
         <Toaster />
         <SonnerToaster richColors position="top-center" />

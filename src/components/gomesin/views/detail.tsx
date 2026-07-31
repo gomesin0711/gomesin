@@ -337,7 +337,7 @@ export function DetailView() {
               href={`https://wa.me/${waNumber}?text=${waText}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1ebe5d]"
             >
               <Phone className="size-4" /> WhatsApp
             </a>

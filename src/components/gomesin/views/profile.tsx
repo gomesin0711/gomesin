@@ -2733,7 +2733,7 @@ export function ProfileView() {
                               href="https://wa.me/6285888082208?text=Halo%20Gomesin%2C%20saya%20butuh%20bantuan"
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-orange-500 px-3 text-sm font-semibold text-white hover:bg-orange-600"
+                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-[#25D366] px-3 text-sm font-semibold text-white hover:bg-[#1ebe5d]"
                             >
                               <Phone className="size-4" /> WhatsApp
                             </a>
