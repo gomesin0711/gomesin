@@ -1,0 +1,835 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect } from "react";
+     4→import { useQueryClient, useQuery } from "@tanstack/react-query";
+     5→import Image from "next/image";
+     6→import { Button } from "@/components/ui/button";
+     7→import { Badge } from "@/components/ui/badge";
+     8→import { Edit, Loader2, CheckCircle2, Sparkles, Zap, TrendingUp, Star, ImageIcon, Clock, AlertTriangle, XCircle, X, Upload } from "lucide-react";
+     9→import { cn } from "@/lib/utils";
+    10→import { toast } from "sonner";
+    11→import { formatRupiahFull, type Listing } from "@/lib/types";
+    12→import { useLang, translations as i18nTranslations, listingTitle } from "@/lib/i18n";
+    13→import { useMounted } from "@/lib/use-mounted";
+    14→import { compressImage } from "@/lib/image";
+    15→import { shareImageToWhatsApp } from "@/lib/share-image";
+    16→import { useStore } from "@/lib/store";
+    17→
+    18→type PackageKey = "simpan" | "colek" | "sundul" | "highlight" | "spotlight";
+    19→
+    20→type PaymentMethod = "bca" | "qris";
+    21→
+    22→const PACKAGES: Array<{
+    23→  key: PackageKey;
+    24→  name: string;
+    25→  price: number;
+    26→  originalPrice: number;
+    27→  duration: string;
+    28→  badge?: string;
+    29→  color: string;
+    30→  ring: string;
+    31→  icon: typeof Star;
+    32→  description: string;
+    33→}> = [
+    34→  {
+    35→    key: "colek",
+    36→    name: "Gold",
+    37→    price: 60000,
+    38→    originalPrice: 75000,
+    39→    duration: "30 hari",
+    40→    color: "border-blue-400 bg-blue-50",
+    41→    ring: "ring-blue-400",
+    42→    icon: CheckCircle2,
+    43→    description: "Tampil di bagian Premium, Badge Gold, Prioritas pencarian.",
+    44→  },
+    45→  {
+    46→    key: "sundul",
+    47→    name: "Colek",
+    48→    price: 30000,
+    49→    originalPrice: 50000,
+    50→    duration: "10 hari",
+    51→    color: "border-purple-400 bg-purple-50",
+    52→    ring: "ring-purple-400",
+    53→    icon: TrendingUp,
+    54→    description: "Iklan didorong ke posisi teratas.",
+    55→  },
+    56→  {
+    57→    key: "highlight",
+    58→    name: "Platinum",
+    59→    price: 68000,
+    60→    originalPrice: 120000,
+    61→    duration: "30 hari",
+    62→    badge: "Populer",
+    63→    color: "border-orange-400 bg-orange-50",
+    64→    ring: "ring-orange-400",
+    65→    icon: Zap,
+    66→    description: "Iklan ditandai border orange + muncul di atas.",
+    67→  },
+    68→  {
+    69→    key: "spotlight",
+    70→    name: "Titanium",
+    71→    price: 99000,
+    72→    originalPrice: 180000,
+    73→    duration: "30 hari",
+    74→    color: "border-amber-400 bg-amber-50",
+    75→    ring: "ring-amber-400",
+    76→    icon: Sparkles,
+    77→    description: "Tampilan terluas: 3 foto + latar amber + di puncak.",
+    78→  },
+    79→];
+    80→
+    81→const PAYMENT_METHODS: Array<{
+    82→  key: PaymentMethod;
+    83→  name: string;
+    84→  desc: string;
+    85→  color: string;
+    86→}> = [
+    87→  { key: "bca", name: "Transfer ke BCA", desc: "Transfer manual ke rekening BCA", color: "border-blue-500" },
+    88→  { key: "qris", name: "QRIS GoPay", desc: "Scan QR dari GoPay / e-wallet", color: "border-purple-500" },
+    89→];
+    90→
+    91→export function PackageActivateDialog({
+    92→  listing,
+    93→  open,
+    94→  onOpenChange,
+    95→  onEdit,
+    96→  onSuccess,
+    97→}: {
+    98→  listing: Listing;
+    99→  open: boolean;
+   100→  onOpenChange: (o: boolean) => void;
+   101→  onEdit: (slug: string) => void;
+   102→  onSuccess?: () => void;
+   103→}) {
+   104→  const { t, lang } = useLang();
+   105→  const mounted = useMounted();
+   106→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   107→  const queryClient = useQueryClient();
+   108→  const user = useStore((s) => s.user);
+   109→
+   110→  // Fetch paket pricing from DB (admin can edit)
+   111→  const { data: paketData } = useQuery({
+   112→    queryKey: ["admin-paket"],
+   113→    queryFn: async () => {
+   114→      const res = await fetch("/api/admin/paket");
+   115→      if (!res.ok) return null;
+   116→      return res.json() as Promise<{ pakets: any[] }>;
+   117→    },
+   118→    staleTime: 0,
+   119→  });
+   120→  const paketMap: Record<string, { price: number; originalPrice: number; duration: number; name: string }> = {};
+   121→  (paketData?.pakets || []).forEach((p: any) => {
+   122→    paketMap[p.key] = { price: p.price, originalPrice: p.originalPrice ?? 0, duration: p.duration, name: p.name };
+   123→  });
+   124→
+   125→  // Initialize selectedPackage from listing.packageType (or "colek" for simpan)
+   126→  const [selectedPackage, setSelectedPackage] = useState<PackageKey>(() => {
+   127→    const p = (listing.packageType as PackageKey) || "colek";
+   128→    return p === "simpan" ? "colek" : p;
+   129→  });
+   130→  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bca");
+   131→  const [submitting, setSubmitting] = useState(false);
+   132→  const [qrisModal, setQrisModal] = useState(false);
+   133→  const [bcaModal, setBcaModal] = useState(false);
+   134→  const [proofImage, setProofImage] = useState<string>("");
+   135→  const [uploadingProof, setUploadingProof] = useState(false);
+   136→
+   137→  // Lock body scroll saat QRIS/BCA page terbuka (hilangkan scrollbar browser).
+   138→  useEffect(() => {
+   139→    const lock = qrisModal || bcaModal;
+   140→    document.body.style.overflow = lock ? "hidden" : "";
+   141→    document.documentElement.style.overflow = lock ? "hidden" : "";
+   142→    return () => {
+   143→      document.body.style.overflow = "";
+   144→      document.documentElement.style.overflow = "";
+   145→    };
+   146→  }, [qrisModal, bcaModal]);
+   147→
+   148→  const isPending = listing.status === "pending";
+   149→  const isSundulDisabled = isPending;
+   150→
+   151→  // Merge DB paket data into PACKAGES (override price/duration/name/originalPrice)
+   152→  const packages = PACKAGES.map((p) => {
+   153→    const db = paketMap[p.key];
+   154→    return db ? { ...p, price: db.price, originalPrice: db.originalPrice, duration: `${db.duration} hari`, name: db.name } : p;
+   155→  });
+   156→  const selectedPkg = packages.find((p) => p.key === selectedPackage) || packages[0];
+   157→  // needsPayment = selectedPackage !== "simpan" && price > 0
+   158→  // (all packages including Gold require payment — only "simpan" is free)
+   159→  const needsPayment = selectedPackage !== "simpan" && selectedPkg.price > 0;
+   160→
+   161→  // Status info for listing summary
+   162→  const statusInfo =
+   163→    listing.status === "pending"
+   164→      ? { color: "bg-amber-500", text: tr("pendingVerification"), icon: Clock }
+   165→      : listing.status === "rejected" || (listing as any).violationFlag
+   166→      ? {
+   167→          color: "bg-red-500",
+   168→          text: (listing as any).violationFlag ? tr("violation") : tr("rejected"),
+   169→          icon: (listing as any).violationFlag ? AlertTriangle : XCircle,
+   170→        }
+   171→      : { color: "bg-orange-500", text: "Aktif", icon: CheckCircle2 };
+   172→  const StatusIcon = statusInfo.icon;
+   173→
+   174→  // Current package label for listing summary
+   175→  const currentPkgLabel =
+   176→    listing.packageType === "spotlight"
+   177→      ? "Titanium"
+   178→      : listing.packageType === "highlight"
+   179→      ? "Platinum"
+   180→      : listing.packageType === "sundul"
+   181→      ? "Colek"
+   182→      : listing.packageType === "simpan"
+   183→      ? "Simpan (Draft)"
+   184→      : "Gold";
+   185→
+   186→  // Button label: selalu "Upgrade" (dialog hanya dibuka untuk iklan aktif).
+   187→  const buttonLabel = "Upgrade";
+   188→  // Kode unik: fetch dari API (stored in DB, unik per user, tidak berubah).
+   189→  const [uniqueCode, setUniqueCode] = useState<number | null>(null);
+   190→  const currentUserId = useStore((s) => s.user?.id);
+   191→
+   192→  useEffect(() => {
+   193→    if (!open || !listing.id || selectedPkg.price <= 0 || !currentUserId) return;
+   194→    let cancelled = false;
+   195→    (async () => {
+   196→      try {
+   197→        const res = await fetch("/api/listings/unique-code", {
+   198→          method: "POST",
+   199→          headers: { "Content-Type": "application/json" },
+   200→          body: JSON.stringify({ listingId: listing.id, userId: currentUserId, packageType: selectedPackage }),
+   201→        });
+   202→        if (res.ok && !cancelled) {
+   203→          const data = await res.json();
+   204→          setUniqueCode(data.uniqueCode);
+   205→        }
+   206→      } catch { /* ignore */ }
+   207→    })();
+   208→    return () => { cancelled = true; };
+   209→  }, [open, listing.id, currentUserId, selectedPackage, selectedPkg.price]);
+   210→
+   211→  const qrisAmount = selectedPkg.price > 0 && uniqueCode !== null
+   212→    ? selectedPkg.price + uniqueCode
+   213→    : selectedPkg.price;
+   214→
+   215→  const handleSubmit = async () => {
+   216→    if (needsPayment && !paymentMethod) {
+   217→      toast.error("Pilih metode pembayaran terlebih dahulu.");
+   218→      return;
+   219→    }
+   220→    // QRIS → tampilkan halaman QRIS dulu (upload bukti), baru submit.
+   221→    // BCA → tampilkan halaman transfer BCA dulu (upload bukti), baru submit.
+   222→    if (needsPayment && paymentMethod === "qris") {
+   223→      setQrisModal(true);
+   224→      return;
+   225→    }
+   226→    if (needsPayment && paymentMethod === "bca") {
+   227→      setBcaModal(true);
+   228→      return;
+   229→    }
+   230→    await doSubmit();
+   231→  };
+   232→
+   233→  // Submit sebenarnya ke API (dipanggil setelah QRIS selesai atau langsung untuk BCA/GoPay).
+   234→  const doSubmit = async () => {
+   235→    setSubmitting(true);
+   236→    try {
+   237→      const res = await fetch(`/api/listings/${listing.slug}`, {
+   238→        method: "PATCH",
+   239→        headers: { "Content-Type": "application/json" },
+   240→        body: JSON.stringify({
+   241→          package: selectedPackage,
+   242→          paymentMethod: needsPayment ? paymentMethod : undefined,
+   243→        }),
+   244→      });
+   245→      const data = await res.json();
+   246→      if (!res.ok) throw new Error(data.error || "Gagal mengaktifkan paket");
+   247→      toast.success(`Paket ${selectedPkg.name} berhasil diaktifkan!`);
+   248→      // Refresh dashboard + listings queries
+   249→      queryClient.invalidateQueries({ queryKey: ["dashboard-listings"] });
+   250→      queryClient.invalidateQueries({ queryKey: ["listings"] });
+   251→      queryClient.invalidateQueries({ queryKey: ["listing"] });
+   252→      if (onSuccess) {
+   253→        onSuccess();
+   254→      } else {
+   255→        onOpenChange(false);
+   256→      }
+   257→    } catch (e: any) {
+   258→      toast.error(e.message || "Gagal mengaktifkan paket");
+   259→    } finally {
+   260→      setSubmitting(false);
+   261→    }
+   262→  };
+   263→
+   264→  return (
+   265→    <>
+   266→    {/* ===== UPGRADE PAKET PAGE (fullscreen, 2 kolom di desktop) ===== */}
+   267→    {open && !qrisModal && !bcaModal && (
+   268→      <div className="fixed inset-0 z-[60] flex h-screen flex-col overflow-hidden bg-background">
+   269→        <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-4 py-4 sm:py-6 md:overflow-hidden">
+   270→          {/* Header */}
+   271→          <div className="mb-4 flex shrink-0 items-center justify-between">
+   272→            <div>
+   273→              <h1 className="text-xl font-bold sm:text-2xl">Upgrade Paket Iklan</h1>
+   274→              <p className="text-sm text-muted-foreground">Pilih paket untuk meningkatkan visibilitas iklan Anda.</p>
+   275→            </div>
+   276→            <button
+   277→              type="button"
+   278→              onClick={() => onOpenChange(false)}
+   279→              className="grid size-10 shrink-0 place-items-center rounded-full border border-border bg-card hover:bg-accent"
+   280→              aria-label="Tutup"
+   281→            >
+   282→              <X className="size-5" />
+   283→            </button>
+   284→          </div>
+   285→
+   286→          {/* Content 2 kolom (desktop) / 1 kolom (mobile) */}
+   287→          <div className="grid flex-1 gap-6 md:grid-cols-2 md:overflow-hidden">
+   288→
+   289→            {/* LEFT — gambar iklan + detail */}
+   290→            <div className="space-y-3 md:overflow-y-auto md:pr-2">
+   291→              <div className="overflow-hidden rounded-xl border border-border bg-card">
+   292→                {/* Gambar utama iklan (besar) */}
+   293→                <div className="relative aspect-video w-full overflow-hidden bg-muted">
+   294→                  {listing.images?.[0] ? (
+   295→                    <Image
+   296→                      src={listing.images[0]}
+   297→                      alt={listingTitle(listing, mounted ? lang : "id")}
+   298→                      fill
+   299→                      className="object-cover"
+   300→                      unoptimized
+   301→                      sizes="(max-width: 768px) 100vw, 50vw"
+   302→                    />
+   303→                  ) : (
+   304→                    <div className="flex h-full items-center justify-center text-muted-foreground">
+   305→                      <ImageIcon className="size-12" />
+   306→                    </div>
+   307→                  )}
+   308→                </div>
+   309→                {/* Detail iklan */}
+   310→                <div className="space-y-2 p-4">
+   311→                  <p className="line-clamp-2 text-base font-semibold text-foreground">
+   312→                    {listingTitle(listing, mounted ? lang : "id")}
+   313→                  </p>
+   314→                  <p className="text-xl font-bold text-primary">
+   315→                    {formatRupiahFull(listing.price)}
+   316→                    {listing.priceType === "negotiable" && (
+   317→                      <span className="ml-2 text-xs font-medium text-muted-foreground">Nego</span>
+   318→                    )}
+   319→                  </p>
+   320→                  <div className="flex flex-wrap items-center gap-1.5">
+   321→                    <span
+   322→                      className={cn(
+   323→                        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase text-white",
+   324→                        statusInfo.color
+   325→                      )}
+   326→                    >
+   327→                      <StatusIcon className="size-3" />
+   328→                      {statusInfo.text}
+   329→                    </span>
+   330→                    <span className="inline-flex items-center rounded bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+   331→                      Paket saat ini: {currentPkgLabel}
+   332→                    </span>
+   333→                  </div>
+   334→                  {/* Info tambahan */}
+   335→                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 pt-2 text-xs">
+   336→                    <div className="flex justify-between border-b border-border/50 pb-1">
+   337→                      <span className="text-muted-foreground">Kondisi</span>
+   338→                      <span className="font-medium">{listing.condition === "baru" ? "Baru" : "Bekas"}</span>
+   339→                    </div>
+   340→                    {listing.brand && (
+   341→                      <div className="flex justify-between border-b border-border/50 pb-1">
+   342→                        <span className="text-muted-foreground">Brand</span>
+   343→                        <span className="font-medium">{listing.brand}</span>
+   344→                      </div>
+   345→                    )}
+   346→                    {listing.yearProduced && (
+   347→                      <div className="flex justify-between border-b border-border/50 pb-1">
+   348→                        <span className="text-muted-foreground">Tahun</span>
+   349→                        <span className="font-medium">{listing.yearProduced}</span>
+   350→                      </div>
+   351→                    )}
+   352→                    <div className="flex justify-between border-b border-border/50 pb-1">
+   353→                      <span className="text-muted-foreground">Lokasi</span>
+   354→                      <span className="font-medium">{listing.city}</span>
+   355→                    </div>
+   356→                  </div>
+   357→                  {/* Thumbnail galeri */}
+   358→                  {listing.images && listing.images.length > 1 && (
+   359→                    <div className="flex gap-1.5 pt-2">
+   360→                      {listing.images.slice(0, 5).map((img, i) => (
+   361→                        <div key={i} className="relative size-12 shrink-0 overflow-hidden rounded-md border border-border">
+   362→                          {/* eslint-disable-next-line @next/next/no-img-element */}
+   363→                          <img src={img} alt="" className="size-full object-cover" />
+   364→                        </div>
+   365→                      ))}
+   366→                    </div>
+   367→                  )}
+   368→                </div>
+   369→              </div>
+   370→            </div>
+   371→
+   372→            {/* RIGHT — paket + metode pembayaran + total + footer */}
+   373→            <div className="flex flex-col space-y-3 md:overflow-y-auto md:pl-2">
+   374→
+   375→        {/* Package cards */}
+   376→        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+   377→          {packages.map((p) => {
+   378→            const isSel = selectedPackage === p.key;
+   379→            const PkgIcon = p.icon;
+   380→            const isDisabled = p.key === "sundul" && isSundulDisabled;
+   381→            return (
+   382→              <button
+   383→                key={p.key}
+   384→                type="button"
+   385→                disabled={isDisabled}
+   386→                onClick={() => setSelectedPackage(p.key)}
+   387→                className={cn(
+   388→                  "relative rounded-lg border-2 p-3 text-left transition",
+   389→                  p.color,
+   390→                  isSel ? cn("ring-2", p.ring) : "opacity-90 hover:opacity-100",
+   391→                  isDisabled && "cursor-not-allowed opacity-40"
+   392→                )}
+   393→              >
+   394→                <div className="flex items-start justify-between gap-2">
+   395→                  <div className="flex items-center gap-1.5">
+   396→                    <PkgIcon
+   397→                      className={cn(
+   398→                        "size-4",
+   399→                        p.key === "spotlight"
+   400→                          ? "text-amber-600"
+   401→                          : p.key === "highlight"
+   402→                          ? "text-orange-600"
+   403→                          : p.key === "sundul"
+   404→                          ? "text-purple-600"
+   405→                          : "text-blue-600"
+   406→                      )}
+   407→                    />
+   408→                    <span className="text-sm font-bold text-foreground">{p.name}</span>
+   409→                  </div>
+   410→                  {p.badge && <Badge className="bg-primary text-[9px] text-white">{p.badge}</Badge>}
+   411→                  {p.originalPrice > 0 && p.originalPrice > p.price && (
+   412→                    <span className="rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+   413→                      -{Math.round((1 - p.price / p.originalPrice) * 100)}%
+   414→                    </span>
+   415→                  )}
+   416→                </div>
+   417→                <p className="mt-1 text-lg font-extrabold text-foreground">
+   418→                  Rp {p.price.toLocaleString("id-ID")}
+   419→                  {p.originalPrice > 0 && p.originalPrice > p.price && (
+   420→                    <span className="ml-1.5 text-xs font-medium text-muted-foreground line-through">
+   421→                      Rp {p.originalPrice.toLocaleString("id-ID")}
+   422→                    </span>
+   423→                  )}
+   424→                  <span className="ml-1 text-xs font-medium text-muted-foreground">/ {p.duration}</span>
+   425→                </p>
+   426→                <p className="mt-0.5 text-[11px] text-muted-foreground">{p.description}</p>
+   427→                {isDisabled && (
+   428→                  <p className="mt-1 text-[10px] font-semibold text-red-600">
+   429→                    Tidak tersedia untuk iklan pending.
+   430→                  </p>
+   431→                )}
+   432→                {isSel && (
+   433→                  <span className="absolute right-2 top-2 grid size-5 place-items-center rounded-full bg-primary text-white">
+   434→                    <CheckCircle2 className="size-3.5" />
+   435→                  </span>
+   436→                )}
+   437→              </button>
+   438→            );
+   439→          })}
+   440→        </div>
+   441→
+   442→        {/* Payment method section (only for paid packages) */}
+   443→        {needsPayment && (
+   444→          <div className="rounded-lg border border-border p-3">
+   445→            <p className="mb-2 text-sm font-bold text-foreground">Metode Pembayaran</p>
+   446→            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+   447→              {PAYMENT_METHODS.map((m) => {
+   448→                const isSel = paymentMethod === m.key;
+   449→                return (
+   450→                  <button
+   451→                    key={m.key}
+   452→                    type="button"
+   453→                    onClick={() => setPaymentMethod(m.key)}
+   454→                    className={cn(
+   455→                      "rounded-lg border-2 p-2 text-left transition",
+   456→                      isSel ? cn("bg-secondary", m.color) : "border-border bg-background hover:bg-accent"
+   457→                    )}
+   458→                  >
+   459→                    <p className="text-xs font-bold text-foreground">{m.name}</p>
+   460→                    <p className="mt-0.5 text-[10px] text-muted-foreground">{m.desc}</p>
+   461→                  </button>
+   462→                );
+   463→              })}
+   464→            </div>
+   465→          </div>
+   466→        )}
+   467→
+   468→        {/* Total */}
+   469→        {needsPayment && (
+   470→          <div className="flex items-center justify-between rounded-lg bg-secondary/60 px-3 py-2">
+   471→            <span className="text-sm font-medium text-muted-foreground">Total Pembayaran</span>
+   472→            <span className="text-lg font-extrabold text-primary">
+   473→              {formatRupiahFull(selectedPkg.price)}
+   474→            </span>
+   475→          </div>
+   476→        )}
+   477→
+   478→        {/* Footer buttons */}
+   479→        <div className="flex flex-col gap-2 pb-6 sm:flex-row sm:justify-between">
+   480→          <Button
+   481→            type="button"
+   482→            variant="outline"
+   483→            onClick={() => {
+   484→              onOpenChange(false);
+   485→              onEdit(listing.slug);
+   486→            }}
+   487→            className="w-full gap-1.5 sm:w-auto"
+   488→          >
+   489→            <Edit className="size-4" /> Edit Iklan
+   490→          </Button>
+   491→          <Button
+   492→            type="button"
+   493→            onClick={handleSubmit}
+   494→            disabled={submitting || (needsPayment && !paymentMethod)}
+   495→            className="w-full gap-1.5 bg-primary sm:w-auto"
+   496→          >
+   497→            {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+   498→            {submitting ? "Memproses..." : buttonLabel}
+   499→          </Button>
+   500→        </div>
+   501→            </div>
+   502→          </div>
+   503→        </div>
+   504→      </div>
+   505→    )}
+   506→
+   507→      {/* ===== QRIS PAYMENT PAGE (overlay fullscreen, sama persis seperti post-ad) ===== */}
+   508→      {qrisModal && (
+   509→        <div className="no-scrollbar fixed inset-0 z-[70] overflow-y-auto bg-background md:overflow-hidden">
+   510→          <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:py-6 md:h-screen">
+   511→            {/* Header */}
+   512→            <div className="mb-4 flex shrink-0 items-center justify-between">
+   513→              <h2 className="text-xl font-bold sm:text-2xl">Pembayaran QRIS</h2>
+   514→              <button
+   515→                type="button"
+   516→                onClick={() => { setQrisModal(false); setProofImage(""); }}
+   517→                className="grid size-10 place-items-center rounded-full border border-border bg-card hover:bg-accent"
+   518→              >
+   519→                <X className="size-5" />
+   520→              </button>
+   521→            </div>
+   522→
+   523→            {/* Content — scrollable on mobile, fit on desktop.
+   524→                Urutan: QR+Total (kanan) di-render PERTAMA di DOM supaya di mobile
+   525→                tampil di atas (order-first), instruksi+upload di bawah. Di desktop
+   526→                pakai md:order-2/1 untuk kembalikan layout 2 kolom (kiri instr, kanan QR). */}
+   527→            <div className="grid flex-1 gap-6 md:grid-cols-2 md:overflow-hidden">
+   528→              {/* LEFT — instructions + upload proof (di mobile tampil di BAWAH QR) */}
+   529→              <div className="order-2 space-y-3 md:order-1 md:overflow-hidden">
+   530→                {/* Instructions */}
+   531→                <div className="rounded-xl border border-border bg-card p-4">
+   532→                  <p className="text-sm font-bold">Cara Pembayaran:</p>
+   533→                  <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+   534→                    <li>Buka aplikasi e-wallet / m-banking</li>
+   535→                    <li>Pilih menu Scan / Bayar QRIS</li>
+   536→                    <li>Arahkan kamera ke QR code di sebelah kanan</li>
+   537→                    <li>Pastikan jumlah sesuai: <strong className="text-foreground">{formatRupiahFull(qrisAmount)}</strong></li>
+   538→                    <li>Konfirmasi & selesaikan pembayaran</li>
+   539→                    <li>Upload foto / screenshot bukti pembayaran di bawah</li>
+   540→                  </ol>
+   541→                </div>
+   542→
+   543→                {/* Upload proof of payment */}
+   544→                <div className="rounded-xl border border-border bg-card p-4">
+   545→                  <p className="mb-2 text-sm font-bold">Kirim Bukti Pembayaran</p>
+   546→                  {proofImage ? (
+   547→                    <div className="relative">
+   548→                      <img src={proofImage} alt="Bukti Pembayaran" className="max-h-40 w-full rounded-lg border border-border object-contain" />
+   549→                      <button
+   550→                        type="button"
+   551→                        onClick={() => setProofImage("")}
+   552→                        className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-red-500 text-white shadow"
+   553→                      >
+   554→                        <X className="size-4" />
+   555→                      </button>
+   556→                    </div>
+   557→                  ) : (
+   558→                    <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-center transition hover:border-primary hover:bg-accent">
+   559→                      <Upload className="size-8 text-muted-foreground" />
+   560→                      <span className="text-xs text-muted-foreground">Klik untuk upload bukti pembayaran</span>
+   561→                      <span className="text-[10px] text-muted-foreground/70">JPG, PNG (maks 200KB)</span>
+   562→                      <input
+   563→                        type="file"
+   564→                        accept="image/*"
+   565→                        className="hidden"
+   566→                        onChange={async (e) => {
+   567→                          const file = e.target.files?.[0];
+   568→                          if (!file) return;
+   569→                          try {
+   570→                            const compressed = await compressImage(file);
+   571→                            setProofImage(compressed);
+   572→                            toast.success("Bukti pembayaran diunggah");
+   573→                          } catch (err: any) {
+   574→                            toast.error("Gagal upload: " + (err?.message || ""));
+   575→                          }
+   576→                          e.target.value = "";
+   577→                        }}
+   578→                      />
+   579→                    </label>
+   580→                  )}
+   581→                </div>
+   582→
+   583→                {/* Action buttons */}
+   584→                <div className="flex gap-2">
+   585→                  <Button
+   586→                    variant="outline"
+   587→                    className="flex-1"
+   588→                    onClick={() => { setQrisModal(false); setProofImage(""); toast.info("Pembayaran dibatalkan"); }}
+   589→                  >
+   590→                    Batal
+   591→                  </Button>
+   592→                  <Button
+   593→                    className="flex-1 gap-1.5"
+   594→                    disabled={submitting || uploadingProof || !proofImage}
+   595→                    onClick={async () => {
+   596→                      setUploadingProof(true);
+   597→                      try {
+   598→                        const caption =
+   599→                          `*Bukti Pembayaran Upgrade Iklan Gomesin*\n\n` +
+   600→                          `Paket: ${selectedPkg.name}\n` +
+   601→                          `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
+   602→                          `Judul Iklan: ${listingTitle(listing, mounted ? lang : "id")}`;
+   603→
+   604→                        // Convert base64 → Blob untuk Web Share API.
+   605→                        const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
+   606→                        if (!matches) { toast.error("Format gambar tidak valid"); return; }
+   607→                        const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+   608→                        const byteString = atob(matches[2]);
+   609→                        const buf = new Uint8Array(byteString.length);
+   610→                        for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
+   611→                        const blob = new Blob([buf], { type: `image/${matches[1]}` });
+   612→                        const fileName = `${sanitizeFileName(user?.name || user?.email || "bukti-pembayaran")}.${ext}`;
+   613→
+   614→                        // Kirim bukti pembayaran LANGSUNG ke WhatsApp admin (085888082208).
+   615→                        // Mobile & desktop sama-sama pakai wa.me link → langsung buka chat admin.
+   616→                        const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
+   617→                        if (result.status === "shared") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
+   618→                        else if (result.status === "opened") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
+   619→                        else if (result.status === "cancelled") { setUploadingProof(false); return; }
+   620→                      } catch {
+   621→                        toast.error("Gagal mengirim bukti");
+   622→                      } finally {
+   623→                        setUploadingProof(false);
+   624→                      }
+   625→                      // Submit upgrade + tutup semua.
+   626→                      setTimeout(async () => {
+   627→                        await doSubmit();
+   628→                        setQrisModal(false);
+   629→                        setProofImage("");
+   630→                      }, 500);
+   631→                    }}
+   632→                  >
+   633→                    {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+   634→                    {uploadingProof ? "Mengirim bukti..." : submitting ? "Memproses..." : "Kirim & Pasang Iklan"}
+   635→                  </Button>
+   636→                </div>
+   637→                {!proofImage && (
+   638→                  <p className="text-center text-[11px] text-amber-600">Upload bukti pembayaran dulu untuk melanjutkan</p>
+   639→                )}
+   640→              </div>
+   641→
+   642→              {/* RIGHT — total pembayaran + QR code (di mobile tampil di ATAS) */}
+   643→              <div className="order-1 flex flex-col items-center justify-start pb-6 md:order-2 md:pb-0">
+   644→                {/* Total pembayaran above QR */}
+   645→                <div className="mb-4 text-center">
+   646→                  <p className="text-xs text-muted-foreground">Total Pembayaran</p>
+   647→                  <p className="text-3xl font-extrabold text-primary sm:text-4xl">{formatRupiahFull(qrisAmount)}</p>
+   648→                  <p className="mt-1 text-[11px] text-muted-foreground">
+   649→                    Harga paket + kode unik untuk identifikasi pembayar
+   650→                  </p>
+   651→                </div>
+   652→                {/* QR code */}
+   653→                <div className="rounded-2xl border-2 border-border bg-white p-4 shadow-lg sm:p-6">
+   654→                  <img
+   655→                    src="/qris-gomesin.jpeg"
+   656→                    alt="QRIS Gomesin"
+   657→                    className="h-auto w-full max-w-[250px] object-contain"
+   658→                  />
+   659→                </div>
+   660→                <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
+   661→              </div>
+   662→            </div>
+   663→          </div>
+   664→        </div>
+   665→      )}
+   666→
+   667→      {/* ===== BCA TRANSFER PAGE (fullscreen, mirip QRIS page) ===== */}
+   668→      {bcaModal && (
+   669→        <div className="no-scrollbar fixed inset-0 z-[70] overflow-y-auto bg-background md:overflow-hidden">
+   670→          <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:py-6 md:h-screen">
+   671→            {/* Header */}
+   672→            <div className="mb-4 flex shrink-0 items-center justify-between">
+   673→              <h2 className="text-xl font-bold sm:text-2xl">Transfer ke BCA</h2>
+   674→              <button
+   675→                type="button"
+   676→                onClick={() => { setBcaModal(false); setProofImage(""); }}
+   677→                className="grid size-10 place-items-center rounded-full border border-border bg-card hover:bg-accent"
+   678→              >
+   679→                <X className="size-5" />
+   680→              </button>
+   681→            </div>
+   682→
+   683→            {/* Content */}
+   684→            <div className="grid flex-1 gap-6 md:grid-cols-2 md:overflow-hidden">
+   685→              {/* LEFT — instructions + upload proof */}
+   686→              <div className="space-y-3 md:overflow-y-auto">
+   687→                {/* Bank details */}
+   688→                <div className="rounded-xl border border-border bg-card p-4">
+   689→                  <p className="text-sm font-bold">Transfer ke Rekening BCA:</p>
+   690→                  <div className="mt-2 space-y-1 text-sm">
+   691→                    <p>Bank: <strong className="text-foreground">BCA</strong></p>
+   692→                    <p>No. Rekening: <strong className="text-foreground text-base">8770338221</strong></p>
+   693→                    <p>a.n. <strong className="text-foreground">Lina Listiawati</strong></p>
+   694→                  </div>
+   695→                  <div className="mt-3 rounded-lg bg-blue-50 p-2 text-center">
+   696→                    <p className="text-xs text-muted-foreground">Jumlah Transfer</p>
+   697→                    <p className="text-2xl font-extrabold text-primary">{formatRupiahFull(qrisAmount)}</p>
+   698→                    <p className="text-[11px] text-muted-foreground">Harga paket + kode unik untuk identifikasi</p>
+   699→                  </div>
+   700→                </div>
+   701→
+   702→                {/* Instructions */}
+   703→                <div className="rounded-xl border border-border bg-card p-4">
+   704→                  <p className="text-sm font-bold">Cara Pembayaran:</p>
+   705→                  <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+   706→                    <li>Buka aplikasi m-banking / ATM BCA</li>
+   707→                    <li>Transfer ke rekening <strong className="text-foreground">8770338221</strong> a.n. Lina Listiawati</li>
+   708→                    <li>Pastikan jumlah sesuai: <strong className="text-foreground">{formatRupiahFull(qrisAmount)}</strong></li>
+   709→                    <li>Konfirmasi & selesaikan transfer</li>
+   710→                    <li>Upload foto / screenshot bukti transfer di bawah</li>
+   711→                  </ol>
+   712→                </div>
+   713→
+   714→                {/* Upload proof */}
+   715→                <div className="rounded-xl border border-border bg-card p-4">
+   716→                  <p className="mb-2 text-sm font-bold">Kirim Bukti Pembayaran</p>
+   717→                  {proofImage ? (
+   718→                    <div className="relative">
+   719→                      <img src={proofImage} alt="Bukti Pembayaran" className="max-h-40 w-full rounded-lg border border-border object-contain" />
+   720→                      <button
+   721→                        type="button"
+   722→                        onClick={() => setProofImage("")}
+   723→                        className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-red-500 text-white shadow"
+   724→                      >
+   725→                        <X className="size-4" />
+   726→                      </button>
+   727→                    </div>
+   728→                  ) : (
+   729→                    <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-center transition hover:border-primary hover:bg-accent">
+   730→                      <Upload className="size-8 text-muted-foreground" />
+   731→                      <span className="text-xs text-muted-foreground">Klik untuk upload bukti pembayaran</span>
+   732→                      <span className="text-[10px] text-muted-foreground/70">JPG, PNG (maks 200KB)</span>
+   733→                      <input
+   734→                        type="file"
+   735→                        accept="image/*"
+   736→                        className="hidden"
+   737→                        onChange={async (e) => {
+   738→                          const file = e.target.files?.[0];
+   739→                          if (!file) return;
+   740→                          try {
+   741→                            const compressed = await compressImage(file);
+   742→                            setProofImage(compressed);
+   743→                            toast.success("Bukti pembayaran diunggah");
+   744→                          } catch (err: any) {
+   745→                            toast.error("Gagal upload: " + (err?.message || ""));
+   746→                          }
+   747→                          e.target.value = "";
+   748→                        }}
+   749→                      />
+   750→                    </label>
+   751→                  )}
+   752→                </div>
+   753→
+   754→                {/* Action buttons */}
+   755→                <div className="flex gap-2">
+   756→                  <Button
+   757→                    variant="outline"
+   758→                    className="flex-1"
+   759→                    onClick={() => { setBcaModal(false); setProofImage(""); toast.info("Pembayaran dibatalkan"); }}
+   760→                  >
+   761→                    Batal
+   762→                  </Button>
+   763→                  <Button
+   764→                    className="flex-1 gap-1.5"
+   765→                    disabled={submitting || uploadingProof || !proofImage}
+   766→                    onClick={async () => {
+   767→                      setUploadingProof(true);
+   768→                      try {
+   769→                        const caption =
+   770→                          `*Bukti Pembayaran Upgrade Iklan Gomesin*\n\n` +
+   771→                          `Paket: ${selectedPkg.name}\n` +
+   772→                          `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
+   773→                          `Metode: Transfer BCA\n` +
+   774→                          `Judul Iklan: ${listingTitle(listing, mounted ? lang : "id")}`;
+   775→
+   776→                        // Convert base64 → Blob untuk Web Share API.
+   777→                        const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
+   778→                        if (!matches) { toast.error("Format gambar tidak valid"); return; }
+   779→                        const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+   780→                        const byteString = atob(matches[2]);
+   781→                        const buf = new Uint8Array(byteString.length);
+   782→                        for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
+   783→                        const blob = new Blob([buf], { type: `image/${matches[1]}` });
+   784→                        const fileName = `${sanitizeFileName(user?.name || user?.email || "bukti-pembayaran")}.${ext}`;
+   785→
+   786→                        // Kirim bukti pembayaran LANGSUNG ke WhatsApp admin (085888082208).
+   787→                        const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
+   788→                        if (result.status === "shared") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
+   789→                        else if (result.status === "opened") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
+   790→                        else if (result.status === "cancelled") { setUploadingProof(false); return; }
+   791→                      } catch { toast.error("Gagal mengirim bukti"); }
+   792→                      finally { setUploadingProof(false); }
+   793→                      setTimeout(async () => { await doSubmit(); setBcaModal(false); setProofImage(""); }, 500);
+   794→                    }}
+   795→                  >
+   796→                    {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+   797→                    {uploadingProof ? "Mengirim bukti..." : submitting ? "Memproses..." : "Kirim & Pasang Iklan"}
+   798→                  </Button>
+   799→                </div>
+   800→                {!proofImage && <p className="text-center text-[11px] text-amber-600">Upload bukti pembayaran dulu untuk melanjutkan</p>}
+   801→              </div>
+   802→
+   803→              {/* RIGHT — bank info + QR code (kosong, info bank di kiri) */}
+   804→              <div className="flex flex-col items-center justify-center gap-4 pb-6 md:pb-0">
+   805→                <div className="rounded-2xl border-2 border-blue-500 bg-white p-8 shadow-lg text-center">
+   806→                  <p className="text-sm font-bold text-blue-600">BCA</p>
+   807→                  <p className="mt-2 text-3xl font-extrabold tracking-wider text-foreground">8770338221</p>
+   808→                  <p className="mt-2 text-sm text-muted-foreground">a.n. Lina Listiawati</p>
+   809→                </div>
+   810→                <p className="text-center text-sm font-semibold text-muted-foreground">Transfer ke rekening di atas</p>
+   811→                <p className="text-center text-lg font-bold text-primary">{formatRupiahFull(qrisAmount)}</p>
+   812→              </div>
+   813→            </div>
+   814→          </div>
+   815→        </div>
+   816→      )}
+   817→    </>
+   818→  );
+   819→}
+   820→
+   821→/**
+   822→ * Sanitize user name/email to be filesystem-safe.
+   823→ * "John Doe" → "John_Doe"
+   824→ * "user@email.com" → "user_email.com"
+   825→ * Removes special chars that break URLs/filenames.
+   826→ */
+   827→function sanitizeFileName(name: string): string {
+   828→  return name
+   829→    .trim()
+   830→    .replace(/\s+/g, "_")           // spaces → underscore
+   831→    .replace(/[@/\\?%*:|"<>]/g, "_") // special chars → underscore
+   832→    .replace(/_+/g, "_")              // collapse multiple underscores
+   833→    .substring(0, 50);               // max 50 chars
+   834→}
+   835→

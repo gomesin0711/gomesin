@@ -1,0 +1,704 @@
+     1→"use client";
+     2→
+     3→import { useState, useMemo } from "react";
+     4→import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+     5→import { useStore } from "@/lib/store";
+     6→import { Button } from "@/components/ui/button";
+     7→import { ListingRow, ListingRowSkeleton } from "../listing-row";
+     8→import { formatRupiahFull, timeAgo } from "@/lib/types";
+     9→import { useLang, translations as i18nTranslations, categoryName, listingTitle } from "@/lib/i18n";
+    10→import { useMounted } from "@/lib/use-mounted";
+    11→import { cn } from "@/lib/utils";
+    12→import {
+    13→  LayoutGrid,
+    14→  List,
+    15→  Tag,
+    16→  Eye,
+    17→  TrendingUp,
+    18→  Plus,
+    19→  ChevronRight,
+    20→  Frown,
+    21→  Trash2,
+    22→  Edit,
+    23→  Loader2,
+    24→  MapPin,
+    25→  ImageIcon,
+    26→  Clock,
+    27→  AlertTriangle,
+    28→  CheckCircle2,
+    29→  Search,
+    30→  Crown,
+    31→  Gem,
+    32→  Shield,
+    33→  ArrowUpCircle,
+    34→  Timer,
+    35→} from "lucide-react";
+    36→import {
+    37→  AlertDialog,
+    38→  AlertDialogAction,
+    39→  AlertDialogCancel,
+    40→  AlertDialogContent,
+    41→  AlertDialogDescription,
+    42→  AlertDialogFooter,
+    43→  AlertDialogHeader,
+    44→  AlertDialogTitle,
+    45→} from "@/components/ui/alert-dialog";
+    46→import { toast } from "sonner";
+    47→
+    48→type Listing = any;
+    49→
+    50→// --- Tab definitions ---
+    51→const TABS = [
+    52→  { key: "all", label: "Semua", icon: Tag },
+    53→  { key: "colek", label: "Iklan Gold", icon: Crown, pkgColor: "bg-blue-100 text-blue-700", ringColor: "ring-blue-400", rowBg: "bg-blue-50 hover:bg-blue-100 border-blue-200", badgeColor: "bg-blue-500" },
+    54→  { key: "highlight", label: "Iklan Platinum", icon: Gem, pkgColor: "bg-orange-100 text-orange-700", ringColor: "ring-orange-400", rowBg: "bg-orange-50 hover:bg-orange-100 border-orange-200", badgeColor: "bg-orange-500" },
+    55→  { key: "spotlight", label: "Iklan Titanium", icon: Shield, pkgColor: "bg-amber-100 text-amber-700", ringColor: "ring-amber-400", rowBg: "bg-amber-50 hover:bg-amber-100 border-amber-200", badgeColor: "bg-amber-500" },
+    56→  { key: "sundul", label: "Iklan Colek", icon: ArrowUpCircle, pkgColor: "bg-purple-100 text-purple-700", ringColor: "ring-purple-400", rowBg: "bg-purple-50 hover:bg-purple-100 border-purple-200", badgeColor: "bg-purple-500" },
+    57→] as const;
+    58→
+    59→type TabKey = (typeof TABS)[number]["key"];
+    60→
+    61→// --- Helpers ---
+    62→function getRemainingDays(paymentExpiry: string | null | undefined): { days: number; expired: boolean } {
+    63→  if (!paymentExpiry) return { days: -1, expired: false };
+    64→  const now = new Date();
+    65→  const exp = new Date(paymentExpiry);
+    66→  const diff = exp.getTime() - now.getTime();
+    67→  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    68→  return { days, expired: days <= 0 };
+    69→}
+    70→
+    71→function formatRemainingDays(paymentExpiry: string | null | undefined, lang: string): string {
+    72→  const { days, expired } = getRemainingDays(paymentExpiry);
+    73→  if (days < 0) return "-";
+    74→  if (expired) return "Non Aktif";
+    75→  if (days === 0) return "Hari ini berakhir";
+    76→  if (days === 1) return "1 hari lagi";
+    77→  return `${days} hari lagi`;
+    78→}
+    79→
+    80→async function fetchListings(userId?: string) {
+    81→  const url = userId ? `/api/my-listings?userId=${encodeURIComponent(userId)}` : "/api/my-listings";
+    82→  const res = await fetch(url);
+    83→  if (!res.ok) throw new Error("fail");
+    84→  return res.json() as Promise<{ listings: Listing[]; total: number }>;
+    85→}
+    86→
+    87→async function deleteListing(slug: string) {
+    88→  const res = await fetch(`/api/listings/${slug}`, { method: "DELETE" });
+    89→  const data = await res.json();
+    90→  if (!res.ok) throw new Error(data.error || "Gagal menghapus");
+    91→  return data;
+    92→}
+    93→
+    94→export function DashboardView() {
+    95→  const goToDetail = useStore((s) => s.goToDetail);
+    96→  const goToEdit = useStore((s) => s.goToEdit);
+    97→  const goToPost = useStore((s) => s.goToPost);
+    98→  const goHome = useStore((s) => s.goHome);
+    99→  const goToUpgrade = useStore((s) => s.goToUpgrade);
+   100→  const user = useStore((s) => s.user);
+   101→  const goToLogin = useStore((s) => s.goToLogin);
+   102→  const [viewMode, setViewMode] = useState<"grid" | "line">("grid");
+   103→  const [deleteSlug, setDeleteSlug] = useState<string | null>(null);
+   104→  const [search, setSearch] = useState("");
+   105→  const [activeTab, setActiveTab] = useState<TabKey>("all");
+   106→  const queryClient = useQueryClient();
+   107→  const { t, lang } = useLang();
+   108→  const mounted = useMounted();
+   109→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   110→
+   111→  const { data, isLoading } = useQuery({
+   112→    queryKey: ["dashboard-listings", user?.id],
+   113→    queryFn: () => fetchListings(user?.id),
+   114→    enabled: !!user?.id,
+   115→    staleTime: 0,
+   116→  });
+   117→
+   118→  const deleteMutation = useMutation({
+   119→    mutationFn: deleteListing,
+   120→    onSuccess: () => {
+   121→      toast.success(tr("deleteSuccess"));
+   122→      setDeleteSlug(null);
+   123→      queryClient.invalidateQueries({ queryKey: ["dashboard-listings", user?.id] });
+   124→      queryClient.invalidateQueries({ queryKey: ["listings"] });
+   125→    },
+   126→    onError: (e: any) => {
+   127→      toast.error(e.message || tr("deleteFailed"));
+   128→    },
+   129→  });
+   130→
+   131→  // Not logged in
+   132→  if (!user) {
+   133→    return (
+   134→      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center animate-fade-up">
+   135→        <div className="grid size-16 place-items-center rounded-full bg-primary/10">
+   136→          <Frown className="size-8 text-primary" />
+   137→        </div>
+   138→        <h2 className="mt-4 text-xl font-bold">{tr("loginRequired")}</h2>
+   139→        <Button className="mt-4" onClick={goToLogin}>
+   140→          {tr("loginRegister")}
+   141→        </Button>
+   142→      </div>
+   143→    );
+   144→  }
+   145→
+   146→  const allListings: Listing[] = data?.listings ?? [];
+   147→  const total = data?.total ?? 0;
+   148→
+   149→  // Filter by search
+   150→  const searched = search.trim()
+   151→    ? allListings.filter((l) => {
+   152→        const q = search.toLowerCase();
+   153→        return (
+   154→          l.title?.toLowerCase().includes(q) ||
+   155→          l.description?.toLowerCase().includes(q) ||
+   156→          l.brand?.toLowerCase().includes(q) ||
+   157→          l.city?.toLowerCase().includes(q) ||
+   158→          l.category?.name?.toLowerCase().includes(q) ||
+   159→          (user?.name || "").toLowerCase().includes(q) ||
+   160→          (user?.email || "").toLowerCase().includes(q)
+   161→        );
+   162→      })
+   163→    : allListings;
+   164→
+   165→  // Filter by tab
+   166→  const listings = useMemo(() => {
+   167→    if (activeTab === "all") return searched;
+   168→    return searched.filter((l) => l.packageType === activeTab);
+   169→  }, [searched, activeTab]);
+   170→
+   171→  // Count per tab
+   172→  const tabCounts = useMemo(() => {
+   173→    const counts: Record<string, number> = { all: allListings.length };
+   174→    for (const tab of TABS) {
+   175→      if (tab.key !== "all") {
+   176→        counts[tab.key] = allListings.filter((l) => l.packageType === tab.key).length;
+   177→      }
+   178→    }
+   179→    return counts;
+   180→  }, [allListings]);
+   181→
+   182→  const handleDelete = (slug: string) => setDeleteSlug(slug);
+   183→  const confirmDelete = () => { if (deleteSlug) deleteMutation.mutate(deleteSlug); };
+   184→
+   185→  // stats
+   186→  const totalViews = allListings.reduce((a, l) => a + (l.views || 0), 0);
+   187→  const totalValue = allListings.reduce((a, l) => a + (l.price || 0), 0);
+   188→  const featuredCount = allListings.filter((l) => l.featured).length;
+   189→
+   190→  const stats = [
+   191→    { label: tr("totalAds"), value: total.toLocaleString("id-ID"), icon: Tag, color: "text-primary" },
+   192→    { label: tr("totalViews"), value: totalViews.toLocaleString("id-ID"), icon: Eye, color: "text-blue-500" },
+   193→    { label: tr("featuredCount"), value: featuredCount, icon: TrendingUp, color: "text-amber-500" },
+   194→    { label: tr("assetValue"), value: formatRupiahFull(totalValue), icon: Tag, color: "text-orange-600", small: true },
+   195→  ];
+   196→
+   197→  // --- Render grid card ---
+   198→  const renderGridCard = (l: Listing) => {
+   199→    const img = l.images?.[0];
+   200→    const imgs = l.images || [];
+   201→    const isExpired = l.status === "active" && !!l.paymentExpiry && new Date(l.paymentExpiry) < new Date();
+   202→    const statusInfo = l.status === "draft"
+   203→      ? { color: "bg-slate-400", text: "Belum Aktif", icon: Clock }
+   204→      : l.status === "pending"
+   205→      ? { color: "bg-amber-500", text: tr("pendingVerification"), icon: Clock }
+   206→      : l.status === "rejected" || l.violationFlag
+   207→      ? { color: "bg-red-500", text: l.violationFlag ? tr("violation") : tr("rejected"), icon: AlertTriangle }
+   208→      : isExpired
+   209→      ? { color: "bg-red-500", text: "Non Aktif", icon: AlertTriangle }
+   210→      : { color: "bg-green-500", text: tr("dashActive"), icon: CheckCircle2 };
+   211→    const StatusIcon = statusInfo.icon;
+   212→
+   213→    const pkgName =
+   214→      l.packageType === "spotlight" ? "Titanium"
+   215→      : l.packageType === "highlight" ? "Platinum"
+   216→      : l.packageType === "sundul" ? "Colek"
+   217→      : l.packageType === "colek" ? "Gold"
+   218→      : "";
+   219→    const pkgColor =
+   220→      l.packageType === "spotlight" ? "bg-amber-100 text-amber-700"
+   221→      : l.packageType === "highlight" ? "bg-orange-100 text-orange-700"
+   222→      : l.packageType === "sundul" ? "bg-purple-100 text-purple-700"
+   223→      : l.packageType === "colek" ? "bg-blue-100 text-blue-700"
+   224→      : "";
+   225→
+   226→    const { days: remainingDays, expired } = getRemainingDays(l.paymentExpiry);
+   227→
+   228→    // Line/ring color for package
+   229→    const lineColor = l.packageType === "spotlight" ? "border-amber-300"
+   230→      : l.packageType === "highlight" ? "border-orange-300"
+   231→      : l.packageType === "sundul" ? "border-purple-300"
+   232→      : l.packageType === "colek" ? "border-blue-300"
+   233→      : "";
+   234→
+   235→    return (
+   236→      <div
+   237→        key={l.id}
+   238→        onClick={() => {
+   239→          if (l.status === "draft") goToUpgrade(l.slug);
+   240→          else if (l.status === "active" && !l.violationFlag) goToUpgrade(l.slug);
+   241→        }}
+   242→        className={cn(
+   243→          "group flex flex-col overflow-hidden rounded-xl border-2 bg-card transition",
+   244→          lineColor || "border-border",
+   245→          (l.status === "draft" || (l.status === "active" && !l.violationFlag))
+   246→            ? "cursor-pointer hover:shadow-lg"
+   247→            : "cursor-not-allowed opacity-80"
+   248→        )}
+   249→      >
+   250→        {/* image */}
+   251→        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+   252→          {img ? (
+   253→            <img src={img} alt={l.title} className="size-full object-cover transition group-hover:scale-105" />
+   254→          ) : (
+   255→            <div className="flex h-full items-center justify-center text-muted-foreground">
+   256→              <ImageIcon className="size-8" />
+   257→            </div>
+   258→          )}
+   259→          {/* status badge */}
+   260→          <span className={cn("absolute left-2 top-2 flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase text-white shadow", statusInfo.color)}>
+   261→            <StatusIcon className="size-3" />
+   262→            {statusInfo.text}
+   263→          </span>
+   264→          {/* package badge */}
+   265→          {pkgName && (
+   266→            <span className={cn("absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold text-white shadow", pkgColor.replace("100", "500").replace("700", ""))}>
+   267→              {pkgName}
+   268→            </span>
+   269→          )}
+   270→          {/* photo count */}
+   271→          {imgs.length > 1 && (
+   272→            <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+   273→              📷 {imgs.length}
+   274→            </span>
+   275→          )}
+   276→        </div>
+   277→
+   278→        {/* content */}
+   279→        <div className="flex flex-1 flex-col p-3">
+   280→          {/* price */}
+   281→          <div className="flex items-baseline justify-between gap-2">
+   282→            <p className="text-sm font-bold text-primary">
+   283→              {formatRupiahFull(l.price)}
+   284→            </p>
+   285→            {l.priceType === "negotiable" && (
+   286→              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+   287→                Nego
+   288→              </span>
+   289→            )}
+   290→          </div>
+   291→          {/* title */}
+   292→          <h3 className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-foreground">
+   293→            {listingTitle(l, mounted ? lang : "id")}
+   294→          </h3>
+   295→          {/* meta */}
+   296→          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+   297→            <MapPin className="size-3 shrink-0" /> {l.city}, {l.province}
+   298→          </div>
+   299→          <div className="mt-0.5 flex items-center gap-x-2 text-[10px] text-muted-foreground">
+   300→            <span>{l.condition === "baru" ? tr("commonBaru") : tr("commonBekas")}</span>
+   301→            {l.brand && <span>· {l.brand}</span>}
+   302→            {l.yearProduced && <span>· Th. {l.yearProduced}</span>}
+   303→          </div>
+   304→
+   305→          {/* Masa Aktif — remaining days bar */}
+   306→          {l.paymentExpiry && l.paymentStatus === "paid" && (
+   307→            <div className="mt-2">
+   308→              {expired ? (
+   309→                <div className="flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1">
+   310→                  <AlertTriangle className="size-3 shrink-0 text-red-500" />
+   311→                  <span className="text-[10px] font-bold text-red-600">
+   312→                    Non Aktif — Expired {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+   313→                  </span>
+   314→                </div>
+   315→              ) : (
+   316→                <div className="space-y-1">
+   317→                  <div className="flex items-center justify-between">
+   318→                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   319→                      <Timer className="size-3" />
+   320→                      <span>Masa aktif</span>
+   321→                    </div>
+   322→                    <span className={cn(
+   323→                      "text-[10px] font-bold",
+   324→                      remainingDays <= 3 ? "text-red-600" : remainingDays <= 7 ? "text-amber-600" : "text-green-600"
+   325→                    )}>
+   326→                      {remainingDays === 0 ? "Berakhir hari ini" : `${remainingDays} hari lagi`}
+   327→                    </span>
+   328→                  </div>
+   329→                  {/* Progress bar */}
+   330→                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+   331→                    <div
+   332→                      className={cn(
+   333→                        "h-full rounded-full transition-all",
+   334→                        remainingDays <= 3 ? "bg-red-500" : remainingDays <= 7 ? "bg-amber-500" : "bg-green-500"
+   335→                      )}
+   336→                      style={{ width: `${Math.max(0, Math.min(100, (remainingDays / 30) * 100))}%` }}
+   337→                    />
+   338→                  </div>
+   339→                  <p className="text-[9px] text-muted-foreground">
+   340→                    Berakhir: {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+   341→                  </p>
+   342→                </div>
+   343→              )}
+   344→            </div>
+   345→          )}
+   346→
+   347→          {/* bottom: views + actions */}
+   348→          <div className="mt-auto pt-2 border-t border-border">
+   349→            <div className="flex items-center justify-between">
+   350→              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   351→                <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0}
+   352→              </span>
+   353→              <div className="flex gap-1">
+   354→                <button
+   355→                  onClick={(e) => { e.stopPropagation(); goToEdit(l.slug); }}
+   356→                  className="grid size-7 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-primary hover:text-white hover:border-primary"
+   357→                  title="Edit"
+   358→                >
+   359→                  <Edit className="size-3" />
+   360→                </button>
+   361→                <button
+   362→                  onClick={(e) => { e.stopPropagation(); handleDelete(l.slug); }}
+   363→                  className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"
+   364→                  title="Hapus"
+   365→                >
+   366→                  <Trash2 className="size-3" />
+   367→                </button>
+   368→              </div>
+   369→            </div>
+   370→          </div>
+   371→        </div>
+   372→      </div>
+   373→    );
+   374→  };
+   375→
+   376→  // --- Render line/row card ---
+   377→  const renderLineCard = (l: Listing) => {
+   378→    const img = l.images?.[0];
+   379→    const isExpired = l.status === "active" && !!l.paymentExpiry && new Date(l.paymentExpiry) < new Date();
+   380→    const statusInfo = l.status === "draft"
+   381→      ? { color: "bg-slate-400", text: "Belum Aktif", icon: Clock }
+   382→      : l.status === "pending"
+   383→      ? { color: "bg-amber-500", text: tr("pendingVerification"), icon: Clock }
+   384→      : l.status === "rejected" || l.violationFlag
+   385→      ? { color: "bg-red-500", text: l.violationFlag ? tr("violation") : tr("rejected"), icon: AlertTriangle }
+   386→      : isExpired
+   387→      ? { color: "bg-red-500", text: "Non Aktif", icon: AlertTriangle }
+   388→      : { color: "bg-green-500", text: tr("dashActive"), icon: CheckCircle2 };
+   389→    const StatusIcon = statusInfo.icon;
+   390→
+   391→    const pkgName =
+   392→      l.packageType === "spotlight" ? "Titanium"
+   393→      : l.packageType === "highlight" ? "Platinum"
+   394→      : l.packageType === "sundul" ? "Colek"
+   395→      : l.packageType === "colek" ? "Gold"
+   396→      : "";
+   397→    const pkgColor =
+   398→      l.packageType === "spotlight" ? "bg-amber-100 text-amber-700 border-amber-200"
+   399→      : l.packageType === "highlight" ? "bg-orange-100 text-orange-700 border-orange-200"
+   400→      : l.packageType === "sundul" ? "bg-purple-100 text-purple-700 border-purple-200"
+   401→      : l.packageType === "colek" ? "bg-blue-100 text-blue-700 border-blue-200"
+   402→      : "bg-secondary text-muted-foreground border-border";
+   403→
+   404→    const { days: remainingDays, expired } = getRemainingDays(l.paymentExpiry);
+   405→
+   406→    return (
+   407→      <div
+   408→        key={l.id}
+   409→        onClick={() => {
+   410→          if (l.status === "draft") goToUpgrade(l.slug);
+   411→          else if (l.status === "active" && !l.violationFlag) goToUpgrade(l.slug);
+   412→        }}
+   413→        className={cn(
+   414→          "group flex gap-3 border-b border-border p-3 transition hover:bg-accent/50",
+   415→          (l.status === "draft" || (l.status === "active" && !l.violationFlag))
+   416→            ? "cursor-pointer"
+   417→            : "cursor-not-allowed opacity-80"
+   418→        )}
+   419→      >
+   420→        {/* image */}
+   421→        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
+   422→          {img ? (
+   423→            <img src={img} alt={l.title} className="size-full object-cover" />
+   424→          ) : (
+   425→            <div className="flex h-full items-center justify-center text-muted-foreground">
+   426→              <ImageIcon className="size-6" />
+   427→            </div>
+   428→          )}
+   429→        </div>
+   430→
+   431→        {/* content */}
+   432→        <div className="flex min-w-0 flex-1 flex-col">
+   433→          <div className="flex items-start justify-between gap-2">
+   434→            <div className="min-w-0 flex-1">
+   435→              <h3 className="line-clamp-1 text-sm font-semibold text-foreground group-hover:text-primary">
+   436→                {listingTitle(l, mounted ? lang : "id")}
+   437→              </h3>
+   438→              <p className="mt-0.5 text-[11px] text-muted-foreground">
+   439→                {l.brand ? `${l.brand} · ` : ""}{categoryName(l.category?.name || "", mounted ? lang : "id")} · {l.city}
+   440→              </p>
+   441→            </div>
+   442→            <p className="shrink-0 text-sm font-bold text-primary">
+   443→              {formatRupiahFull(l.price)}
+   444→            </p>
+   445→          </div>
+   446→
+   447→          {/* badges row */}
+   448→          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+   449→            <span className={cn("flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm", statusInfo.color)}>
+   450→              <StatusIcon className="size-2.5" /> {statusInfo.text}
+   451→            </span>
+   452→            {pkgName && (
+   453→              <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold", pkgColor)}>
+   454→                {pkgName}
+   455→              </span>
+   456→            )}
+   457→            {l.paymentExpiry && l.paymentStatus === "paid" && (
+   458→              <span className={cn(
+   459→                "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold",
+   460→                expired ? "bg-red-50 text-red-600" : remainingDays <= 3 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"
+   461→              )}>
+   462→                <Timer className="size-2.5" />
+   463→                {formatRemainingDays(l.paymentExpiry, mounted ? lang : "id")}
+   464→              </span>
+   465→            )}
+   466→          </div>
+   467→
+   468→          {/* bottom row */}
+   469→          <div className="mt-auto flex items-center justify-between pt-2">
+   470→            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+   471→              <span className="flex items-center gap-0.5">
+   472→                <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0} dilihat
+   473→              </span>
+   474→              <span>·</span>
+   475→              <span>{timeAgo(l.createdAt, mounted ? lang : "id")}</span>
+   476→            </div>
+   477→            <div className="flex gap-1">
+   478→              <button
+   479→                onClick={(e) => { e.stopPropagation(); goToEdit(l.slug); }}
+   480→                className="grid size-7 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-primary hover:text-white hover:border-primary"
+   481→                title="Edit"
+   482→              >
+   483→                <Edit className="size-3" />
+   484→              </button>
+   485→              <button
+   486→                onClick={(e) => { e.stopPropagation(); handleDelete(l.slug); }}
+   487→                className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"
+   488→                title="Hapus"
+   489→              >
+   490→                <Trash2 className="size-3" />
+   491→              </button>
+   492→            </div>
+   493→          </div>
+   494→        </div>
+   495→      </div>
+   496→    );
+   497→  };
+   498→
+   499→  return (
+   500→    <div className="mx-auto max-w-7xl px-4 py-6 animate-fade-up">
+   501→      {/* Banner */}
+   502→      {user && (
+   503→        <div className="relative mb-5 -mx-4 md:mx-0 w-[calc(100%+2rem)] md:w-full">
+   504→          <div className="relative h-40 w-full overflow-hidden bg-gradient-to-br from-primary to-orange-600 sm:h-52 md:h-60">
+   505→            <img src={user.bannerImage || "/seller-banner-sample.jpg"} alt="Banner" className="size-full object-cover" />
+   506→          </div>
+   507→          <div className="-mt-10 flex items-end gap-3 px-3 sm:-mt-12 sm:px-4 sm:gap-4">
+   508→            <div className="relative z-10 shrink-0">
+   509→              {user.logoImage ? (
+   510→                <img src={user.logoImage} alt="Logo" className="size-20 rounded-xl border-4 border-white bg-white object-cover shadow-xl sm:size-24" onError={(e)=>{(e.target as HTMLImageElement).style.display='none';}} />
+   511→              ) : (
+   512→                <span className="grid size-20 place-items-center rounded-xl border-4 border-white bg-primary text-lg font-bold text-primary-foreground shadow-xl sm:size-24">
+   513→                  {(user.name || "?").split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+   514→                </span>
+   515→              )}
+   516→            </div>
+   517→            <div className="min-w-0 flex-1 pb-1 pt-4">
+   518→              <p className="truncate text-base font-extrabold text-foreground sm:text-xl">{user.name}</p>
+   519→              <p className="truncate text-xs text-muted-foreground sm:text-sm">
+   520→                {user.address || user.city || "-"}{user.phone ? ` · ${user.phone}` : ""}{user.email ? ` · ${user.email}` : ""}
+   521→              </p>
+   522→            </div>
+   523→          </div>
+   524→        </div>
+   525→      )}
+   526→
+   527→      {/* breadcrumb */}
+   528→      <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
+   529→        <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
+   530→        <ChevronRight className="size-3" />
+   531→        <span className="text-foreground">{tr("dashboardCrumb")}</span>
+   532→      </div>
+   533→
+   534→      {/* header */}
+   535→      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+   536→        <div>
+   537→          <h1 className="text-xl font-bold sm:text-2xl">{tr("dashboardTitle")}</h1>
+   538→          <p className="text-sm text-muted-foreground">{tr("dashboardDesc")}</p>
+   539→        </div>
+   540→        <Button onClick={goToPost} className="gap-2 rounded-full bg-primary font-semibold">
+   541→          <Plus className="size-4" /> {tr("postAd2")}
+   542→        </Button>
+   543→      </div>
+   544→
+   545→      {/* stats cards */}
+   546→      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+   547→        {stats.map((s) => (
+   548→          <div key={s.label} className="rounded-xl border border-border bg-card p-3 sm:p-4">
+   549→            <div className="flex items-center justify-between">
+   550→              <span className={cn("text-[11px] font-medium text-muted-foreground sm:text-xs", s.small && "text-[10px]")}>{s.label}</span>
+   551→              <s.icon className={cn("size-4", s.color)} />
+   552→            </div>
+   553→            <p className={cn("mt-1 font-bold", s.small ? "text-xs sm:text-sm" : "text-base sm:text-lg")}>{s.value}</p>
+   554→          </div>
+   555→        ))}
+   556→      </div>
+   557→
+   558→      {/* ===== TABS ===== */}
+   559→      <div className="mb-4 overflow-x-auto gomesin-scroll">
+   560→        <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+   561→          {TABS.map((tab) => {
+   562→            const isActive = activeTab === tab.key;
+   563→            const count = tabCounts[tab.key] ?? 0;
+   564→            return (
+   565→              <button
+   566→                key={tab.key}
+   567→                onClick={() => setActiveTab(tab.key)}
+   568→                className={cn(
+   569→                  "relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition",
+   570→                  isActive
+   571→                    ? "bg-primary text-primary-foreground shadow-sm"
+   572→                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+   573→                )}
+   574→              >
+   575→                <tab.icon className="size-3.5" />
+   576→                <span>{tab.label}</span>
+   577→                <span className={cn(
+   578→                  "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+   579→                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+   580→                )}>
+   581→                  {count}
+   582→                </span>
+   583→              </button>
+   584→            );
+   585→          })}
+   586→        </div>
+   587→      </div>
+   588→
+   589→      {/* toolbar: search + view toggle */}
+   590→      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   591→        <div className="flex items-center gap-2">
+   592→          <div className="relative flex-1 sm:flex-none">
+   593→            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   594→            <input
+   595→              type="text"
+   596→              value={search}
+   597→              onChange={(e) => setSearch(e.target.value)}
+   598→              placeholder="Cari iklan..."
+   599→              className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary sm:w-56"
+   600→            />
+   601→          </div>
+   602→          <span className="text-xs text-muted-foreground">{listings.length} iklan</span>
+   603→        </div>
+   604→        <div className="flex items-center gap-2">
+   605→          {/* View mode toggle */}
+   606→          <div className="flex overflow-hidden rounded-lg border border-border">
+   607→            <button
+   608→              type="button"
+   609→              onClick={() => setViewMode("grid")}
+   610→              aria-label="Grid"
+   611→              className={cn(
+   612→                "grid size-9 place-items-center transition",
+   613→                viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
+   614→              )}
+   615→            >
+   616→              <LayoutGrid className="size-4" />
+   617→            </button>
+   618→            <button
+   619→              type="button"
+   620→              onClick={() => setViewMode("line")}
+   621→              aria-label="Line"
+   622→              className={cn(
+   623→                "grid size-9 place-items-center border-l border-border transition",
+   624→                viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
+   625→              )}
+   626→            >
+   627→              <List className="size-4" />
+   628→            </button>
+   629→          </div>
+   630→        </div>
+   631→      </div>
+   632→
+   633→      {/* ===== RESULTS ===== */}
+   634→      {isLoading ? (
+   635→        viewMode === "grid" ? (
+   636→          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+   637→            {Array.from({ length: 8 }).map((_, i) => (
+   638→              <div key={i} className="overflow-hidden rounded-xl border-2 border-border bg-card">
+   639→                <div className="aspect-[4/3] w-full animate-pulse bg-muted" />
+   640→                <div className="space-y-2 p-3">
+   641→                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+   642→                  <div className="h-3 w-full animate-pulse rounded bg-muted" />
+   643→                  <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
+   644→                </div>
+   645→              </div>
+   646→            ))}
+   647→          </div>
+   648→        ) : (
+   649→          <div className="rounded-xl border border-border bg-card">
+   650→            {Array.from({ length: 6 }).map((_, i) => (
+   651→              <div key={i} className="flex gap-3 border-b border-border p-3">
+   652→                <div className="h-20 w-20 shrink-0 animate-pulse rounded-lg bg-muted sm:h-24 sm:w-24" />
+   653→                <div className="flex-1 space-y-2">
+   654→                  <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+   655→                  <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
+   656→                  <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+   657→                </div>
+   658→              </div>
+   659→            ))}
+   660→          </div>
+   661→        )
+   662→      ) : listings.length === 0 ? (
+   663→        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+   664→          <Frown className="size-12 text-muted-foreground" />
+   665→          <h3 className="mt-3 text-lg font-semibold">{tr("noAds")}</h3>
+   666→          <p className="mt-1 max-w-sm text-sm text-muted-foreground">{tr("noAdsDesc")}</p>
+   667→          <Button className="mt-4 gap-2" onClick={goToPost}>
+   668→            <Plus className="size-4" /> {tr("postFirstAd")}
+   669→          </Button>
+   670→        </div>
+   671→      ) : viewMode === "grid" ? (
+   672→        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+   673→          {listings.map(renderGridCard)}
+   674→        </div>
+   675→      ) : (
+   676→        <div className="rounded-xl border border-border bg-card overflow-hidden">
+   677→          {listings.map(renderLineCard)}
+   678→        </div>
+   679→      )}
+   680→
+   681→      {/* delete confirmation dialog */}
+   682→      <AlertDialog open={deleteSlug !== null} onOpenChange={(o) => !o && setDeleteSlug(null)}>
+   683→        <AlertDialogContent>
+   684→          <AlertDialogHeader>
+   685→            <AlertDialogTitle>{tr("deleteAdTitle")}</AlertDialogTitle>
+   686→            <AlertDialogDescription>{tr("deleteAdDesc")}</AlertDialogDescription>
+   687→          </AlertDialogHeader>
+   688→          <AlertDialogFooter>
+   689→            <AlertDialogCancel>{tr("cancel")}</AlertDialogCancel>
+   690→            <AlertDialogAction
+   691→              onClick={confirmDelete}
+   692→              disabled={deleteMutation.isPending}
+   693→              className="gap-2 bg-destructive text-white hover:bg-destructive/90"
+   694→            >
+   695→              {deleteMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+   696→              {deleteMutation.isPending ? tr("deleting") : tr("deleteBtn")}
+   697→            </AlertDialogAction>
+   698→          </AlertDialogFooter>
+   699→        </AlertDialogContent>
+   700→      </AlertDialog>
+   701→    </div>
+   702→  );
+   703→}
+   704→

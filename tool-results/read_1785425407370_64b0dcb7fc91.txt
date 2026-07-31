@@ -1,0 +1,776 @@
+     1→"use client";
+     2→
+     3→import { useState, useMemo } from "react";
+     4→import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+     5→import { useStore } from "@/lib/store";
+     6→import { Button } from "@/components/ui/button";
+     7→import { ListingRow, ListingRowSkeleton } from "../listing-row";
+     8→import { formatRupiahFull, timeAgo } from "@/lib/types";
+     9→import { useLang, translations as i18nTranslations, categoryName, listingTitle } from "@/lib/i18n";
+    10→import { useMounted } from "@/lib/use-mounted";
+    11→import { cn } from "@/lib/utils";
+    12→import {
+    13→  LayoutGrid,
+    14→  List,
+    15→  Tag,
+    16→  Eye,
+    17→  TrendingUp,
+    18→  Plus,
+    19→  ChevronRight,
+    20→  Frown,
+    21→  Trash2,
+    22→  Edit,
+    23→  BadgeCheck,
+    24→  Loader2,
+    25→  MapPin,
+    26→  ImageIcon,
+    27→  Clock,
+    28→  AlertTriangle,
+    29→  CheckCircle2,
+    30→  Search,
+    31→  Crown,
+    32→  Gem,
+    33→  Shield,
+    34→  ArrowUpCircle,
+    35→  Timer,
+    36→} from "lucide-react";
+    37→import {
+    38→  AlertDialog,
+    39→  AlertDialogAction,
+    40→  AlertDialogCancel,
+    41→  AlertDialogContent,
+    42→  AlertDialogDescription,
+    43→  AlertDialogFooter,
+    44→  AlertDialogHeader,
+    45→  AlertDialogTitle,
+    46→} from "@/components/ui/alert-dialog";
+    47→import { toast } from "sonner";
+    48→
+    49→type Listing = any;
+    50→
+    51→// --- Tab definitions ---
+    52→const TABS = [
+    53→  { key: "all", label: "Semua", icon: Tag },
+    54→  { key: "colek", label: "Iklan Gold", icon: Crown, pkgColor: "bg-blue-100 text-blue-700", ringColor: "ring-blue-400", rowBg: "bg-blue-50 hover:bg-blue-100 border-blue-200", badgeColor: "bg-blue-500" },
+    55→  { key: "highlight", label: "Iklan Platinum", icon: Gem, pkgColor: "bg-orange-100 text-orange-700", ringColor: "ring-orange-400", rowBg: "bg-orange-50 hover:bg-orange-100 border-orange-200", badgeColor: "bg-orange-500" },
+    56→  { key: "spotlight", label: "Iklan Titanium", icon: Shield, pkgColor: "bg-amber-100 text-amber-700", ringColor: "ring-amber-400", rowBg: "bg-amber-50 hover:bg-amber-100 border-amber-200", badgeColor: "bg-amber-500" },
+    57→  { key: "sundul", label: "Iklan Colek", icon: ArrowUpCircle, pkgColor: "bg-purple-100 text-purple-700", ringColor: "ring-purple-400", rowBg: "bg-purple-50 hover:bg-purple-100 border-purple-200", badgeColor: "bg-purple-500" },
+    58→] as const;
+    59→
+    60→type TabKey = (typeof TABS)[number]["key"];
+    61→
+    62→// --- Helpers ---
+    63→function getRemainingDays(paymentExpiry: string | null | undefined): { days: number; expired: boolean } {
+    64→  if (!paymentExpiry) return { days: -1, expired: false };
+    65→  const now = new Date();
+    66→  const exp = new Date(paymentExpiry);
+    67→  const diff = exp.getTime() - now.getTime();
+    68→  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    69→  return { days, expired: days <= 0 };
+    70→}
+    71→
+    72→function formatRemainingDays(paymentExpiry: string | null | undefined, lang: string): string {
+    73→  const { days, expired } = getRemainingDays(paymentExpiry);
+    74→  if (days < 0) return "-";
+    75→  if (expired) return "Non Aktif";
+    76→  if (days === 0) return "Hari ini berakhir";
+    77→  if (days === 1) return "1 hari lagi";
+    78→  return `${days} hari lagi`;
+    79→}
+    80→
+    81→async function fetchListings(userId?: string) {
+    82→  const url = userId ? `/api/my-listings?userId=${encodeURIComponent(userId)}` : "/api/my-listings";
+    83→  const res = await fetch(url);
+    84→  if (!res.ok) throw new Error("fail");
+    85→  return res.json() as Promise<{ listings: Listing[]; total: number }>;
+    86→}
+    87→
+    88→async function deleteListing(slug: string) {
+    89→  const res = await fetch(`/api/listings/${slug}`, { method: "DELETE" });
+    90→  const data = await res.json();
+    91→  if (!res.ok) throw new Error(data.error || "Gagal menghapus");
+    92→  return data;
+    93→}
+    94→
+    95→async function toggleSold(slug: string, isSold: boolean) {
+    96→  const res = await fetch(`/api/listings/${slug}`, {
+    97→    method: "PATCH",
+    98→    headers: { "Content-Type": "application/json" },
+    99→    body: JSON.stringify({ status: isSold ? "active" : "sold" }),
+   100→  });
+   101→  const data = await res.json();
+   102→  if (!res.ok) throw new Error(data.error || "Gagal mengubah status");
+   103→  return data;
+   104→}
+   105→
+   106→export function DashboardView() {
+   107→  const goToDetail = useStore((s) => s.goToDetail);
+   108→  const goToEdit = useStore((s) => s.goToEdit);
+   109→  const goToPost = useStore((s) => s.goToPost);
+   110→  const goHome = useStore((s) => s.goHome);
+   111→  const goToUpgrade = useStore((s) => s.goToUpgrade);
+   112→  const user = useStore((s) => s.user);
+   113→  const goToLogin = useStore((s) => s.goToLogin);
+   114→  const [viewMode, setViewMode] = useState<"grid" | "line">("grid");
+   115→  const [deleteSlug, setDeleteSlug] = useState<string | null>(null);
+   116→  const [search, setSearch] = useState("");
+   117→  const [activeTab, setActiveTab] = useState<TabKey>("all");
+   118→  const queryClient = useQueryClient();
+   119→  const { t, lang } = useLang();
+   120→  const mounted = useMounted();
+   121→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   122→
+   123→  const { data, isLoading } = useQuery({
+   124→    queryKey: ["dashboard-listings", user?.id],
+   125→    queryFn: () => fetchListings(user?.id),
+   126→    enabled: !!user?.id,
+   127→    staleTime: 0,
+   128→  });
+   129→
+   130→  const deleteMutation = useMutation({
+   131→    mutationFn: deleteListing,
+   132→    onSuccess: () => {
+   133→      toast.success(tr("deleteSuccess"));
+   134→      setDeleteSlug(null);
+   135→      queryClient.invalidateQueries({ queryKey: ["dashboard-listings", user?.id] });
+   136→      queryClient.invalidateQueries({ queryKey: ["listings"] });
+   137→    },
+   138→    onError: (e: any) => {
+   139→      toast.error(e.message || tr("deleteFailed"));
+   140→    },
+   141→  });
+   142→
+   143→  const soldMutation = useMutation({
+   144→    mutationFn: ({ slug, isSold }: { slug: string; isSold: boolean }) => toggleSold(slug, isSold),
+   145→    onSuccess: (_, vars) => {
+   146→      toast.success(vars.isSold ? "Iklan ditandai terjual" : "Status terjual dibatalkan");
+   147→      queryClient.invalidateQueries({ queryKey: ["dashboard-listings", user?.id] });
+   148→      queryClient.invalidateQueries({ queryKey: ["listings"] });
+   149→    },
+   150→    onError: (e: any) => {
+   151→      toast.error(e.message || "Gagal mengubah status");
+   152→    },
+   153→  });
+   154→
+   155→  // All hook calls must be before any early returns
+   156→  const allListings: Listing[] = data?.listings ?? [];
+   157→  const total = data?.total ?? 0;
+   158→
+   159→  // Filter by search (wrapped in useMemo)
+   160→  const searched = useMemo(() => {
+   161→    if (!search.trim()) return allListings;
+   162→    const q = search.toLowerCase();
+   163→    return allListings.filter((l) => (
+   164→      l.title?.toLowerCase().includes(q) ||
+   165→      l.description?.toLowerCase().includes(q) ||
+   166→      l.brand?.toLowerCase().includes(q) ||
+   167→      l.city?.toLowerCase().includes(q) ||
+   168→      l.category?.name?.toLowerCase().includes(q) ||
+   169→      (user?.name || "").toLowerCase().includes(q) ||
+   170→      (user?.email || "").toLowerCase().includes(q)
+   171→    ));
+   172→  }, [allListings, search, user?.name, user?.email]);
+   173→
+   174→  // Filter by tab
+   175→  const listings = useMemo(() => {
+   176→    if (activeTab === "all") return searched;
+   177→    return searched.filter((l) => l.packageType === activeTab);
+   178→  }, [searched, activeTab]);
+   179→
+   180→  // Count per tab
+   181→  const tabCounts = useMemo(() => {
+   182→    const counts: Record<string, number> = { all: allListings.length };
+   183→    for (const tab of TABS) {
+   184→      if (tab.key !== "all") {
+   185→        counts[tab.key] = allListings.filter((l) => l.packageType === tab.key).length;
+   186→      }
+   187→    }
+   188→    return counts;
+   189→  }, [allListings]);
+   190→
+   191→  // Not logged in
+   192→  if (!user) {
+   193→    return (
+   194→      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center animate-fade-up">
+   195→        <div className="grid size-16 place-items-center rounded-full bg-primary/10">
+   196→          <Frown className="size-8 text-primary" />
+   197→        </div>
+   198→        <h2 className="mt-4 text-xl font-bold">{tr("loginRequired")}</h2>
+   199→        <Button className="mt-4" onClick={goToLogin}>
+   200→          {tr("loginRegister")}
+   201→        </Button>
+   202→      </div>
+   203→    );
+   204→  }
+   205→
+   206→  const handleDelete = (slug: string) => setDeleteSlug(slug);
+   207→  const confirmDelete = () => { if (deleteSlug) deleteMutation.mutate(deleteSlug); };
+   208→
+   209→  // stats
+   210→  const totalViews = allListings.reduce((a, l) => a + (l.views || 0), 0);
+   211→  const totalValue = allListings.reduce((a, l) => a + (l.price || 0), 0);
+   212→  const featuredCount = allListings.filter((l) => l.featured).length;
+   213→
+   214→  const stats = [
+   215→    { label: tr("totalAds"), value: total.toLocaleString("id-ID"), icon: Tag, color: "text-primary" },
+   216→    { label: tr("totalViews"), value: totalViews.toLocaleString("id-ID"), icon: Eye, color: "text-blue-500" },
+   217→    { label: tr("featuredCount"), value: featuredCount, icon: TrendingUp, color: "text-amber-500" },
+   218→    { label: tr("assetValue"), value: formatRupiahFull(totalValue), icon: Tag, color: "text-orange-600", small: true },
+   219→  ];
+   220→
+   221→  // --- Render grid card ---
+   222→  const renderGridCard = (l: Listing) => {
+   223→    const img = l.images?.[0];
+   224→    const imgs = l.images || [];
+   225→    const isExpired = l.status === "active" && !!l.paymentExpiry && new Date(l.paymentExpiry) < new Date();
+   226→    const isSold = l.status === "sold";
+   227→    const statusInfo = l.status === "sold"
+   228→      ? { color: "bg-emerald-600", text: "Terjual", icon: BadgeCheck }
+   229→      : l.status === "draft"
+   230→      ? { color: "bg-slate-400", text: "Belum Aktif", icon: Clock }
+   231→      : l.status === "pending"
+   232→      ? { color: "bg-amber-500", text: tr("pendingVerification"), icon: Clock }
+   233→      : l.status === "rejected" || l.violationFlag
+   234→      ? { color: "bg-red-500", text: l.violationFlag ? tr("violation") : tr("rejected"), icon: AlertTriangle }
+   235→      : isExpired
+   236→      ? { color: "bg-red-500", text: "Non Aktif", icon: AlertTriangle }
+   237→      : { color: "bg-green-500", text: tr("dashActive"), icon: CheckCircle2 };
+   238→    const StatusIcon = statusInfo.icon;
+   239→
+   240→    const pkgName =
+   241→      l.packageType === "spotlight" ? "Titanium"
+   242→      : l.packageType === "highlight" ? "Platinum"
+   243→      : l.packageType === "sundul" ? "Colek"
+   244→      : l.packageType === "colek" ? "Gold"
+   245→      : "";
+   246→    const pkgColor =
+   247→      l.packageType === "spotlight" ? "bg-amber-100 text-amber-700"
+   248→      : l.packageType === "highlight" ? "bg-orange-100 text-orange-700"
+   249→      : l.packageType === "sundul" ? "bg-purple-100 text-purple-700"
+   250→      : l.packageType === "colek" ? "bg-blue-100 text-blue-700"
+   251→      : "";
+   252→
+   253→    const { days: remainingDays, expired } = getRemainingDays(l.paymentExpiry);
+   254→
+   255→    // Line/ring color for package
+   256→    const lineColor = l.packageType === "spotlight" ? "border-amber-300"
+   257→      : l.packageType === "highlight" ? "border-orange-300"
+   258→      : l.packageType === "sundul" ? "border-purple-300"
+   259→      : l.packageType === "colek" ? "border-blue-300"
+   260→      : "";
+   261→
+   262→    return (
+   263→      <div
+   264→        key={l.id}
+   265→        onClick={() => {
+   266→          if (l.status === "draft") goToUpgrade(l.slug);
+   267→          else if (l.status === "active" && !l.violationFlag) goToUpgrade(l.slug);
+   268→        }}
+   269→        className={cn(
+   270→          "group flex flex-col overflow-hidden rounded-xl border-2 bg-card transition",
+   271→          lineColor || "border-border",
+   272→          (l.status === "draft" || (l.status === "active" && !l.violationFlag))
+   273→            ? "cursor-pointer hover:shadow-lg"
+   274→            : "cursor-not-allowed opacity-80"
+   275→        )}
+   276→      >
+   277→        {/* image */}
+   278→        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+   279→          {img ? (
+   280→            <img src={img} alt={l.title} className="size-full object-cover transition group-hover:scale-105" />
+   281→          ) : (
+   282→            <div className="flex h-full items-center justify-center text-muted-foreground">
+   283→              <ImageIcon className="size-8" />
+   284→            </div>
+   285→          )}
+   286→          {/* SOLD overlay */}
+   287→          {isSold && (
+   288→            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+   289→              <span className="rotate-[-15deg] scale-125 rounded-lg border-2 border-white/80 bg-emerald-600/90 px-4 py-1.5 text-sm font-extrabold uppercase tracking-wider text-white shadow-lg">
+   290→                Terjual
+   291→              </span>
+   292→            </div>
+   293→          )}
+   294→          {/* status badge */}
+   295→          <span className={cn("absolute left-2 top-2 flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase text-white shadow", statusInfo.color)}>
+   296→            <StatusIcon className="size-3" />
+   297→            {statusInfo.text}
+   298→          </span>
+   299→          {/* package badge */}
+   300→          {pkgName && (
+   301→            <span className={cn("absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold text-white shadow", pkgColor.replace("100", "500").replace("700", ""))}>
+   302→              {pkgName}
+   303→            </span>
+   304→          )}
+   305→          {/* photo count */}
+   306→          {imgs.length > 1 && (
+   307→            <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+   308→              📷 {imgs.length}
+   309→            </span>
+   310→          )}
+   311→        </div>
+   312→
+   313→        {/* content */}
+   314→        <div className="flex flex-1 flex-col p-3">
+   315→          {/* price */}
+   316→          <div className="flex items-baseline justify-between gap-2">
+   317→            <p className="text-sm font-bold text-primary">
+   318→              {formatRupiahFull(l.price)}
+   319→            </p>
+   320→            {l.priceType === "negotiable" && (
+   321→              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+   322→                Nego
+   323→              </span>
+   324→            )}
+   325→          </div>
+   326→          {/* title */}
+   327→          <h3 className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-foreground">
+   328→            {listingTitle(l, mounted ? lang : "id")}
+   329→          </h3>
+   330→          {/* meta */}
+   331→          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+   332→            <MapPin className="size-3 shrink-0" /> {l.city}, {l.province}
+   333→          </div>
+   334→          <div className="mt-0.5 flex items-center gap-x-2 text-[10px] text-muted-foreground">
+   335→            <span>{l.condition === "baru" ? tr("commonBaru") : tr("commonBekas")}</span>
+   336→            {l.brand && <span>· {l.brand}</span>}
+   337→            {l.yearProduced && <span>· Th. {l.yearProduced}</span>}
+   338→          </div>
+   339→
+   340→          {/* Masa Aktif — remaining days bar */}
+   341→          {l.paymentExpiry && l.paymentStatus === "paid" && (
+   342→            <div className="mt-2">
+   343→              {expired ? (
+   344→                <div className="flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1">
+   345→                  <AlertTriangle className="size-3 shrink-0 text-red-500" />
+   346→                  <span className="text-[10px] font-bold text-red-600">
+   347→                    Non Aktif — Expired {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+   348→                  </span>
+   349→                </div>
+   350→              ) : (
+   351→                <div className="space-y-1">
+   352→                  <div className="flex items-center justify-between">
+   353→                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   354→                      <Timer className="size-3" />
+   355→                      <span>Masa aktif</span>
+   356→                    </div>
+   357→                    <span className={cn(
+   358→                      "text-[10px] font-bold",
+   359→                      remainingDays <= 3 ? "text-red-600" : remainingDays <= 7 ? "text-amber-600" : "text-green-600"
+   360→                    )}>
+   361→                      {remainingDays === 0 ? "Berakhir hari ini" : `${remainingDays} hari lagi`}
+   362→                    </span>
+   363→                  </div>
+   364→                  {/* Progress bar */}
+   365→                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+   366→                    <div
+   367→                      className={cn(
+   368→                        "h-full rounded-full transition-all",
+   369→                        remainingDays <= 3 ? "bg-red-500" : remainingDays <= 7 ? "bg-amber-500" : "bg-green-500"
+   370→                      )}
+   371→                      style={{ width: `${Math.max(0, Math.min(100, (remainingDays / 30) * 100))}%` }}
+   372→                    />
+   373→                  </div>
+   374→                  <p className="text-[9px] text-muted-foreground">
+   375→                    Berakhir: {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+   376→                  </p>
+   377→                </div>
+   378→              )}
+   379→            </div>
+   380→          )}
+   381→
+   382→          {/* bottom: views + actions */}
+   383→          <div className="mt-auto pt-2 border-t border-border">
+   384→            <div className="flex items-center justify-between">
+   385→              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   386→                <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0}
+   387→              </span>
+   388→              <div className="flex gap-1">
+   389→                {(l.status === "active" || isSold) && (
+   390→                  <button
+   391→                    onClick={(e) => { e.stopPropagation(); soldMutation.mutate({ slug: l.slug, isSold }); }}
+   392→                    disabled={soldMutation.isPending}
+   393→                    className={cn(
+   394→                      "flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold transition",
+   395→                      isSold
+   396→                        ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+   397→                        : "border-emerald-300 bg-background text-emerald-700 hover:bg-emerald-50"
+   398→                    )}
+   399→                  >
+   400→                    {soldMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <BadgeCheck className="size-3" />}
+   401→                    {isSold ? "Batal" : "Terjual"}
+   402→                  </button>
+   403→                )}
+   404→                <button
+   405→                  onClick={(e) => { e.stopPropagation(); goToEdit(l.slug); }}
+   406→                  className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-semibold text-foreground transition hover:bg-primary hover:text-white hover:border-primary"
+   407→                >
+   408→                  <Edit className="size-3" /> Edit
+   409→                </button>
+   410→                <button
+   411→                  onClick={(e) => { e.stopPropagation(); handleDelete(l.slug); }}
+   412→                  className="flex items-center gap-1 rounded-md border border-destructive/30 bg-background px-2 py-1 text-[10px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"
+   413→                >
+   414→                  <Trash2 className="size-3" /> Hapus
+   415→                </button>
+   416→              </div>
+   417→            </div>
+   418→          </div>
+   419→        </div>
+   420→      </div>
+   421→    );
+   422→  };
+   423→
+   424→  // --- Render line/row card ---
+   425→  const renderLineCard = (l: Listing) => {
+   426→    const img = l.images?.[0];
+   427→    const isExpired = l.status === "active" && !!l.paymentExpiry && new Date(l.paymentExpiry) < new Date();
+   428→    const isSold = l.status === "sold";
+   429→    const statusInfo = l.status === "sold"
+   430→      ? { color: "bg-emerald-600", text: "Terjual", icon: BadgeCheck }
+   431→      : l.status === "draft"
+   432→      ? { color: "bg-slate-400", text: "Belum Aktif", icon: Clock }
+   433→      : l.status === "pending"
+   434→      ? { color: "bg-amber-500", text: tr("pendingVerification"), icon: Clock }
+   435→      : l.status === "rejected" || l.violationFlag
+   436→      ? { color: "bg-red-500", text: l.violationFlag ? tr("violation") : tr("rejected"), icon: AlertTriangle }
+   437→      : isExpired
+   438→      ? { color: "bg-red-500", text: "Non Aktif", icon: AlertTriangle }
+   439→      : { color: "bg-green-500", text: tr("dashActive"), icon: CheckCircle2 };
+   440→    const StatusIcon = statusInfo.icon;
+   441→
+   442→    const pkgName =
+   443→      l.packageType === "spotlight" ? "Titanium"
+   444→      : l.packageType === "highlight" ? "Platinum"
+   445→      : l.packageType === "sundul" ? "Colek"
+   446→      : l.packageType === "colek" ? "Gold"
+   447→      : "";
+   448→    const pkgColor =
+   449→      l.packageType === "spotlight" ? "bg-amber-100 text-amber-700 border-amber-200"
+   450→      : l.packageType === "highlight" ? "bg-orange-100 text-orange-700 border-orange-200"
+   451→      : l.packageType === "sundul" ? "bg-purple-100 text-purple-700 border-purple-200"
+   452→      : l.packageType === "colek" ? "bg-blue-100 text-blue-700 border-blue-200"
+   453→      : "bg-secondary text-muted-foreground border-border";
+   454→
+   455→    const { days: remainingDays, expired } = getRemainingDays(l.paymentExpiry);
+   456→
+   457→    return (
+   458→      <div
+   459→        key={l.id}
+   460→        onClick={() => {
+   461→          if (l.status === "draft") goToUpgrade(l.slug);
+   462→          else if (l.status === "active" && !l.violationFlag) goToUpgrade(l.slug);
+   463→        }}
+   464→        className={cn(
+   465→          "group flex gap-3 border-b border-border p-3 transition hover:bg-accent/50",
+   466→          (l.status === "draft" || (l.status === "active" && !l.violationFlag))
+   467→            ? "cursor-pointer"
+   468→            : "cursor-not-allowed opacity-80"
+   469→        )}
+   470→      >
+   471→        {/* image */}
+   472→        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
+   473→          {img ? (
+   474→            <img src={img} alt={l.title} className="size-full object-cover" />
+   475→          ) : (
+   476→            <div className="flex h-full items-center justify-center text-muted-foreground">
+   477→              <ImageIcon className="size-6" />
+   478→            </div>
+   479→          )}
+   480→          {/* SOLD overlay */}
+   481→          {isSold && (
+   482→            <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
+   483→              <span className="rotate-[-15deg] scale-100 rounded border border-white/80 bg-emerald-600/90 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white">
+   484→                Terjual
+   485→              </span>
+   486→            </div>
+   487→          )}
+   488→        </div>
+   489→
+   490→        {/* content */}
+   491→        <div className="flex min-w-0 flex-1 flex-col">
+   492→          <div className="flex items-start justify-between gap-2">
+   493→            <div className="min-w-0 flex-1">
+   494→              <h3 className="line-clamp-1 text-sm font-semibold text-foreground group-hover:text-primary">
+   495→                {listingTitle(l, mounted ? lang : "id")}
+   496→              </h3>
+   497→              <p className="mt-0.5 text-[11px] text-muted-foreground">
+   498→                {l.brand ? `${l.brand} · ` : ""}{categoryName(l.category?.name || "", mounted ? lang : "id")} · {l.city}
+   499→              </p>
+   500→            </div>
+   501→            <p className="shrink-0 text-sm font-bold text-primary">
+   502→              {formatRupiahFull(l.price)}
+   503→            </p>
+   504→          </div>
+   505→
+   506→          {/* badges row */}
+   507→          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+   508→            <span className={cn("flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm", statusInfo.color)}>
+   509→              <StatusIcon className="size-2.5" /> {statusInfo.text}
+   510→            </span>
+   511→            {pkgName && (
+   512→              <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold", pkgColor)}>
+   513→                {pkgName}
+   514→              </span>
+   515→            )}
+   516→            {l.paymentExpiry && l.paymentStatus === "paid" && (
+   517→              <span className={cn(
+   518→                "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold",
+   519→                expired ? "bg-red-50 text-red-600" : remainingDays <= 3 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"
+   520→              )}>
+   521→                <Timer className="size-2.5" />
+   522→                {formatRemainingDays(l.paymentExpiry, mounted ? lang : "id")}
+   523→              </span>
+   524→            )}
+   525→          </div>
+   526→
+   527→          {/* bottom row */}
+   528→          <div className="mt-auto flex items-center justify-between pt-2">
+   529→            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+   530→              <span className="flex items-center gap-0.5">
+   531→                <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0} dilihat
+   532→              </span>
+   533→              <span>·</span>
+   534→              <span>{timeAgo(l.createdAt, mounted ? lang : "id")}</span>
+   535→            </div>
+   536→            <div className="flex gap-1">
+   537→              {(l.status === "active" || isSold) && (
+   538→                <button
+   539→                  onClick={(e) => { e.stopPropagation(); soldMutation.mutate({ slug: l.slug, isSold }); }}
+   540→                  disabled={soldMutation.isPending}
+   541→                  className={cn(
+   542→                    "flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold transition",
+   543→                    isSold
+   544→                      ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+   545→                      : "border-emerald-300 bg-background text-emerald-700 hover:bg-emerald-50"
+   546→                  )}
+   547→                >
+   548→                  {soldMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <BadgeCheck className="size-3" />}
+   549→                  {isSold ? "Batal" : "Terjual"}
+   550→                </button>
+   551→              )}
+   552→              <button
+   553→                onClick={(e) => { e.stopPropagation(); goToEdit(l.slug); }}
+   554→                className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-semibold text-foreground transition hover:bg-primary hover:text-white hover:border-primary"
+   555→              >
+   556→                <Edit className="size-3" /> Edit
+   557→              </button>
+   558→              <button
+   559→                onClick={(e) => { e.stopPropagation(); handleDelete(l.slug); }}
+   560→                className="flex items-center gap-1 rounded-md border border-destructive/30 bg-background px-2 py-1 text-[10px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"
+   561→              >
+   562→                <Trash2 className="size-3" /> Hapus
+   563→              </button>
+   564→            </div>
+   565→          </div>
+   566→        </div>
+   567→      </div>
+   568→    );
+   569→  };
+   570→
+   571→  return (
+   572→    <div className="mx-auto max-w-7xl px-4 py-6 animate-fade-up">
+   573→      {/* Banner */}
+   574→      {user && (
+   575→        <div className="relative mb-5 -mx-4 md:mx-0 w-[calc(100%+2rem)] md:w-full">
+   576→          <div className="relative h-40 w-full overflow-hidden bg-gradient-to-br from-primary to-orange-600 sm:h-52 md:h-60">
+   577→            <img src={user.bannerImage || "/seller-banner-sample.jpg"} alt="Banner" className="size-full object-cover" />
+   578→          </div>
+   579→          <div className="-mt-10 flex items-end gap-3 px-3 sm:-mt-12 sm:px-4 sm:gap-4">
+   580→            <div className="relative z-10 shrink-0">
+   581→              {user.logoImage ? (
+   582→                <img src={user.logoImage} alt="Logo" className="size-20 rounded-xl border-4 border-white bg-white object-cover shadow-xl sm:size-24" onError={(e)=>{(e.target as HTMLImageElement).style.display='none';}} />
+   583→              ) : (
+   584→                <span className="grid size-20 place-items-center rounded-xl border-4 border-white bg-primary text-lg font-bold text-primary-foreground shadow-xl sm:size-24">
+   585→                  {(user.name || "?").split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+   586→                </span>
+   587→              )}
+   588→            </div>
+   589→            <div className="min-w-0 flex-1 pb-1 pt-4">
+   590→              <p className="truncate text-base font-extrabold text-foreground sm:text-xl">{user.name}</p>
+   591→              <p className="truncate text-xs text-muted-foreground sm:text-sm">
+   592→                {user.address || user.city || "-"}{user.phone ? ` · ${user.phone}` : ""}{user.email ? ` · ${user.email}` : ""}
+   593→              </p>
+   594→            </div>
+   595→          </div>
+   596→        </div>
+   597→      )}
+   598→
+   599→      {/* breadcrumb */}
+   600→      <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
+   601→        <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
+   602→        <ChevronRight className="size-3" />
+   603→        <span className="text-foreground">{tr("dashboardCrumb")}</span>
+   604→      </div>
+   605→
+   606→      {/* header */}
+   607→      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+   608→        <div>
+   609→          <h1 className="text-xl font-bold sm:text-2xl">{tr("dashboardTitle")}</h1>
+   610→          <p className="text-sm text-muted-foreground">{tr("dashboardDesc")}</p>
+   611→        </div>
+   612→        <Button onClick={goToPost} className="gap-2 rounded-full bg-primary font-semibold">
+   613→          <Plus className="size-4" /> {tr("postAd2")}
+   614→        </Button>
+   615→      </div>
+   616→
+   617→      {/* stats cards */}
+   618→      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+   619→        {stats.map((s) => (
+   620→          <div key={s.label} className="rounded-xl border border-border bg-card p-3 sm:p-4">
+   621→            <div className="flex items-center justify-between">
+   622→              <span className={cn("text-[11px] font-medium text-muted-foreground sm:text-xs", s.small && "text-[10px]")}>{s.label}</span>
+   623→              <s.icon className={cn("size-4", s.color)} />
+   624→            </div>
+   625→            <p className={cn("mt-1 font-bold", s.small ? "text-xs sm:text-sm" : "text-base sm:text-lg")}>{s.value}</p>
+   626→          </div>
+   627→        ))}
+   628→      </div>
+   629→
+   630→      {/* ===== TABS ===== */}
+   631→      <div className="mb-4 overflow-x-auto gomesin-scroll">
+   632→        <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+   633→          {TABS.map((tab) => {
+   634→            const isActive = activeTab === tab.key;
+   635→            const count = tabCounts[tab.key] ?? 0;
+   636→            return (
+   637→              <button
+   638→                key={tab.key}
+   639→                onClick={() => setActiveTab(tab.key)}
+   640→                className={cn(
+   641→                  "relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition",
+   642→                  isActive
+   643→                    ? "bg-primary text-primary-foreground shadow-sm"
+   644→                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+   645→                )}
+   646→              >
+   647→                <tab.icon className="size-3.5" />
+   648→                <span>{tab.label}</span>
+   649→                <span className={cn(
+   650→                  "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+   651→                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+   652→                )}>
+   653→                  {count}
+   654→                </span>
+   655→              </button>
+   656→            );
+   657→          })}
+   658→        </div>
+   659→      </div>
+   660→
+   661→      {/* toolbar: search + view toggle */}
+   662→      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   663→        <div className="flex items-center gap-2">
+   664→          <div className="relative flex-1 sm:flex-none">
+   665→            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   666→            <input
+   667→              type="text"
+   668→              value={search}
+   669→              onChange={(e) => setSearch(e.target.value)}
+   670→              placeholder="Cari iklan..."
+   671→              className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary sm:w-56"
+   672→            />
+   673→          </div>
+   674→          <span className="text-xs text-muted-foreground">{listings.length} iklan</span>
+   675→        </div>
+   676→        <div className="flex items-center gap-2">
+   677→          {/* View mode toggle */}
+   678→          <div className="flex overflow-hidden rounded-lg border border-border">
+   679→            <button
+   680→              type="button"
+   681→              onClick={() => setViewMode("grid")}
+   682→              aria-label="Grid"
+   683→              className={cn(
+   684→                "grid size-9 place-items-center transition",
+   685→                viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
+   686→              )}
+   687→            >
+   688→              <LayoutGrid className="size-4" />
+   689→            </button>
+   690→            <button
+   691→              type="button"
+   692→              onClick={() => setViewMode("line")}
+   693→              aria-label="Line"
+   694→              className={cn(
+   695→                "grid size-9 place-items-center border-l border-border transition",
+   696→                viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
+   697→              )}
+   698→            >
+   699→              <List className="size-4" />
+   700→            </button>
+   701→          </div>
+   702→        </div>
+   703→      </div>
+   704→
+   705→      {/* ===== RESULTS ===== */}
+   706→      {isLoading ? (
+   707→        viewMode === "grid" ? (
+   708→          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+   709→            {Array.from({ length: 8 }).map((_, i) => (
+   710→              <div key={i} className="overflow-hidden rounded-xl border-2 border-border bg-card">
+   711→                <div className="aspect-[4/3] w-full animate-pulse bg-muted" />
+   712→                <div className="space-y-2 p-3">
+   713→                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+   714→                  <div className="h-3 w-full animate-pulse rounded bg-muted" />
+   715→                  <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
+   716→                </div>
+   717→              </div>
+   718→            ))}
+   719→          </div>
+   720→        ) : (
+   721→          <div className="rounded-xl border border-border bg-card">
+   722→            {Array.from({ length: 6 }).map((_, i) => (
+   723→              <div key={i} className="flex gap-3 border-b border-border p-3">
+   724→                <div className="h-20 w-20 shrink-0 animate-pulse rounded-lg bg-muted sm:h-24 sm:w-24" />
+   725→                <div className="flex-1 space-y-2">
+   726→                  <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+   727→                  <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
+   728→                  <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+   729→                </div>
+   730→              </div>
+   731→            ))}
+   732→          </div>
+   733→        )
+   734→      ) : listings.length === 0 ? (
+   735→        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+   736→          <Frown className="size-12 text-muted-foreground" />
+   737→          <h3 className="mt-3 text-lg font-semibold">{tr("noAds")}</h3>
+   738→          <p className="mt-1 max-w-sm text-sm text-muted-foreground">{tr("noAdsDesc")}</p>
+   739→          <Button className="mt-4 gap-2" onClick={goToPost}>
+   740→            <Plus className="size-4" /> {tr("postFirstAd")}
+   741→          </Button>
+   742→        </div>
+   743→      ) : viewMode === "grid" ? (
+   744→        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+   745→          {listings.map(renderGridCard)}
+   746→        </div>
+   747→      ) : (
+   748→        <div className="rounded-xl border border-border bg-card overflow-hidden">
+   749→          {listings.map(renderLineCard)}
+   750→        </div>
+   751→      )}
+   752→
+   753→      {/* delete confirmation dialog */}
+   754→      <AlertDialog open={deleteSlug !== null} onOpenChange={(o) => !o && setDeleteSlug(null)}>
+   755→        <AlertDialogContent>
+   756→          <AlertDialogHeader>
+   757→            <AlertDialogTitle>{tr("deleteAdTitle")}</AlertDialogTitle>
+   758→            <AlertDialogDescription>{tr("deleteAdDesc")}</AlertDialogDescription>
+   759→          </AlertDialogHeader>
+   760→          <AlertDialogFooter>
+   761→            <AlertDialogCancel>{tr("cancel")}</AlertDialogCancel>
+   762→            <AlertDialogAction
+   763→              onClick={confirmDelete}
+   764→              disabled={deleteMutation.isPending}
+   765→              className="gap-2 bg-destructive text-white hover:bg-destructive/90"
+   766→            >
+   767→              {deleteMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+   768→              {deleteMutation.isPending ? tr("deleting") : tr("deleteBtn")}
+   769→            </AlertDialogAction>
+   770→          </AlertDialogFooter>
+   771→        </AlertDialogContent>
+   772→      </AlertDialog>
+   773→    </div>
+   774→  );
+   775→}
+   776→

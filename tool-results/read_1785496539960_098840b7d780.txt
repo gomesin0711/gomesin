@@ -1,0 +1,794 @@
+     1→  2192→
+     2→  2193→  const pkgName = (p: string) => p === "spotlight" ? "Titanium" : p === "highlight" ? "Platinum" : p === "sundul" ? "Colek" : p === "colek" ? "Gold" : p;
+     3→  2194→  const pkgColor = (p: string) => p === "spotlight" ? "bg-amber-100 text-amber-700" : p === "highlight" ? "bg-orange-100 text-orange-700" : p === "sundul" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
+     4→  2195→
+     5→  2196→  return (
+     6→  2197→    <div className="space-y-4">
+     7→  2198→      <div className="flex items-center justify-between">
+     8→  2199→        <h2 className="text-base font-bold md:text-lg">Penjualan Iklan</h2>
+     9→  2200→        <span className="text-sm text-muted-foreground">{all.length} transaksi · Total {formatRupiahFull(totalAll)}</span>
+    10→  2201→      </div>
+    11→  2202→
+    12→  2203→      {/* Summary — 3 stat cards */}
+    13→  2204→      <div className="grid grid-cols-3 gap-3">
+    14→  2205→        <div className="rounded-xl border border-border bg-card p-4 text-center">
+    15→  2206→          <p className="text-xs text-muted-foreground md:text-sm">Hari Ini</p>
+    16→  2207→          <p className="mt-1 text-base font-extrabold text-orange-600 md:text-xl">{formatRupiahFull(sumFee(daily))}</p>
+    17→  2208→          <p className="mt-0.5 text-[10px] text-muted-foreground md:text-xs">{daily.length} iklan</p>
+    18→  2209→        </div>
+    19→  2210→        <div className="rounded-xl border border-border bg-card p-4 text-center">
+    20→  2211→          <p className="text-xs text-muted-foreground md:text-sm">Minggu Ini</p>
+    21→  2212→          <p className="mt-1 text-base font-extrabold text-primary md:text-xl">{formatRupiahFull(sumFee(weekly))}</p>
+    22→  2213→          <p className="mt-0.5 text-[10px] text-muted-foreground md:text-xs">{weekly.length} iklan</p>
+    23→  2214→        </div>
+    24→  2215→        <div className="rounded-xl border border-border bg-card p-4 text-center">
+    25→  2216→          <p className="text-xs text-muted-foreground md:text-sm">Bulan Ini</p>
+    26→  2217→          <p className="mt-1 text-base font-extrabold text-orange-600 md:text-xl">{formatRupiahFull(sumFee(monthly))}</p>
+    27→  2218→          <p className="mt-0.5 text-[10px] text-muted-foreground md:text-xs">{monthly.length} iklan</p>
+    28→  2219→        </div>
+    29→  2220→      </div>
+    30→  2221→
+    31→  2222→      {/* Search + Filter */}
+    32→  2223→      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+    33→  2224→        <input
+    34→  2225→          type="text"
+    35→  2226→          value={search}
+    36→  2227→          onChange={(e) => setSearch(e.target.value)}
+    37→  2228→          placeholder="Cari iklan atau penjual..."
+    38→  2229→          className="h-9 flex-1 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+    39→  2230→        />
+    40→  2231→        <div className="flex gap-1.5">
+    41→  2232→          {[
+    42→  2233→            { v: "all", l: "Semua" },
+    43→  2234→            { v: "spotlight", l: "Titanium" },
+    44→  2235→            { v: "highlight", l: "Platinum" },
+    45→  2236→            { v: "sundul", l: "Colek" },
+    46→  2237→            { v: "colek", l: "Gold" },
+    47→  2238→          ].map((f) => (
+    48→  2239→            <button
+    49→  2240→              key={f.v}
+    50→  2241→              onClick={() => setPkgFilter(f.v as any)}
+    51→  2242→              className={cn(
+    52→  2243→                "rounded-full px-3 py-1 text-xs font-medium transition",
+    53→  2244→                pkgFilter === f.v ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:bg-accent"
+    54→  2245→              )}
+    55→  2246→            >
+    56→  2247→              {f.l}
+    57→  2248→            </button>
+    58→  2249→          ))}
+    59→  2250→        </div>
+    60→  2251→      </div>
+    61→  2252→
+    62→  2253→      {/* View Toggle */}
+    63→  2254→      <div className="flex items-center justify-end">
+    64→  2255→        <div className="flex overflow-hidden rounded-lg border border-border">
+    65→  2256→          <button type="button" onClick={() => setViewMode("grid")}
+    66→  2257→            className={cn("grid size-9 place-items-center transition", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+    67→  2258→            aria-label="Grid"><LayoutGrid className="size-4" /></button>
+    68→  2259→          <button type="button" onClick={() => setViewMode("line")}
+    69→  2260→            className={cn("grid size-9 place-items-center border-l border-border transition", viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+    70→  2261→            aria-label="Line"><List className="size-4" /></button>
+    71→  2262→        </div>
+    72→  2263→      </div>
+    73→  2264→
+    74→  2265→      {viewMode === "grid" ? (
+    75→  2266→        /* Grid View */
+    76→  2267→        filtered.length === 0 ? (
+    77→  2268→          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+    78→  2269→            <Frown className="size-12 text-muted-foreground" />
+    79→  2270→            <h3 className="mt-3 text-lg font-semibold">Tidak ada data</h3>
+    80→  2271→            <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tidak ada data penjualan untuk filter ini.</p>
+    81→  2272→          </div>
+    82→  2273→        ) : (
+    83→  2274→          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    84→  2275→            {filtered.map((l: any) => {
+    85→  2276→              const pkg = getPkgBadge(l.packageType);
+    86→  2277→              return (
+    87→  2278→                <div key={l.id} className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-border bg-card transition hover:shadow-lg">
+    88→  2279→                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+    89→  2280→                    {l.images?.[0] ? (
+    90→  2281→                      <img src={l.images[0]} alt={l.title} className="size-full object-cover transition group-hover:scale-105" />
+    91→  2282→                    ) : (
+    92→  2283→                      <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-8" /></div>
+    93→  2284→                    )}
+    94→  2285→                    <span className={cn("absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold", pkg.bg)}>
+    95→  2286→                      {pkg.name}
+    96→  2287→                    </span>
+    97→  2288→                  </div>
+    98→  2289→                  <div className="flex flex-1 flex-col p-3">
+    99→  2290→                    <p className="text-sm font-bold text-orange-600">{formatRupiahFull(adFee(l))}</p>
+   100→  2291→                    <h3 className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-foreground">{l.title}</h3>
+   101→  2292→                    <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+   102→  2293→                      <MapPin className="size-3 shrink-0" /> {l.city}{l.seller?.name ? ` · ${l.seller.name}` : ""}
+   103→  2294→                    </div>
+   104→  2295→                    <p className="mt-1 text-[10px] text-muted-foreground">
+   105→  2296→                      {l.category?.name} · {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+   106→  2297→                    </p>
+   107→  2298→                    <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+   108→  2299→                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   109→  2300→                        <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0}
+   110→  2301→                      </span>
+   111→  2302→                    </div>
+   112→  2303→                  </div>
+   113→  2304→                </div>
+   114→  2305→              );
+   115→  2306→            })}
+   116→  2307→          </div>
+   117→  2308→        )
+   118→  2309→      ) : (
+   119→  2310→        /* Table View (existing) */
+   120→  2311→        <div className="overflow-hidden rounded-xl border border-border bg-card">
+   121→  2312→          <div className="overflow-x-auto">
+   122→  2313→            <table className="w-full min-w-[640px] text-sm">
+   123→  2314→              <thead>
+   124→  2315→                <tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+   125→  2316→                  <th className="p-3">Iklan</th>
+   126→  2317→                  <th className="hidden p-3 sm:table-cell">Penjual</th>
+   127→  2318→                  <th className="p-3">Paket</th>
+   128→  2319→                  <th className="p-3 text-right">Harga Iklan</th>
+   129→  2320→                  <th className="hidden p-3 md:table-cell">Tanggal</th>
+   130→  2321→                  <th className="p-3 text-center">Views</th>
+   131→  2322→                </tr>
+   132→  2323→              </thead>
+   133→  2324→              <tbody>
+   134→  2325→                {filtered.length === 0 ? (
+   135→  2326→                  <tr>
+   136→  2327→                    <td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
+   137→  2328→                      Tidak ada data penjualan.
+   138→  2329→                    </td>
+   139→  2330→                  </tr>
+   140→  2331→                ) : (
+   141→  2332→                  filtered.map((l: any) => (
+   142→  2333→                    <tr key={l.id} className="border-b border-border transition hover:bg-accent/30">
+   143→  2334→                      <td className="p-3">
+   144→  2335→                        <div className="flex items-center gap-2">
+   145→  2336→                          {l.images?.[0] ? (
+   146→  2337→                            <img src={l.images[0]} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
+   147→  2338→                          ) : (
+   148→  2339→                            <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+   149→  2340→                              <Tag className="size-4" />
+   150→  2341→                            </div>
+   151→  2342→                          )}
+   152→  2343→                          <div className="min-w-0">
+   153→  2344→                            <p className="line-clamp-1 text-xs font-semibold">{l.title}</p>
+   154→  2345→                            <p className="text-[10px] text-muted-foreground">{l.category?.name} · {l.city}</p>
+   155→  2346→                          </div>
+   156→  2347→                        </div>
+   157→  2348→                      </td>
+   158→  2349→                      <td className="hidden p-3 text-xs sm:table-cell">{l.seller?.name || "-"}</td>
+   159→  2350→                      <td className="p-3">
+   160→  2351→                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", pkgColor(l.packageType))}>
+   161→  2352→                          {pkgName(l.packageType)}
+   162→  2353→                        </span>
+   163→  2354→                      </td>
+   164→  2355→                      <td className="p-3 text-right text-xs font-bold text-orange-600">
+   165→  2356→                        {formatRupiahFull(adFee(l))}
+   166→  2357→                      </td>
+   167→  2358→                      <td className="hidden p-3 text-xs md:table-cell">
+   168→  2359→                        {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+   169→  2360→                      </td>
+   170→  2361→                      <td className="p-3 text-center text-xs text-muted-foreground">{l.views?.toLocaleString("id-ID") || 0}</td>
+   171→  2362→                    </tr>
+   172→  2363→                  ))
+   173→  2364→                )}
+   174→  2365→              </tbody>
+   175→  2366→            </table>
+   176→  2367→          </div>
+   177→  2368→        </div>
+   178→  2369→      )}
+   179→  2370→
+   180→  2371→      {/* Footer count */}
+   181→  2372→      <p className="text-xs text-muted-foreground">Menampilkan {filtered.length} dari {all.length} transaksi</p>
+   182→  2373→    </div>
+   183→  2374→  );
+   184→  2375→}
+   185→  2376→
+   186→  2377→// ============ LAPORAN TAB ============
+   187→  2378→function LaporanTab() {
+   188→  2379→  const { t } = useLang();
+   189→  2380→  const mounted = useMounted();
+   190→  2381→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   191→  2382→  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fetchJson("/api/admin/stats") });
+   192→  2383→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+   193→  2384→  return (
+   194→  2385→    <div className="space-y-4">
+   195→  2386→      <h2 className="text-base font-bold">Laporan Lengkap</h2>
+   196→  2387→      <div className="rounded-xl border border-border bg-card p-4">
+   197→  2388→        <h3 className="mb-3 text-sm font-bold">Ringkasan Umum</h3>
+   198→  2389→        <div className="space-y-2 text-sm">
+   199→  2390→          <Row label={tr("admTotalUsers")} value={data.totals.users} />
+   200→  2391→          <Row label={tr("admTotalListings")} value={data.totals.listings} />
+   201→  2392→          <Row label={tr("admTotalRevenue")} value={formatRupiahFull(data.totals.omzetAll)} />
+   202→  2393→          <Row label={tr("admNewUsers")} value={data.users.today} />
+   203→  2394→          <Row label={tr("admNewUsersWeek")} value={data.users.week} />
+   204→  2395→          <Row label={tr("admNewUsersMonth")} value={data.users.month} />
+   205→  2396→          <Row label={tr("admNewAdsToday")} value={data.listings.today} />
+   206→  2397→          <Row label={tr("admNewAdsWeek")} value={data.listings.week} />
+   207→  2398→          <Row label={tr("admNewAdsMonth")} value={data.listings.month} />
+   208→  2399→          <Row label={tr("admOmzetToday")} value={formatRupiahFull(data.omzet.today)} />
+   209→  2400→          <Row label={tr("admOmzetWeek")} value={formatRupiahFull(data.omzet.week)} />
+   210→  2401→          <Row label={tr("admOmzetMonth")} value={formatRupiahFull(data.omzet.month)} />
+   211→  2402→        </div>
+   212→  2403→      </div>
+   213→  2404→      <div className="rounded-xl border border-border bg-card p-4">
+   214→  2405→        <h3 className="mb-3 text-sm font-bold">Kategori Terpopuler</h3>
+   215→  2406→        <div className="space-y-1.5 text-sm">
+   216→  2407→          {data.topCategories.map((c: any, i: number) => (
+   217→  2408→            <Row key={i} label={`#${i + 1} ${c.name}`} value={`${c.count} iklan`} />
+   218→  2409→          ))}
+   219→  2410→        </div>
+   220→  2411→      </div>
+   221→  2412→      <Button variant="outline" className="w-full" onClick={() => toast.info("Export laporan segera hadir")}><FileText className="size-4" /> Export PDF/Excel</Button>
+   222→  2413→    </div>
+   223→  2414→  );
+   224→  2415→}
+   225→  2416→
+   226→  2417→// ============ LAPORAN BULANAN TAB (dipisah per bulan) ============
+   227→  2418→function MonthlyReportTab() {
+   228→  2419→  const { t } = useLang();
+   229→  2420→  const mounted = useMounted();
+   230→  2421→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   231→  2422→  const now = new Date();
+   232→  2423→  const [year, setYear] = useState<number>(now.getFullYear());
+   233→  2424→  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+   234→  2425→
+   235→  2426→  const { data, isLoading } = useQuery({
+   236→  2427→    queryKey: ["admin-monthly-report", year],
+   237→  2428→    queryFn: () => fetchJson(`/api/admin/monthly-report?year=${year}`),
+   238→  2429→  });
+   239→  2430→
+   240→  2431→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+   241→  2432→
+   242→  2433→  const months: any[] = data.months || [];
+   243→  2434→  const yearTotal = data.yearTotal || { omzet: 0, listings: 0, users: 0 };
+   244→  2435→  const years: number[] = data.years || [year];
+   245→  2436→
+   246→  2437→  // Bulan yang dipilih (untuk drill-down detail).
+   247→  2438→  const selMonthData = selectedMonth ? months.find((m) => m.month === selectedMonth) : null;
+   248→  2439→  const selListings = selectedMonth ? (data.listingsByMonth?.[selectedMonth] || []) : [];
+   249→  2440→  const selUsers = selectedMonth ? (data.usersByMonth?.[selectedMonth] || []) : [];
+   250→  2441→
+   251→  2442→  return (
+   252→  2443→    <div className="space-y-4">
+   253→  2444→      {/* Header + pemilih tahun */}
+   254→  2445→      <div className="flex flex-wrap items-center justify-between gap-3">
+   255→  2446→        <div>
+   256→  2447→          <h2 className="text-base font-bold">{tr("admMonthlyTitle")}</h2>
+   257→  2448→          <p className="text-xs text-muted-foreground">{tr("admMonthlyDesc")}</p>
+   258→  2449→        </div>
+   259→  2450→        <div className="flex items-center gap-2">
+   260→  2451→          <Label className="text-xs text-muted-foreground">{tr("admMonthlyYear")}</Label>
+   261→  2452→          <select
+   262→  2453→            value={year}
+   263→  2454→            onChange={(e) => { setYear(Number(e.target.value)); setSelectedMonth(null); }}
+   264→  2455→            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+   265→  2456→          >
+   266→  2457→            {years.map((y) => (
+   267→  2458→              <option key={y} value={y}>{y}</option>
+   268→  2459→            ))}
+   269→  2460→          </select>
+   270→  2461→        </div>
+   271→  2462→      </div>
+   272→  2463→
+   273→  2464→      {/* Kartu total tahunan */}
+   274→  2465→      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+   275→  2466→        <div className="rounded-xl border border-border bg-card p-4">
+   276→  2467→          <p className="text-xs text-muted-foreground">{tr("admMonthlyTotal")} — {tr("admMonthlyOmzet")}</p>
+   277→  2468→          <p className="mt-1 text-xl font-bold text-orange-600">{formatRupiahFull(yearTotal.omzet)}</p>
+   278→  2469→        </div>
+   279→  2470→        <div className="rounded-xl border border-border bg-card p-4">
+   280→  2471→          <p className="text-xs text-muted-foreground">{tr("admMonthlyTotal")} — {tr("admMonthlyListings")}</p>
+   281→  2472→          <p className="mt-1 text-xl font-bold text-primary">{yearTotal.listings}</p>
+   282→  2473→        </div>
+   283→  2474→        <div className="rounded-xl border border-border bg-card p-4">
+   284→  2475→          <p className="text-xs text-muted-foreground">{tr("admMonthlyTotal")} — {tr("admMonthlyUsers")}</p>
+   285→  2476→          <p className="mt-1 text-xl font-bold text-blue-500">{yearTotal.users}</p>
+   286→  2477→        </div>
+   287→  2478→      </div>
+   288→  2479→
+   289→  2480→      {/* Tabel 12 bulan (dipisah per bulan) */}
+   290→  2481→      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+   291→  2482→        <table className="w-full min-w-[640px] text-sm">
+   292→  2483→          <thead>
+   293→  2484→            <tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+   294→  2485→              <th className="p-3">{tr("admMonthlyMonth")}</th>
+   295→  2486→              <th className="p-3 text-right">{tr("admMonthlyOmzet")}</th>
+   296→  2487→              <th className="p-3 text-right">{tr("admMonthlyListings")}</th>
+   297→  2488→              <th className="p-3 text-right">{tr("admMonthlyUsers")}</th>
+   298→  2489→              <th className="p-3 text-center">Aksi</th>
+   299→  2490→            </tr>
+   300→  2491→          </thead>
+   301→  2492→          <tbody>
+   302→  2493→            {months.map((m) => {
+   303→  2494→              const hasData = m.listings > 0 || m.users > 0;
+   304→  2495→              const isCurrent = now.getMonth() + 1 === m.month && now.getFullYear() === year;
+   305→  2496→              return (
+   306→  2497→                <tr
+   307→  2498→                  key={m.month}
+   308→  2499→                  className={cn(
+   309→  2500→                    "border-b border-border hover:bg-accent/30",
+   310→  2501→                    !hasData && "opacity-50",
+   311→  2502→                    selectedMonth === m.month && "bg-primary/5"
+   312→  2503→                  )}
+   313→  2504→                >
+   314→  2505→                  <td className="p-3 font-medium">
+   315→  2506→                    {m.label}
+   316→  2507→                    {isCurrent && <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">Now</span>}
+   317→  2508→                  </td>
+   318→  2509→                  <td className="p-3 text-right font-bold text-orange-600">{m.omzet > 0 ? formatRupiahFull(m.omzet) : "—"}</td>
+   319→  2510→                  <td className="p-3 text-right">{m.listings > 0 ? m.listings : "—"}</td>
+   320→  2511→                  <td className="p-3 text-right">{m.users > 0 ? m.users : "—"}</td>
+   321→  2512→                  <td className="p-3 text-center">
+   322→  2513→                    {hasData ? (
+   323→  2514→                      <button
+   324→  2515→                        onClick={() => setSelectedMonth(selectedMonth === m.month ? null : m.month)}
+   325→  2516→                        className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20"
+   326→  2517→                      >
+   327→  2518→                        {selectedMonth === m.month ? "Tutup" : tr("admMonthlyDetail")}
+   328→  2519→                      </button>
+   329→  2520→                    ) : (
+   330→  2521→                      <span className="text-xs text-muted-foreground">—</span>
+   331→  2522→                    )}
+   332→  2523→                  </td>
+   333→  2524→                </tr>
+   334→  2525→              );
+   335→  2526→            })}
+   336→  2527→          </tbody>
+   337→  2528→          <tfoot>
+   338→  2529→            <tr className="border-t-2 border-border bg-secondary/30 font-bold">
+   339→  2530→              <td className="p-3">{tr("admMonthlyTotal")}</td>
+   340→  2531→              <td className="p-3 text-right text-orange-600">{formatRupiahFull(yearTotal.omzet)}</td>
+   341→  2532→              <td className="p-3 text-right">{yearTotal.listings}</td>
+   342→  2533→              <td className="p-3 text-right">{yearTotal.users}</td>
+   343→  2534→              <td className="p-3"></td>
+   344→  2535→            </tr>
+   345→  2536→          </tfoot>
+   346→  2537→        </table>
+   347→  2538→      </div>
+   348→  2539→
+   349→  2540→      {/* Drill-down: detail bulan terpilih */}
+   350→  2541→      {selMonthData && (
+   351→  2542→        <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-card p-4 animate-fade-up">
+   352→  2543→          <div className="flex items-center justify-between">
+   353→  2544→            <h3 className="text-sm font-bold">
+   354→  2545→              {tr("admMonthlyDetail")} — {selMonthData.label} {year}
+   355→  2546→            </h3>
+   356→  2547→            <Button variant="outline" size="sm" onClick={() => toast.info("Export bulan ini segera hadir")}>
+   357→  2548→              <FileText className="size-4" /> {tr("admMonthlyExport")}
+   358→  2549→            </Button>
+   359→  2550→          </div>
+   360→  2551→
+   361→  2552→          {/* Ringkasan bulan */}
+   362→  2553→          <div className="grid grid-cols-3 gap-2 text-center">
+   363→  2554→            <div className="rounded-lg bg-orange-50 p-2">
+   364→  2555→              <p className="text-[10px] text-muted-foreground">{tr("admMonthlyOmzet")}</p>
+   365→  2556→              <p className="text-sm font-bold text-orange-600">{formatRupiahFull(selMonthData.omzet)}</p>
+   366→  2557→            </div>
+   367→  2558→            <div className="rounded-lg bg-primary/10 p-2">
+   368→  2559→              <p className="text-[10px] text-muted-foreground">{tr("admMonthlyListings")}</p>
+   369→  2560→              <p className="text-sm font-bold text-primary">{selMonthData.listings}</p>
+   370→  2561→            </div>
+   371→  2562→            <div className="rounded-lg bg-blue-50 p-2">
+   372→  2563→              <p className="text-[10px] text-muted-foreground">{tr("admMonthlyUsers")}</p>
+   373→  2564→              <p className="text-sm font-bold text-blue-500">{selMonthData.users}</p>
+   374→  2565→            </div>
+   375→  2566→          </div>
+   376→  2567→
+   377→  2568→          {/* Rincian per paket */}
+   378→  2569→          {Object.keys(selMonthData.byPackage).length > 0 && (
+   379→  2570→            <div>
+   380→  2571→              <p className="mb-1.5 text-xs font-bold text-muted-foreground">{tr("admMonthlyByPkg")}</p>
+   381→  2572→              <div className="flex flex-wrap gap-2">
+   382→  2573→                {Object.entries(selMonthData.byPackage).map(([pkg, info]: [string, any]) => (
+   383→  2574→                  <span key={pkg} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 py-1 text-xs">
+   384→  2575→                    <Badge variant="outline" className="px-1.5 py-0 text-[10px]">{pkg}</Badge>
+   385→  2576→                    <span className="font-semibold">{info.count} iklan</span>
+   386→  2577→                    <span className="text-orange-600">{formatRupiahFull(info.omzet)}</span>
+   387→  2578→                  </span>
+   388→  2579→                ))}
+   389→  2580→              </div>
+   390→  2581→            </div>
+   391→  2582→          )}
+   392→  2583→
+   393→  2584→          {/* Daftar iklan bulan ini */}
+   394→  2585→          {selListings.length > 0 && (
+   395→  2586→            <div>
+   396→  2587→              <p className="mb-1.5 text-xs font-bold text-muted-foreground">{tr("admMonthlyListings")} ({selListings.length})</p>
+   397→  2588→              <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
+   398→  2589→                <table className="w-full text-xs">
+   399→  2590→                  <thead className="sticky top-0 bg-secondary/80">
+   400→  2591→                    <tr className="text-left text-muted-foreground">
+   401→  2592→                      <th className="p-2">Iklan</th>
+   402→  2593→                      <th className="p-2">Paket</th>
+   403→  2594→                      <th className="p-2 text-right">Harga</th>
+   404→  2595→                      <th className="p-2">Status</th>
+   405→  2596→                      <th className="p-2">Tanggal</th>
+   406→  2597→                    </tr>
+   407→  2598→                  </thead>
+   408→  2599→                  <tbody>
+   409→  2600→                    {selListings.map((l: any) => (
+   410→  2601→                      <tr key={l.id} className="border-t border-border">
+   411→  2602→                        <td className="p-2 font-medium">{l.title}</td>
+   412→  2603→                        <td className="p-2"><Badge variant="outline" className="text-[10px]">{l.packageType}</Badge></td>
+   413→  2604→                        <td className="p-2 text-right">{formatRupiahFull(l.price)}</td>
+   414→  2605→                        <td className="p-2"><Badge className={cn("text-[10px]", l.status === "active" ? "bg-orange-100 text-orange-700" : l.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700")}>{l.status}</Badge></td>
+   415→  2606→                        <td className="p-2 text-muted-foreground">{new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</td>
+   416→  2607→                      </tr>
+   417→  2608→                    ))}
+   418→  2609→                  </tbody>
+   419→  2610→                </table>
+   420→  2611→              </div>
+   421→  2612→            </div>
+   422→  2613→          )}
+   423→  2614→
+   424→  2615→          {/* Daftar user baru bulan ini */}
+   425→  2616→          {selUsers.length > 0 && (
+   426→  2617→            <div>
+   427→  2618→              <p className="mb-1.5 text-xs font-bold text-muted-foreground">{tr("admMonthlyUsers")} ({selUsers.length})</p>
+   428→  2619→              <div className="flex flex-wrap gap-2">
+   429→  2620→                {selUsers.map((u: any) => (
+   430→  2621→                  <span key={u.id} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 py-1 text-xs">
+   431→  2622→                    <span className="font-semibold">{u.name}</span>
+   432→  2623→                    <span className="text-muted-foreground">{u.email}</span>
+   433→  2624→                    {u.role === "admin" && <Badge className="text-[10px]">admin</Badge>}
+   434→  2625→                  </span>
+   435→  2626→                ))}
+   436→  2627→              </div>
+   437→  2628→            </div>
+   438→  2629→          )}
+   439→  2630→        </div>
+   440→  2631→      )}
+   441→  2632→    </div>
+   442→  2633→  );
+   443→  2634→}
+   444→  2635→
+   445→  2636→// ============ AUDIT LOG TAB ============
+   446→  2637→function AuditTab() {
+   447→  2638→  const { t } = useLang();
+   448→  2639→  const mounted = useMounted();
+   449→  2640→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   450→  2641→  const allLogs = [
+   451→  2642→    { id: 1, action: "LOGIN", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail1"), time: tr("admAuditTime1"), icon: Lock, category: "auth" },
+   452→  2643→    { id: 2, action: "IKLAN_APPROVE", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail2"), time: tr("admAuditTime2"), icon: CheckCircle2, category: "iklan" },
+   453→  2644→    { id: 3, action: "PENJUAL_VERIFY", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail3"), time: tr("admAuditTime3"), icon: BadgeCheck, category: "penjual" },
+   454→  2645→    { id: 4, action: "KATEGORI_CREATE", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail4"), time: tr("admAuditTime4"), icon: FolderTree, category: "kategori" },
+   455→  2646→    { id: 5, action: "IKLAN_DELETE", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail5"), time: tr("admAuditTime5"), icon: Trash2, category: "iklan" },
+   456→  2647→    { id: 6, action: "IKLAN_CREATE", user: "budi@gomesin.id", detail: tr("admAuditDetail6"), time: tr("admAuditTime5"), icon: Plus, category: "iklan" },
+   457→  2648→    { id: 7, action: "USER_REGISTER", user: "siti@gomesin.com", detail: tr("admAuditDetail7"), time: tr("admAuditTime6"), icon: Users, category: "user" },
+   458→  2649→    { id: 8, action: "LOGIN", user: "budi@gomesin.id", detail: tr("admAuditDetail8"), time: tr("admAuditTime6"), icon: Lock, category: "auth" },
+   459→  2650→    { id: 9, action: "IKLAN_VIOLATION", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail9"), time: tr("admAuditTime7"), icon: XCircle, category: "iklan" },
+   460→  2651→    { id: 10, action: "BANNER_CREATE", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail10"), time: tr("admAuditTime8"), icon: Image, category: "banner" },
+   461→  2652→  ];
+   462→  2653→  const [search, setSearch] = useState("");
+   463→  2654→  const [filter, setFilter] = useState("all");
+   464→  2655→
+   465→  2656→  const filtered = allLogs.filter((l) => {
+   466→  2657→    const matchSearch = l.action.toLowerCase().includes(search.toLowerCase()) ||
+   467→  2658→      l.detail.toLowerCase().includes(search.toLowerCase()) ||
+   468→  2659→      l.user.toLowerCase().includes(search.toLowerCase());
+   469→  2660→    const matchFilter = filter === "all" || l.category === filter;
+   470→  2661→    return matchSearch && matchFilter;
+   471→  2662→  });
+   472→  2663→
+   473→  2664→  return (
+   474→  2665→    <div className="space-y-3">
+   475→  2666→      <div className="flex items-center justify-between">
+   476→  2667→        <h2 className="text-base font-bold">Audit Log ({filtered.length})</h2>
+   477→  2668→      </div>
+   478→  2669→
+   479→  2670→      {/* Search & Filter */}
+   480→  2671→      <div className="flex flex-col gap-2 sm:flex-row">
+   481→  2672→        <Input
+   482→  2673→          value={search}
+   483→  2674→          onChange={(e) => setSearch(e.target.value)}
+   484→  2675→          placeholder="Cari aktivitas, user, detail..."
+   485→  2676→          className="h-9 sm:flex-1"
+   486→  2677→        />
+   487→  2678→        <select
+   488→  2679→          value={filter}
+   489→  2680→          onChange={(e) => setFilter(e.target.value)}
+   490→  2681→          className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+   491→  2682→        >
+   492→  2683→          <option value="all">Semua Kategori</option>
+   493→  2684→          <option value="auth">Autentikasi</option>
+   494→  2685→          <option value="iklan">Iklan</option>
+   495→  2686→          <option value="penjual">Penjual</option>
+   496→  2687→          <option value="kategori">Kategori</option>
+   497→  2688→          <option value="user">User</option>
+   498→  2689→          <option value="banner">Banner</option>
+   499→  2690→        </select>
+   500→  2691→      </div>
+   501→  2692→
+   502→  2693→      {/* Stats */}
+   503→  2694→      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+   504→  2695→        {[
+   505→  2696→          { label: tr("admAuditTotal"), value: allLogs.length, color: "text-primary" },
+   506→  2697→          { label: tr("admAuditAuth"), value: allLogs.filter(l => l.category === "auth").length, color: "text-blue-500" },
+   507→  2698→          { label: tr("admAuditIklan"), value: allLogs.filter(l => l.category === "iklan").length, color: "text-orange-600" },
+   508→  2699→          { label: tr("admAuditUser"), value: allLogs.filter(l => l.category === "user").length, color: "text-amber-500" },
+   509→  2700→          { label: tr("admAuditPenjual"), value: allLogs.filter(l => l.category === "penjual").length, color: "text-purple-500" },
+   510→  2701→          { label: tr("admAuditBanner"), value: allLogs.filter(l => l.category === "banner").length, color: "text-rose-500" },
+   511→  2702→        ].map((s) => (
+   512→  2703→          <div key={s.label} className="rounded-lg border border-border bg-card p-2 text-center">
+   513→  2704→            <p className={cn("text-lg font-bold", s.color)}>{s.value}</p>
+   514→  2705→            <p className="text-[10px] text-muted-foreground">{s.label}</p>
+   515→  2706→          </div>
+   516→  2707→        ))}
+   517→  2708→      </div>
+   518→  2709→
+   519→  2710→      {/* Log list */}
+   520→  2711→      <div className="space-y-2">
+   521→  2712→        {filtered.map((l) => (
+   522→  2713→          <div key={l.id} className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
+   523→  2714→            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10">
+   524→  2715→              <l.icon className="size-4 text-primary" />
+   525→  2716→            </span>
+   526→  2717→            <div className="min-w-0 flex-1">
+   527→  2718→              <div className="flex items-center justify-between gap-2">
+   528→  2719→                <p className="text-sm font-semibold">{l.action}</p>
+   529→  2720→                <span className="shrink-0 text-[10px] text-muted-foreground">{l.time}</span>
+   530→  2721→              </div>
+   531→  2722→              <p className="text-xs text-muted-foreground">{l.detail}</p>
+   532→  2723→              <p className="text-[10px] text-muted-foreground">by {l.user}</p>
+   533→  2724→            </div>
+   534→  2725→          </div>
+   535→  2726→        ))}
+   536→  2727→        {filtered.length === 0 && (
+   537→  2728→          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+   538→  2729→            Tidak ada log yang cocok. Coba kata kunci atau filter lain.
+   539→  2730→          </div>
+   540→  2731→        )}
+   541→  2732→      </div>
+   542→  2733→    </div>
+   543→  2734→  );
+   544→  2735→}
+   545→  2736→
+   546→  2737→// ============ CHAT TAB (removed) ============
+   547→  2738→function ChatTab_REMOVED() {
+   548→  2739→  const { t } = useLang();
+   549→  2740→  const mounted = useMounted();
+   550→  2741→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   551→  2742→  const [search, setSearch] = useState("");
+   552→  2743→  const [selectedId, setSelectedId] = useState<string | null>(null);
+   553→  2744→
+   554→  2745→  const { data, isLoading } = useQuery({
+   555→  2746→    queryKey: ["admin-chat"],
+   556→  2747→    queryFn: () => fetchJson("/api/admin/chat"),
+   557→  2748→    refetchInterval: 15000, // auto-refresh every 15s
+   558→  2749→  });
+   559→  2750→
+   560→  2751→  if (isLoading) return <SkeletonGrid count={4} />;
+   561→  2752→
+   562→  2753→  const conversations: any[] = data?.conversations ?? [];
+   563→  2754→  const stats = data?.summary ?? { totalConversations: 0, totalMessages: 0, totalUnread: 0, activeUsers: 0 };
+   564→  2755→
+   565→  2756→  // Filter by search query (user name, listing title, message preview)
+   566→  2757→  const filtered = conversations.filter((c: any) => {
+   567→  2758→    if (!search) return true;
+   568→  2759→    const q = search.toLowerCase();
+   569→  2760→    return (
+   570→  2761→      (c.userA?.name || "").toLowerCase().includes(q) ||
+   571→  2762→      (c.userB?.name || "").toLowerCase().includes(q) ||
+   572→  2763→      (c.listingTitle || "").toLowerCase().includes(q) ||
+   573→  2764→      (c.lastMessage || "").toLowerCase().includes(q)
+   574→  2765→    );
+   575→  2766→  });
+   576→  2767→
+   577→  2768→  const selected = conversations.find((c: any) => c.id === selectedId);
+   578→  2769→
+   579→  2770→  return (
+   580→  2771→    <div className="space-y-4">
+   581→  2772→      {/* Header */}
+   582→  2773→      <div className="flex items-center gap-3">
+   583→  2774→        <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+   584→  2775→          <MessageCircle className="size-5" />
+   585→  2776→        </span>
+   586→  2777→        <div>
+   587→  2778→          <h2 className="text-lg font-bold">{tr("admChatTitle")}</h2>
+   588→  2779→          <p className="text-xs text-muted-foreground">{tr("admChatDesc")}</p>
+   589→  2780→        </div>
+   590→  2781→      </div>
+   591→  2782→
+   592→  2783→      {/* Stat cards */}
+   593→  2784→      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+   594→  2785→        <ChatStat label={tr("admChatTotalConv")} value={stats.totalConversations} icon={MessageCircle} color="text-blue-500" bg="bg-blue-50" />
+   595→  2786→        <ChatStat label={tr("admChatTotalMsg")} value={stats.totalMessages} icon={Send} color="text-orange-600" bg="bg-orange-50" />
+   596→  2787→        <ChatStat label={tr("admChatUnread")} value={stats.totalUnread} icon={Mail} color="text-amber-500" bg="bg-amber-50" />
+   597→  2788→        <ChatStat label={tr("admChatActiveUsers")} value={stats.activeUsers} icon={Users} color="text-primary" bg="bg-primary/10" />
+   598→  2789→      </div>
+   599→  2790→
+   600→  2791→      {/* Search bar */}
+   601→  2792→      <div className="relative">
+   602→  2793→        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   603→  2794→        <Input
+   604→  2795→          value={search}
+   605→  2796→          onChange={(e) => setSearch(e.target.value)}
+   606→  2797→          placeholder={tr("admChatSearch")}
+   607→  2798→          className="pl-9"
+   608→  2799→        />
+   609→  2800→      </div>
+   610→  2801→
+   611→  2802→      {/* Two-pane layout */}
+   612→  2803→      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+   613→  2804→        {/* Conversation list */}
+   614→  2805→        <div className="space-y-1 rounded-xl border border-border bg-card p-2 max-h-[600px] overflow-y-auto">
+   615→  2806→          {filtered.length === 0 ? (
+   616→  2807→            <div className="p-6 text-center text-sm text-muted-foreground">{tr("admChatNoConv")}</div>
+   617→  2808→          ) : (
+   618→  2809→            filtered.map((c: any) => {
+   619→  2810→              const active = c.id === selectedId;
+   620→  2811→              const otherUser = c.userA?.id !== c.lastSenderId ? c.userA : c.userB;
+   621→  2812→              return (
+   622→  2813→                <button
+   623→  2814→                  key={c.id}
+   624→  2815→                  onClick={() => setSelectedId(c.id)}
+   625→  2816→                  className={cn(
+   626→  2817→                    "flex w-full flex-col gap-1 rounded-lg p-3 text-left transition",
+   627→  2818→                    active ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+   628→  2819→                  )}
+   629→  2820→                >
+   630→  2821→                  <div className="flex items-center justify-between gap-2">
+   631→  2822→                    <span className="truncate text-sm font-semibold">{otherUser?.name || "—"}</span>
+   632→  2823→                    {c.unreadCount > 0 && (
+   633→  2824→                      <span className={cn(
+   634→  2825→                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold",
+   635→  2826→                        active ? "bg-white/20" : "bg-primary/10 text-primary"
+   636→  2827→                      )}>{c.unreadCount}</span>
+   637→  2828→                    )}
+   638→  2829→                  </div>
+   639→  2830→                  {c.listingTitle && (
+   640→  2831→                    <span className={cn("truncate text-[11px]", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
+   641→  2832→                      🏷️ {c.listingTitle}
+   642→  2833→                    </span>
+   643→  2834→                  )}
+   644→  2835→                  <span className={cn("truncate text-xs", active ? "text-primary-foreground/70" : "text-muted-foreground")}>
+   645→  2836→                    {c.lastMessage || "(no messages)"}
+   646→  2837→                  </span>
+   647→  2838→                  <span className={cn("text-[10px]", active ? "text-primary-foreground/60" : "text-muted-foreground")}>
+   648→  2839→                    {timeAgoShort(c.lastMessageAt)}
+   649→  2840→                  </span>
+   650→  2841→                </button>
+   651→  2842→              );
+   652→  2843→            })
+   653→  2844→          )}
+   654→  2845→        </div>
+   655→  2846→
+   656→  2847→        {/* Chat detail panel */}
+   657→  2848→        {selected ? (
+   658→  2849→          <ChatDetail conversation={selected} />
+   659→  2850→        ) : (
+   660→  2851→          <div className="grid min-h-[400px] place-items-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+   661→  2852→            {tr("admChatSelectConv")}
+   662→  2853→          </div>
+   663→  2854→        )}
+   664→  2855→      </div>
+   665→  2856→
+   666→  2857→      {/* Delete confirmation dialog */}
+   667→  2858→      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) { setDeleteId(null); setDeleteCallback(null); } }}>
+   668→  2859→        <AlertDialogContent>
+   669→  2860→          <AlertDialogHeader>
+   670→  2861→            <AlertDialogTitle>Hapus Iklan?</AlertDialogTitle>
+   671→  2862→            <AlertDialogDescription>
+   672→  2863→              Iklan ini akan dihapus secara permanen dan tidak dapat dikembalikan.
+   673→  2864→            </AlertDialogDescription>
+   674→  2865→          </AlertDialogHeader>
+   675→  2866→          <AlertDialogFooter>
+   676→  2867→            <AlertDialogCancel>Batal</AlertDialogCancel>
+   677→  2868→            <AlertDialogAction
+   678→  2869→              className="bg-destructive text-white hover:bg-destructive/90"
+   679→  2870→              onClick={() => { deleteCallback?.(); setDeleteId(null); setDeleteCallback(null); }}
+   680→  2871→            >
+   681→  2872→              Hapus
+   682→  2873→            </AlertDialogAction>
+   683→  2874→          </AlertDialogFooter>
+   684→  2875→        </AlertDialogContent>
+   685→  2876→      </AlertDialog>
+   686→  2877→    </div>
+   687→  2878→  );
+   688→  2879→}
+   689→  2880→
+   690→  2881→function ChatStat({ label, value, icon: Icon, color, bg }: { label: string; value: number; icon: any; color: string; bg: string }) {
+   691→  2882→  return (
+   692→  2883→    <div className="rounded-xl border border-border bg-card p-3">
+   693→  2884→      <div className="flex items-center justify-between">
+   694→  2885→        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+   695→  2886→        <span className={cn("grid size-7 place-items-center rounded-lg", bg)}>
+   696→  2887→          <Icon className={cn("size-4", color)} />
+   697→  2888→        </span>
+   698→  2889→      </div>
+   699→  2890→      <p className="mt-1 text-xl font-bold">{value}</p>
+   700→  2891→    </div>
+   701→  2892→  );
+   702→  2893→}
+   703→  2894→
+   704→  2895→function ChatDetail({ conversation }: { conversation: any }) {
+   705→  2896→  const { t } = useLang();
+   706→  2897→  const mounted = useMounted();
+   707→  2898→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   708→  2899→  const scrollRef = useRef<HTMLDivElement>(null);
+   709→  2900→
+   710→  2901→  useEffect(() => {
+   711→  2902→    if (scrollRef.current) {
+   712→  2903→      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+   713→  2904→    }
+   714→  2905→  }, [conversation?.messages?.length]);
+   715→  2906→
+   716→  2907→  if (!conversation) return null;
+   717→  2908→  const messages: any[] = conversation.messages ?? [];
+   718→  2909→
+   719→  2910→  return (
+   720→  2911→    <div className="flex h-[600px] flex-col rounded-xl border border-border bg-card">
+   721→  2912→      {/* Header */}
+   722→  2913→      <div className="flex items-center justify-between border-b border-border p-3">
+   723→  2914→        <div className="flex items-center gap-2">
+   724→  2915→          <div className="grid size-9 place-items-center rounded-full bg-primary/10 text-primary">
+   725→  2916→            <Users className="size-4" />
+   726→  2917→          </div>
+   727→  2918→          <div>
+   728→  2919→            <p className="text-sm font-bold">{conversation.userA?.name} ↔ {conversation.userB?.name}</p>
+   729→  2920→            <p className="text-[11px] text-muted-foreground">
+   730→  2921→              {conversation.listingTitle ? `🏷️ ${conversation.listingTitle}` : "Direct message"}
+   731→  2922→            </p>
+   732→  2923→          </div>
+   733→  2924→        </div>
+   734→  2925→        <Badge variant="secondary" className="text-[10px]">{tr("admChatAdminMode")}</Badge>
+   735→  2926→      </div>
+   736→  2927→
+   737→  2928→      {/* Messages */}
+   738→  2929→      <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
+   739→  2930→        {messages.length === 0 ? (
+   740→  2931→          <div className="grid h-full place-items-center text-sm text-muted-foreground">No messages</div>
+   741→  2932→        ) : (
+   742→  2933→          messages.map((m: any, i: number) => {
+   743→  2934→            const isA = m.senderId === conversation.userA?.id;
+   744→  2935→            return (
+   745→  2936→              <div key={i} className={cn("flex", isA ? "justify-start" : "justify-end")}>
+   746→  2937→                <div className={cn(
+   747→  2938→                  "max-w-[75%] rounded-lg px-3 py-2 text-sm",
+   748→  2939→                  isA ? "bg-accent text-foreground" : "bg-primary text-primary-foreground"
+   749→  2940→                )}>
+   750→  2941→                  <p className="whitespace-pre-wrap break-words">{m.content}</p>
+   751→  2942→                  <p className={cn("mt-1 text-[10px]", isA ? "text-muted-foreground" : "text-primary-foreground/70")}>
+   752→  2943→                    {new Date(m.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+   753→  2944→                  </p>
+   754→  2945→                </div>
+   755→  2946→              </div>
+   756→  2947→            );
+   757→  2948→          })
+   758→  2949→        )}
+   759→  2950→      </div>
+   760→  2951→
+   761→  2952→      {/* Footer info */}
+   762→  2953→      <div className="border-t border-border p-3 text-[11px] text-muted-foreground">
+   763→  2954→        {tr("admChatLastActivity")}: {timeAgoShort(conversation.lastMessageAt)} · {messages.length} messages
+   764→  2955→      </div>
+   765→  2956→    </div>
+   766→  2957→  );
+   767→  2958→}
+   768→  2959→
+   769→  2960→function timeAgoShort(dateStr: string): string {
+   770→  2961→  if (!dateStr) return "—";
+   771→  2962→  const diff = Date.now() - new Date(dateStr).getTime();
+   772→  2963→  const sec = Math.floor(diff / 1000);
+   773→  2964→  if (sec < 60) return `${sec}s`;
+   774→  2965→  const min = Math.floor(sec / 60);
+   775→  2966→  if (min < 60) return `${min}m`;
+   776→  2967→  const hr = Math.floor(min / 60);
+   777→  2968→  if (hr < 24) return `${hr}j`;
+   778→  2969→  const day = Math.floor(hr / 24);
+   779→  2970→  if (day < 30) return `${day}h`;
+   780→  2971→  const mo = Math.floor(day / 30);
+   781→  2972→  return `${mo}bl`;
+   782→  2973→}
+   783→  2974→
+   784→  2975→// ============ HELPERS ============
+   785→  2976→function Row({ label, value }: { label: string; value: any }) {
+   786→  2977→  return <div className="flex items-center justify-between"><span className="text-muted-foreground">{label}</span><span className="font-semibold">{value}</span></div>;
+   787→  2978→}
+   788→  2979→function SkeletonGrid({ count = 4 }: { count?: number }) {
+   789→  2980→  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{Array.from({ length: count }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-muted" />)}</div>;
+   790→  2981→}
+   791→  2982→function BadgeCheck({ className }: { className?: string }) {
+   792→  2983→  return <svg className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l3.09 6.26L22 8.27l-5 4.87 1.18 6.88L12 16.77l-6.18 3.25L7 13.14 2 8.27l6.91-1.01L12 1z" /></svg>;
+   793→  2984→}
+   794→  2985→

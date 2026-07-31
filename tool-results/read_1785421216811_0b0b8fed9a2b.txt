@@ -1,0 +1,2002 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect, useRef, useMemo } from "react";
+     4→import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+     5→import { useStore } from "@/lib/store";
+     6→import { Button } from "@/components/ui/button";
+     7→import { Input } from "@/components/ui/input";
+     8→import { Label } from "@/components/ui/label";
+     9→import { Badge } from "@/components/ui/badge";
+    10→import { formatRupiahFull } from "@/lib/types";
+    11→import { cn } from "@/lib/utils";
+    12→import {
+    13→  ShieldCheck, LayoutDashboard, Tag, Users, FolderTree, Award,
+    14→  MapPin, Image, Crown, Receipt, FileText, ScrollText,
+    15→  CheckCircle2, XCircle, Trash2, Plus, ChevronRight, ChevronLeft, Lock, X,
+    16→  TrendingUp, DollarSign, Eye, BarChart3, Loader2, Edit, Sparkle, Clock, RefreshCw,
+    17→  Mail, Phone, Calendar, Zap,
+    18→  MessageCircle, Send, Search, ArrowLeft,
+    19→  LayoutGrid, List, Gem, Shield, ArrowUpCircle, Timer, ImageIcon,
+    20→  AlertTriangle, Frown,
+    21→} from "lucide-react";
+    22→import { toast } from "sonner";
+    23→import { Separator } from "@/components/ui/separator";
+    24→import { useLang, translations as i18nTranslations } from "@/lib/i18n";
+    25→import { useMounted } from "@/lib/use-mounted";
+    26→
+    27→type Tab = "dashboard" | "iklan" | "iklanbaru" | "iklanexpired" | "iklanditolak" | "penjual" | "kategori" | "merek" | "lokasi" | "banner" | "paket" | "transaksi" | "laporan" | "laporanbulanan" | "audit" | "pengguna" | "chat";
+    28→
+    29→// ============ FETCHERS ============
+    30→const fetchJson = async (url: string) => (await fetch(url)).json();
+    31→
+    32→// Format biaya pasang iklan (angka dari server) → "Rp X".
+    33→// `adFee` sudah dihitung di sisi server (/api/admin/listings) dari tabel Paket,
+    34→// jadi tidak ada race condition dengan fetch paket terpisah.
+    35→const formatAdFee = (fee: number | undefined | null): string => {
+    36→  const n = Number(fee) || 0;
+    37→  return n === 0 ? "-" : formatRupiahFull(n);
+    38→};
+    39→
+    40→// ============ MAIN COMPONENT ============
+    41→export function AdminView({ initialTab }: { initialTab?: Tab }) {
+    42→  const goHome = useStore((s) => s.goHome);
+    43→  const user = useStore((s) => s.user);
+    44→  const goToLogin = useStore((s) => s.goToLogin);
+    45→  const { t } = useLang();
+    46→  const mounted = useMounted();
+    47→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+    48→  const [tab, setTab] = useState<Tab>(initialTab || "dashboard");
+    49→
+    50→  if (!user) {
+    51→    return (
+    52→      <div className="mx-auto max-w-md px-4 py-20 text-center">
+    53→        <Lock className="mx-auto size-12 text-destructive" />
+    54→        <h2 className="mt-4 text-xl font-bold">Akses Ditolak</h2>
+    55→        <p className="mt-2 text-sm text-muted-foreground">Silakan masuk dengan akun admin.</p>
+    56→        <Button className="mt-4" onClick={goToLogin}>Masuk Admin</Button>
+    57→        <p className="mt-2 text-xs text-muted-foreground">gomesin0711@gmail.com / admin123</p>
+    58→      </div>
+    59→    );
+    60→  }
+    61→  if (user.role !== "admin") {
+    62→    return (
+    63→      <div className="mx-auto max-w-md px-4 py-20 text-center">
+    64→        <ShieldCheck className="mx-auto size-12 text-destructive" />
+    65→        <h2 className="mt-4 text-xl font-bold">Bukan Admin</h2>
+    66→        <p className="mt-2 text-sm text-muted-foreground">Akun Anda tidak memiliki akses admin.</p>
+    67→        <Button className="mt-4" onClick={goHome}>Kembali</Button>
+    68→      </div>
+    69→    );
+    70→  }
+    71→
+    72→  const tabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
+    73→    { id: "dashboard", label: tr("admDashboard"), icon: LayoutDashboard },
+    74→    { id: "iklan", label: tr("admVerifyListings"), icon: Tag },
+    75→    { id: "penjual", label: tr("admVerifySellers"), icon: Users },
+    76→    { id: "kategori", label: tr("admManageCategories"), icon: FolderTree },
+    77→    { id: "merek", label: tr("admManageBrands"), icon: Award },
+    78→    { id: "lokasi", label: tr("admManageLocations"), icon: MapPin },
+    79→    { id: "banner", label: tr("admPromoBanner"), icon: Image },
+    80→    { id: "paket", label: tr("admPremiumPackages"), icon: Crown },
+    81→    { id: "transaksi", label: tr("admTransactions"), icon: Receipt },
+    82→    { id: "laporan", label: tr("admReports"), icon: FileText },
+    83→    { id: "audit", label: tr("admAuditTitle"), icon: ScrollText },
+    84→  ];
+    85→
+    86→  return (
+    87→    <div className="mx-auto max-w-6xl px-4 py-6 animate-fade-up">
+    88→      {/* breadcrumb */}
+    89→      <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
+    90→        <button onClick={goHome} className="hover:text-primary">Beranda</button>
+    91→        <ChevronRight className="size-3" />
+    92→        <span className="text-foreground">Administrator</span>
+    93→      </div>
+    94→
+    95→      {/* Banner + Logo + Title — sama persis dengan dashboard iklan saya */}
+    96→      <div className="relative mb-5 w-full">
+    97→        {/* Banner image — full width */}
+    98→        <div className="relative h-40 w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary to-orange-600 sm:h-52 md:h-60">
+    99→          {user.bannerImage ? (
+   100→            <img src={user.bannerImage} alt="Banner" className="size-full object-cover" />
+   101→          ) : (
+   102→            <div className="size-full bg-gradient-to-br from-primary to-orange-600" />
+   103→          )}
+   104→        </div>
+   105→        {/* Logo — ½ below banner (overlap bottom edge, di DEPAN banner), digeser ke kanan ~1cm */}
+   106→        <div className="-mt-10 flex items-end gap-3 px-3 sm:-mt-12 sm:px-4 sm:gap-4">
+   107→          <div className="relative z-10 shrink-0">
+   108→            {user.logoImage ? (
+   109→              <img src={user.logoImage} alt="Logo" className="size-20 rounded-xl border-4 border-white bg-white object-cover shadow-xl sm:size-24" />
+   110→            ) : (
+   111→              <span className="grid size-20 place-items-center rounded-xl border-4 border-white bg-primary text-lg font-bold text-primary-foreground shadow-xl sm:size-24">
+   112→                <ShieldCheck className="size-8" />
+   113→              </span>
+   114→            )}
+   115→          </div>
+   116→          {/* Name + title — below/outside banner, beside logo */}
+   117→          <div className="min-w-0 flex-1 pb-1">
+   118→            <h1 className="truncate text-base font-extrabold text-foreground sm:text-xl">Panel Administrator</h1>
+   119→            <p className="truncate text-xs text-muted-foreground sm:text-sm">
+   120→              {user.name}{user.email ? ` · ${user.email}` : ""}
+   121→            </p>
+   122→          </div>
+   123→          {/* Back button — right side */}
+   124→          <button
+   125→            onClick={goHome}
+   126→            aria-label="Kembali"
+   127→            className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-card hover:bg-accent"
+   128→          >
+   129→            <ArrowLeft className="size-5" />
+   130→          </button>
+   131→        </div>
+   132→      </div>
+   133→
+   134→      {/* content — tab dikontrol via sidebar, tidak ada tab bar */}
+   135→      {tab === "dashboard" && <DashboardTab />}
+   136→      {tab === "iklan" && <IklanTab />}
+   137→      {tab === "iklanbaru" && <IklanBaruTab />}
+   138→      {tab === "iklanexpired" && <IklanExpiredTab />}
+   139→      {tab === "iklanditolak" && <IklanDitolakTab />}
+   140→      {tab === "penjual" && <PenjualTab />}
+   141→      {tab === "kategori" && <KategoriTab />}
+   142→      {tab === "pengguna" && <PenggunaTab />}
+   143→      {tab === "merek" && <MerekTab />}
+   144→      {tab === "lokasi" && <LokasiTab />}
+   145→      {tab === "banner" && <BannerTab />}
+   146→      {tab === "paket" && <PaketTab />}
+   147→      {tab === "transaksi" && <TransaksiTab />}
+   148→      {tab === "laporan" && <LaporanTab />}
+   149→      {tab === "laporanbulanan" && <MonthlyReportTab />}
+   150→      {tab === "audit" && <AuditTab />}
+   151→
+   152→    </div>
+   153→  );
+   154→}
+   155→
+   156→// ============ DASHBOARD TAB ============
+   157→function DashboardTab() {
+   158→  const { t } = useLang();
+   159→  const mounted = useMounted();
+   160→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   161→  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fetchJson("/api/admin/stats") });
+   162→  if (isLoading || !data) return <SkeletonGrid count={4} />;
+   163→  const stats = [
+   164→    { label: tr("admTotalUsers"), value: data.totals.users, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
+   165→    { label: tr("admTotalListings"), value: data.totals.listings, icon: Tag, color: "text-primary", bg: "bg-primary/10" },
+   166→    { label: tr("admTotalRevenue"), value: formatRupiahFull(data.totals.omzetAll), icon: DollarSign, color: "text-orange-600", bg: "bg-orange-50", small: true },
+   167→    { label: tr("admAdmins"), value: data.totals.admins, icon: ShieldCheck, color: "text-amber-500", bg: "bg-amber-50" },
+   168→  ];
+   169→  const periods = [
+   170→    { label: tr("admToday"), ...data.users, ...data.listings, omzet: data.omzet.today },
+   171→    { label: tr("admThisWeek"), u: data.users.week, l: data.listings.week, omzet: data.omzet.week },
+   172→    { label: tr("admThisMonth"), u: data.users.month, l: data.listings.month, omzet: data.omzet.month },
+   173→  ];
+   174→  const maxOmzet = Math.max(...data.last7Days.map((d: any) => d.omzet), 1);
+   175→  return (
+   176→    <div className="space-y-6">
+   177→      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+   178→        {stats.map((s) => (
+   179→          <div key={s.label} className="rounded-xl border border-border bg-card p-4">
+   180→            <div className="flex items-center justify-between">
+   181→              <span className="text-[11px] font-medium text-muted-foreground">{s.label}</span>
+   182→              <span className={cn("grid size-8 place-items-center rounded-lg", s.bg)}><s.icon className={cn("size-4", s.color)} /></span>
+   183→            </div>
+   184→            <p className={cn("mt-2 font-bold", s.small ? "text-sm sm:text-base" : "text-xl sm:text-2xl")}>{s.value}</p>
+   185→          </div>
+   186→        ))}
+   187→      </div>
+   188→      <div className="grid gap-3 sm:grid-cols-3">
+   189→        {periods.map((p) => (
+   190→          <div key={p.label} className="rounded-xl border border-border bg-card p-4">
+   191→            <h3 className="mb-3 text-sm font-bold">{p.label}</h3>
+   192→            <div className="space-y-2 text-sm">
+   193→              <Row label={tr("admNewUsers")} value={p.u ?? p.label === "Hari Ini" ? data.users.today : 0} />
+   194→              <Row label={tr("admIncomingAds2")} value={p.l ?? 0} />
+   195→              <div className="flex justify-between border-t border-border pt-2">
+   196→                <span className="text-muted-foreground">Omset</span>
+   197→                <span className="font-bold text-orange-600">{formatRupiahFull(p.omzet)}</span>
+   198→              </div>
+   199→            </div>
+   200→          </div>
+   201→        ))}
+   202→      </div>
+   203→      <div className="rounded-xl border border-border bg-card p-4">
+   204→        <h3 className="mb-4 flex items-center gap-2 text-sm font-bold"><BarChart3 className="size-4 text-primary" /> Omset 7 Hari Terakhir</h3>
+   205→        <div className="flex items-end justify-between gap-2" style={{ height: 160 }}>
+   206→          {data.last7Days.map((d: any, i: number) => {
+   207→            const h = Math.max(4, (d.omzet / maxOmzet) * 100);
+   208→            return (
+   209→              <div key={i} className="flex flex-1 flex-col items-center gap-1">
+   210→                <span className="text-[9px] text-muted-foreground">{d.omzet > 0 ? formatRupiahFull(d.omzet).replace("Rp ", "") : "—"}</span>
+   211→                <div className="flex w-full items-end justify-center" style={{ height: 100 }}>
+   212→                  <div className="w-full max-w-[32px] rounded-t-md bg-gradient-to-t from-primary to-orange-400" style={{ height: `${h}%` }} />
+   213→                </div>
+   214→                <span className="text-[9px] text-muted-foreground">{d.label}</span>
+   215→              </div>
+   216→            );
+   217→          })}
+   218→        </div>
+   219→      </div>
+   220→      {data.topCategories.length > 0 && (
+   221→        <div className="rounded-xl border border-border bg-card p-4">
+   222→          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold"><TrendingUp className="size-4 text-primary" /> Kategori Terpopuler</h3>
+   223→          <div className="space-y-2">
+   224→            {data.topCategories.map((c: any, i: number) => (
+   225→              <div key={i} className="flex items-center gap-3">
+   226→                <span className="w-5 text-xs font-bold text-muted-foreground">#{i + 1}</span>
+   227→                <span className="w-40 shrink-0 truncate text-xs font-medium">{c.name}</span>
+   228→                <div className="h-5 flex-1 overflow-hidden rounded bg-muted"><div className="h-full rounded bg-primary/70" style={{ width: `${(c.count / Math.max(...data.topCategories.map((x: any) => x.count))) * 100}%` }} /></div>
+   229→                <span className="w-8 text-right text-xs font-bold">{c.count}</span>
+   230→              </div>
+   231→            ))}
+   232→          </div>
+   233→        </div>
+   234→      )}
+   235→    </div>
+   236→  );
+   237→}
+   238→
+   239→// ============ ADMIN PACKAGE TABS ============
+   240→const ADMIN_PKG_TABS = [
+   241→  { key: "all", label: "Semua", icon: Tag },
+   242→  { key: "colek", label: "Gold", icon: Crown, border: "border-blue-300", badgeBg: "bg-blue-100 text-blue-700" },
+   243→  { key: "highlight", label: "Platinum", icon: Gem, border: "border-orange-300", badgeBg: "bg-orange-100 text-orange-700" },
+   244→  { key: "spotlight", label: "Titanium", icon: Shield, border: "border-amber-300", badgeBg: "bg-amber-100 text-amber-700" },
+   245→  { key: "sundul", label: "Colek", icon: ArrowUpCircle, border: "border-purple-300", badgeBg: "bg-purple-100 text-purple-700" },
+   246→] as const;
+   247→
+   248→type AdminPkgTabKey = (typeof ADMIN_PKG_TABS)[number]["key"];
+   249→
+   250→function getRemainingDaysAdmin(paymentExpiry: string | null | undefined): { days: number; expired: boolean } {
+   251→  if (!paymentExpiry) return { days: -1, expired: false };
+   252→  const now = new Date();
+   253→  const exp = new Date(paymentExpiry);
+   254→  const diff = exp.getTime() - now.getTime();
+   255→  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+   256→  return { days, expired: days <= 0 };
+   257→}
+   258→
+   259→function getPkgBadge(type: string) {
+   260→  switch (type) {
+   261→    case "spotlight": return { name: "Titanium", bg: "bg-amber-100 text-amber-700", dot: "bg-amber-500" };
+   262→    case "highlight": return { name: "Platinum", bg: "bg-orange-100 text-orange-700", dot: "bg-orange-500" };
+   263→    case "sundul": return { name: "Colek", bg: "bg-purple-100 text-purple-700", dot: "bg-purple-500" };
+   264→    case "colek": return { name: "Gold", bg: "bg-blue-100 text-blue-700", dot: "bg-blue-500" };
+   265→    default: return { name: "Gratis", bg: "bg-secondary text-muted-foreground", dot: "bg-muted-foreground" };
+   266→  }
+   267→}
+   268→
+   269→// ============ IKLAN TAB ============
+   270→function IklanTab() {
+   271→  const { t } = useLang();
+   272→  const mounted = useMounted();
+   273→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   274→  const qc = useQueryClient();
+   275→  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+   276→  const [previewListing, setPreviewListing] = useState<any>(null);
+   277→  const [activeImg, setActiveImg] = useState(0);
+   278→  const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
+   279→  const [viewMode, setViewMode] = useState<"grid" | "line">("grid");
+   280→  const [search, setSearch] = useState("");
+   281→  const del = useMutation({
+   282→    mutationFn: (id: string) => fetch("/api/admin/listings", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
+   283→    onSuccess: () => { toast.success(tr("admDeleted")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+   284→  });
+   285→  const setStatus = useMutation({
+   286→    mutationFn: ({ id, status }: { id: string; status: string }) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) }),
+   287→    onSuccess: () => { toast.success(tr("admStatusUpdated")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+   288→  });
+   289→  const setViolation = useMutation({
+   290→    mutationFn: ({ id, flag, reason }: { id: string; flag: boolean; reason?: string }) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, violationFlag: flag, violationReason: reason }) }),
+   291→    onSuccess: () => { toast.success(tr("admViolationStatusUpdated")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+   292→  });
+   293→
+   294→  const allListings = useMemo(() => (data?.listings || []) as any[], [data?.listings]);
+   295→
+   296→  // Tab counts
+   297→  const tabCounts = useMemo(() => {
+   298→    const c: Record<string, number> = { all: allListings.length };
+   299→    for (const tab of ADMIN_PKG_TABS) {
+   300→      if (tab.key !== "all") c[tab.key] = allListings.filter((l: any) => l.packageType === tab.key).length;
+   301→    }
+   302→    return c;
+   303→  }, [allListings]);
+   304→
+   305→  // Filter by tab + search
+   306→  const listings = useMemo(() => {
+   307→    let filtered = activeTab === "all" ? allListings : allListings.filter((l: any) => l.packageType === activeTab);
+   308→    if (search.trim()) {
+   309→      const q = search.toLowerCase();
+   310→      filtered = filtered.filter((l: any) =>
+   311→        l.title?.toLowerCase().includes(q) ||
+   312→        l.seller?.name?.toLowerCase().includes(q) ||
+   313→        l.city?.toLowerCase().includes(q) ||
+   314→        l.category?.name?.toLowerCase().includes(q)
+   315→      );
+   316→    }
+   317→    return filtered;
+   318→  }, [allListings, activeTab, search]);
+   319→
+   320→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+   321→
+   322→  const openPreview = (l: any) => { setPreviewListing(l); setActiveImg(0); };
+   323→
+   324→  // --- Grid Card ---
+   325→  const renderGridCard = (l: any) => {
+   326→    const img = l.images?.[0];
+   327→    const imgs = l.images || [];
+   328→    const pkg = getPkgBadge(l.packageType);
+   329→    const { days: remainingDays, expired } = getRemainingDaysAdmin(l.paymentExpiry);
+   330→    const borderColor = ADMIN_PKG_TABS.find(t => t.key === l.packageType)?.border || "border-border";
+   331→
+   332→    return (
+   333→      <div
+   334→        key={l.id}
+   335→        onClick={() => openPreview(l)}
+   336→        className={cn(
+   337→          "group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 bg-card transition hover:shadow-lg",
+   338→          borderColor
+   339→        )}
+   340→      >
+   341→        {/* Image */}
+   342→        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+   343→          {img ? (
+   344→            <img src={img} alt={l.title} className="size-full object-cover transition group-hover:scale-105" />
+   345→          ) : (
+   346→            <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-8" /></div>
+   347→          )}
+   348→          <span className={cn("absolute left-2 top-2 flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold shadow",
+   349→            l.status === "active" ? "bg-green-500 text-white" : "bg-red-500 text-white"
+   350→          )}>
+   351→            {l.status === "active" ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+   352→            {l.status === "active" ? "Aktif" : l.status}
+   353→          </span>
+   354→          <span className={cn("absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold", pkg.bg)}>
+   355→            {pkg.name}
+   356→          </span>
+   357→          {imgs.length > 1 && (
+   358→            <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">📷 {imgs.length}</span>
+   359→          )}
+   360→        </div>
+   361→        {/* Content */}
+   362→        <div className="flex flex-1 flex-col p-3">
+   363→          <p className="text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+   364→          <h3 className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-foreground">{l.title}</h3>
+   365→          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+   366→            <MapPin className="size-3 shrink-0" /> {l.city}{l.seller?.name ? ` · ${l.seller.name}` : ""}
+   367→          </div>
+   368→          {/* Masa Aktif */}
+   369→          {l.paymentExpiry && l.paymentStatus === "paid" && (
+   370→            <div className="mt-2">
+   371→              {expired ? (
+   372→                <div className="flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1">
+   373→                  <AlertTriangle className="size-3 shrink-0 text-red-500" />
+   374→                  <span className="text-[10px] font-bold text-red-600">Non Aktif</span>
+   375→                </div>
+   376→              ) : (
+   377→                <div className="space-y-1">
+   378→                  <div className="flex items-center justify-between">
+   379→                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   380→                      <Timer className="size-3" /><span>Masa aktif</span>
+   381→                    </div>
+   382→                    <span className={cn("text-[10px] font-bold",
+   383→                      remainingDays <= 3 ? "text-red-600" : remainingDays <= 7 ? "text-amber-600" : "text-green-600"
+   384→                    )}>
+   385→                      {remainingDays === 0 ? "Berakhir hari ini" : `${remainingDays} hari lagi`}
+   386→                    </span>
+   387→                  </div>
+   388→                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+   389→                    <div className={cn("h-full rounded-full transition-all",
+   390→                      remainingDays <= 3 ? "bg-red-500" : remainingDays <= 7 ? "bg-amber-500" : "bg-green-500"
+   391→                    )} style={{ width: `${Math.max(0, Math.min(100, (remainingDays / 30) * 100))}%` }} />
+   392→                  </div>
+   393→                  <p className="text-[9px] text-muted-foreground">
+   394→                    Berakhir: {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+   395→                  </p>
+   396→                </div>
+   397→              )}
+   398→            </div>
+   399→          )}
+   400→          {/* Bottom */}
+   401→          <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+   402→            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   403→              <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0}
+   404→            </span>
+   405→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+   406→              <button onClick={() => setStatus.mutate({ id: l.id, status: "active" })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Approve">
+   407→                <CheckCircle2 className="size-3" />
+   408→              </button>
+   409→              <button onClick={() => setViolation.mutate({ id: l.id, flag: !l.violationFlag, reason: tr("admViolationReason") })} className={cn("grid size-7 place-items-center rounded-md border transition",
+   410→                l.violationFlag ? "border-red-500 bg-red-500 text-white" : "border-red-300 bg-background text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500"
+   411→              )} title="Pelanggaran">
+   412→                <XCircle className="size-3" />
+   413→              </button>
+   414→              <button onClick={() => del.mutate(l.id)} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}>
+   415→                <Trash2 className="size-3" />
+   416→              </button>
+   417→            </div>
+   418→          </div>
+   419→        </div>
+   420→      </div>
+   421→    );
+   422→  };
+   423→
+   424→  // --- Line Card ---
+   425→  const renderLineCard = (l: any) => {
+   426→    const img = l.images?.[0];
+   427→    const pkg = getPkgBadge(l.packageType);
+   428→    const { days: remainingDays, expired } = getRemainingDaysAdmin(l.paymentExpiry);
+   429→
+   430→    return (
+   431→      <div
+   432→        key={l.id}
+   433→        onClick={() => openPreview(l)}
+   434→        className={cn("group flex cursor-pointer gap-3 border-b border-border p-3 transition hover:bg-accent/50", l.violationFlag && "bg-red-50")}
+   435→      >
+   436→        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
+   437→          {img ? <img src={img} alt={l.title} className="size-full object-cover" /> : <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-6" /></div>}
+   438→        </div>
+   439→        <div className="flex min-w-0 flex-1 flex-col">
+   440→          <div className="flex items-start justify-between gap-2">
+   441→            <div className="min-w-0 flex-1">
+   442→              <h3 className="line-clamp-1 text-sm font-semibold text-foreground group-hover:text-primary">{l.title}</h3>
+   443→              <p className="mt-0.5 text-[11px] text-muted-foreground">{l.seller?.name} · {l.category?.name} · {l.city}</p>
+   444→            </div>
+   445→            <p className="shrink-0 text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+   446→          </div>
+   447→          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+   448→            <span className={cn("flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm", l.status === "active" ? "bg-green-500" : "bg-red-500")}>
+   449→              {l.status === "active" ? <CheckCircle2 className="size-2.5" /> : <AlertTriangle className="size-2.5" />}
+   450→              {l.status === "active" ? "Aktif" : l.status}
+   451→            </span>
+   452→            <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold", pkg.bg)}>{pkg.name}</span>
+   453→            {l.paymentExpiry && l.paymentStatus === "paid" && (
+   454→              <span className={cn("flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold",
+   455→                expired ? "bg-red-50 text-red-600" : remainingDays <= 3 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"
+   456→              )}>
+   457→                <Timer className="size-2.5" />
+   458→                {expired ? "Non Aktif" : remainingDays === 0 ? "Berakhir hari ini" : `${remainingDays} hari lagi`}
+   459→              </span>
+   460→            )}
+   461→          </div>
+   462→          <div className="mt-auto flex items-center justify-between pt-2">
+   463→            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+   464→              <span className="flex items-center gap-0.5"><Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0} dilihat</span>
+   465→              {l.paymentExpiry && l.paymentStatus === "paid" && !expired && (
+   466→                <span>Berakhir: {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+   467→              )}
+   468→            </div>
+   469→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+   470→              <button onClick={() => setStatus.mutate({ id: l.id, status: "active" })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Approve"><CheckCircle2 className="size-3" /></button>
+   471→              <button onClick={() => setViolation.mutate({ id: l.id, flag: !l.violationFlag, reason: tr("admViolationReason") })} className={cn("grid size-7 place-items-center rounded-md border transition",
+   472→                l.violationFlag ? "border-red-500 bg-red-500 text-white" : "border-red-300 bg-background text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500"
+   473→              )} title="Pelanggaran"><XCircle className="size-3" /></button>
+   474→              <button onClick={() => del.mutate(l.id)} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}><Trash2 className="size-3" /></button>
+   475→            </div>
+   476→          </div>
+   477→        </div>
+   478→      </div>
+   479→    );
+   480→  };
+   481→
+   482→  return (
+   483→    <div className="space-y-3">
+   484→      <h2 className="text-base font-bold">Iklan Aktif ({allListings.length})</h2>
+   485→
+   486→      {/* Package Tabs */}
+   487→      <div className="overflow-x-auto gomesin-scroll">
+   488→        <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+   489→          {ADMIN_PKG_TABS.map((tab) => {
+   490→            const isActive = activeTab === tab.key;
+   491→            const count = tabCounts[tab.key] ?? 0;
+   492→            return (
+   493→              <button
+   494→                key={tab.key}
+   495→                onClick={() => setActiveTab(tab.key)}
+   496→                className={cn(
+   497→                  "relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition",
+   498→                  isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+   499→                )}
+   500→              >
+   501→                <tab.icon className="size-3.5" />
+   502→                <span>{tab.label}</span>
+   503→                <span className={cn(
+   504→                  "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+   505→                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+   506→                )}>{count}</span>
+   507→              </button>
+   508→            );
+   509→          })}
+   510→        </div>
+   511→      </div>
+   512→
+   513→      {/* Toolbar: Search + View Toggle */}
+   514→      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   515→        <div className="flex items-center gap-2">
+   516→          <div className="relative flex-1 sm:flex-none">
+   517→            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   518→            <input
+   519→              type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+   520→              placeholder="Cari iklan..."
+   521→              className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary sm:w-56"
+   522→            />
+   523→          </div>
+   524→          <span className="text-xs text-muted-foreground">{listings.length} iklan</span>
+   525→        </div>
+   526→        <div className="flex items-center gap-2">
+   527→          <div className="flex overflow-hidden rounded-lg border border-border">
+   528→            <button type="button" onClick={() => setViewMode("grid")}
+   529→              className={cn("grid size-9 place-items-center transition", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+   530→              aria-label="Grid"><LayoutGrid className="size-4" /></button>
+   531→            <button type="button" onClick={() => setViewMode("line")}
+   532→              className={cn("grid size-9 place-items-center border-l border-border transition", viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+   533→              aria-label="Line"><List className="size-4" /></button>
+   534→          </div>
+   535→        </div>
+   536→      </div>
+   537→
+   538→      {/* Results */}
+   539→      {listings.length === 0 ? (
+   540→        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+   541→          <Frown className="size-12 text-muted-foreground" />
+   542→          <h3 className="mt-3 text-lg font-semibold">Tidak ada iklan</h3>
+   543→          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tidak ditemukan iklan untuk tab ini.</p>
+   544→        </div>
+   545→      ) : viewMode === "grid" ? (
+   546→        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{listings.map(renderGridCard)}</div>
+   547→      ) : (
+   548→        <div className="rounded-xl border border-border bg-card overflow-hidden">{listings.map(renderLineCard)}</div>
+   549→      )}
+   550→
+   551→      {/* Info hint */}
+   552→      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+   553→        <ShieldCheck className="mr-1 inline size-4" />
+   554→        {tr("admListingHint")}
+   555→      </div>
+   556→
+   557→      {/* PREVIEW DIALOG */}
+   558→      {previewListing && (
+   559→        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewListing(null)}>
+   560→          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+   561→            {/* header */}
+   562→            <div className="flex items-center justify-between border-b border-border p-4">
+   563→              <h3 className="line-clamp-1 text-base font-bold">{previewListing.title}</h3>
+   564→              <button onClick={() => setPreviewListing(null)} className="grid size-8 place-items-center rounded-lg hover:bg-accent"><XCircle className="size-5" /></button>
+   565→            </div>
+   566→            {/* gallery */}
+   567→            <div className="p-4">
+   568→              <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
+   569→                {previewListing.images?.[activeImg] ? (
+   570→                  <img src={previewListing.images[activeImg]} alt={previewListing.title} className="size-full object-cover" />
+   571→                ) : (
+   572→                  <div className="flex h-full items-center justify-center text-muted-foreground">Tidak ada gambar</div>
+   573→                )}
+   574→                {previewListing.images?.length > 1 && (
+   575→                  <>
+   576→                    <button onClick={() => setActiveImg((p) => (p - 1 + previewListing.images.length) % previewListing.images.length)} className="absolute left-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronLeft className="size-4" /></button>
+   577→                    <button onClick={() => setActiveImg((p) => (p + 1) % previewListing.images.length)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronRight className="size-4" /></button>
+   578→                    <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">{activeImg + 1} / {previewListing.images.length}</span>
+   579→                  </>
+   580→                )}
+   581→              </div>
+   582→              {/* thumbnails */}
+   583→              {previewListing.images?.length > 1 && (
+   584→                <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
+   585→                  {previewListing.images.map((img: string, i: number) => (
+   586→                    <button key={i} onClick={() => setActiveImg(i)}
+   587→                      className={cn("relative size-14 shrink-0 overflow-hidden rounded-lg border-2", i === activeImg ? "border-primary" : "border-transparent opacity-60 hover:opacity-100")}
+   588→                    >
+   589→                      <img src={img} alt="" className="size-full object-cover" />
+   590→                    </button>
+   591→                  ))}
+   592→                </div>
+   593→              )}
+   594→              {/* info */}
+   595→              <div className="mt-4 space-y-2">
+   596→                <div className="flex items-center gap-2">
+   597→                  <Badge className={previewListing.status === "active" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}>{previewListing.status}</Badge>
+   598→                  <Badge className={previewListing.paymentStatus === "paid" ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"}>{previewListing.paymentStatus === "paid" ? "Lunas" : "Belum Bayar"}</Badge>
+   599→                  {previewListing.condition === "baru" ? <Badge className="bg-primary">Baru</Badge> : <Badge className="bg-orange-600">Bekas</Badge>}
+   600→                  {previewListing.featured && <Badge className="bg-amber-500">Featured</Badge>}
+   601→                  <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-bold", getPkgBadge(previewListing.packageType).bg)}>{getPkgBadge(previewListing.packageType).name}</span>
+   602→                </div>
+   603→                <div className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2">
+   604→                  <DollarSign className="size-4 text-orange-600" />
+   605→                  <div>
+   606→                    <p className="text-[10px] text-muted-foreground">Harga Pasang Iklan</p>
+   607→                    <p className="text-lg font-bold text-orange-600">{formatAdFee(previewListing.adFee)}</p>
+   608→                  </div>
+   609→                  <Badge className={cn("ml-auto", previewListing.paymentStatus === "paid" ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700")}>{previewListing.paymentStatus === "paid" ? "Lunas" : "Belum Bayar"}</Badge>
+   610→                </div>
+   611→                <p className="text-sm text-muted-foreground">{previewListing.description}</p>
+   612→                <div className="grid grid-cols-2 gap-2 text-xs">
+   613→                  <div><span className="text-muted-foreground">Kategori:</span> {previewListing.category?.name}</div>
+   614→                  <div><span className="text-muted-foreground">Brand:</span> {previewListing.brand || "-"}</div>
+   615→                  <div><span className="text-muted-foreground">Lokasi:</span> {previewListing.city}, {previewListing.province}</div>
+   616→                  <div><span className="text-muted-foreground">Penjual:</span> {previewListing.seller?.name}</div>
+   617→                  <div><span className="text-muted-foreground">Views:</span> {previewListing.views?.toLocaleString("id-ID")}</div>
+   618→                  <div><span className="text-muted-foreground">Tahun:</span> {previewListing.yearProduced || "-"}</div>
+   619→                </div>
+   620→                {previewListing.violationFlag && (
+   621→                  <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-600">
+   622→                    ⚠ Ditandai pelanggaran: {previewListing.violationReason || tr("admViolationReason")}
+   623→                  </div>
+   624→                )}
+   625→              </div>
+   626→              {/* actions */}
+   627→              <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
+   628→                <Button size="sm" variant="default" onClick={() => { setStatus.mutate({ id: previewListing.id, status: "active" }); setPreviewListing(null); }}><CheckCircle2 className="size-4" /> Approve</Button>
+   629→                <Button size="sm" variant="outline" onClick={() => { setViolation.mutate({ id: previewListing.id, flag: !previewListing.violationFlag, reason: tr("admViolationReason") }); setPreviewListing(null); }}><XCircle className="size-4" /> {previewListing.violationFlag ? "Hapus Pelanggaran" : "Tandai Pelanggaran"}</Button>
+   630→                <Button size="sm" variant="destructive" onClick={() => { del.mutate(previewListing.id); setPreviewListing(null); }}><Trash2 className="size-4" /> Hapus Iklan</Button>
+   631→              </div>
+   632→            </div>
+   633→          </div>
+   634→        </div>
+   635→      )}
+   636→    </div>
+   637→  );
+   638→}
+   639→
+   640→// ============ IKLAN BARU TAB (unpaid / pending verification) ============
+   641→function IklanBaruTab() {
+   642→  const { t } = useLang();
+   643→  const mounted = useMounted();
+   644→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   645→  const qc = useQueryClient();
+   646→  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+   647→  const [previewListing, setPreviewListing] = useState<any>(null);
+   648→  const [activeImg, setActiveImg] = useState(0);
+   649→  const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
+   650→  const [viewMode, setViewMode] = useState<"grid" | "line">("grid");
+   651→  const [search, setSearch] = useState("");
+   652→  const setStatus = useMutation({
+   653→    mutationFn: ({ id, status }: { id: string; status: string }) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) }),
+   654→    onSuccess: () => { toast.success(tr("admListingStatusUpdated")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+   655→  });
+   656→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+   657→
+   658→  // filter: iklan baru = status pending (belum diverifikasi admin)
+   659→  const newListings = data.listings.filter((l: any) => l.status === "pending");
+   660→
+   661→  const approve = (id: string) => {
+   662→    setStatus.mutate({ id, status: "active" });
+   663→  };
+   664→  const reject = (id: string) => {
+   665→    if (confirm(tr("admRejectConfirm"))) {
+   666→      setStatus.mutate({ id, status: "rejected" });
+   667→    }
+   668→  };
+   669→
+   670→  // Tab counts
+   671→  const tabCounts = useMemo(() => {
+   672→    const c: Record<string, number> = { all: newListings.length };
+   673→    for (const tab of ADMIN_PKG_TABS) {
+   674→      if (tab.key !== "all") c[tab.key] = newListings.filter((l: any) => l.packageType === tab.key).length;
+   675→    }
+   676→    return c;
+   677→  }, [newListings]);
+   678→
+   679→  // Filter by tab + search
+   680→  const listings = useMemo(() => {
+   681→    let filtered = activeTab === "all" ? newListings : newListings.filter((l: any) => l.packageType === activeTab);
+   682→    if (search.trim()) {
+   683→      const q = search.toLowerCase();
+   684→      filtered = filtered.filter((l: any) =>
+   685→        l.title?.toLowerCase().includes(q) ||
+   686→        l.seller?.name?.toLowerCase().includes(q) ||
+   687→        l.city?.toLowerCase().includes(q) ||
+   688→        l.category?.name?.toLowerCase().includes(q)
+   689→      );
+   690→    }
+   691→    return filtered;
+   692→  }, [newListings, activeTab, search]);
+   693→
+   694→  const openPreview = (l: any) => { setPreviewListing(l); setActiveImg(0); };
+   695→
+   696→  // --- Grid Card ---
+   697→  const renderGridCard = (l: any) => {
+   698→    const img = l.images?.[0];
+   699→    const imgs = l.images || [];
+   700→    const pkg = getPkgBadge(l.packageType);
+   701→
+   702→    return (
+   703→      <div
+   704→        key={l.id}
+   705→        onClick={() => openPreview(l)}
+   706→        className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-amber-300 bg-card transition hover:shadow-lg"
+   707→      >
+   708→        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+   709→          {img ? (
+   710→            <img src={img} alt={l.title} className="size-full object-cover transition group-hover:scale-105" />
+   711→          ) : (
+   712→            <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-8" /></div>
+   713→          )}
+   714→          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white shadow">
+   715→            Menunggu Verifikasi
+   716→          </span>
+   717→          <span className={cn("absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold", pkg.bg)}>
+   718→            {pkg.name}
+   719→          </span>
+   720→          {imgs.length > 1 && (
+   721→            <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">📷 {imgs.length}</span>
+   722→          )}
+   723→        </div>
+   724→        <div className="flex flex-1 flex-col p-3">
+   725→          <p className="text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+   726→          <h3 className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-foreground">{l.title}</h3>
+   727→          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+   728→            <MapPin className="size-3 shrink-0" /> {l.city}{l.seller?.name ? ` · ${l.seller.name}` : ""}
+   729→          </div>
+   730→          <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+   731→            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   732→              <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0}
+   733→            </span>
+   734→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+   735→              <button onClick={() => approve(l.id)} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Setujui">
+   736→                <CheckCircle2 className="size-3" />
+   737→              </button>
+   738→              <button onClick={() => reject(l.id)} className="grid size-7 place-items-center rounded-md border border-red-300 bg-background text-red-600 transition hover:bg-red-500 hover:text-white hover:border-red-500" title="Tolak">
+   739→                <XCircle className="size-3" />
+   740→              </button>
+   741→            </div>
+   742→          </div>
+   743→        </div>
+   744→      </div>
+   745→    );
+   746→  };
+   747→
+   748→  // --- Line Card ---
+   749→  const renderLineCard = (l: any) => {
+   750→    const img = l.images?.[0];
+   751→    const pkg = getPkgBadge(l.packageType);
+   752→
+   753→    return (
+   754→      <div
+   755→        key={l.id}
+   756→        onClick={() => openPreview(l)}
+   757→        className="group flex cursor-pointer gap-3 border-b border-border p-3 transition hover:bg-accent/50"
+   758→      >
+   759→        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
+   760→          {img ? <img src={img} alt={l.title} className="size-full object-cover" /> : <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-6" /></div>}
+   761→        </div>
+   762→        <div className="flex min-w-0 flex-1 flex-col">
+   763→          <div className="flex items-start justify-between gap-2">
+   764→            <div className="min-w-0 flex-1">
+   765→              <h3 className="line-clamp-1 text-sm font-semibold text-foreground group-hover:text-primary">{l.title}</h3>
+   766→              <p className="mt-0.5 text-[11px] text-muted-foreground">{l.seller?.name} · {l.category?.name} · {l.city}</p>
+   767→            </div>
+   768→            <p className="shrink-0 text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+   769→          </div>
+   770→          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+   771→            <span className="flex items-center gap-1 rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+   772→              <Clock className="size-2.5" /> Menunggu Verifikasi
+   773→            </span>
+   774→            <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold", pkg.bg)}>{pkg.name}</span>
+   775→          </div>
+   776→          <div className="mt-auto flex items-center justify-between pt-2">
+   777→            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+   778→              <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0} dilihat
+   779→            </span>
+   780→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+   781→              <button onClick={() => approve(l.id)} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Setujui"><CheckCircle2 className="size-3" /></button>
+   782→              <button onClick={() => reject(l.id)} className="grid size-7 place-items-center rounded-md border border-red-300 bg-background text-red-600 transition hover:bg-red-500 hover:text-white hover:border-red-500" title="Tolak"><XCircle className="size-3" /></button>
+   783→            </div>
+   784→          </div>
+   785→        </div>
+   786→      </div>
+   787→    );
+   788→  };
+   789→
+   790→  return (
+   791→    <div className="space-y-3">
+   792→      <h2 className="text-base font-bold">Iklan Baru — Perlu Verifikasi ({newListings.length})</h2>
+   793→
+   794→      {/* Package Tabs */}
+   795→      <div className="overflow-x-auto gomesin-scroll">
+   796→        <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+   797→          {ADMIN_PKG_TABS.map((tab) => {
+   798→            const isActive = activeTab === tab.key;
+   799→            const count = tabCounts[tab.key] ?? 0;
+   800→            return (
+   801→              <button
+   802→                key={tab.key}
+   803→                onClick={() => setActiveTab(tab.key)}
+   804→                className={cn(
+   805→                  "relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition",
+   806→                  isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+   807→                )}
+   808→              >
+   809→                <tab.icon className="size-3.5" />
+   810→                <span>{tab.label}</span>
+   811→                <span className={cn(
+   812→                  "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+   813→                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+   814→                )}>{count}</span>
+   815→              </button>
+   816→            );
+   817→          })}
+   818→        </div>
+   819→      </div>
+   820→
+   821→      {/* Toolbar: Search + View Toggle */}
+   822→      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   823→        <div className="flex items-center gap-2">
+   824→          <div className="relative flex-1 sm:flex-none">
+   825→            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   826→            <input
+   827→              type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+   828→              placeholder="Cari iklan..."
+   829→              className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary sm:w-56"
+   830→            />
+   831→          </div>
+   832→          <span className="text-xs text-muted-foreground">{listings.length} iklan</span>
+   833→        </div>
+   834→        <div className="flex items-center gap-2">
+   835→          <div className="flex overflow-hidden rounded-lg border border-border">
+   836→            <button type="button" onClick={() => setViewMode("grid")}
+   837→              className={cn("grid size-9 place-items-center transition", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+   838→              aria-label="Grid"><LayoutGrid className="size-4" /></button>
+   839→            <button type="button" onClick={() => setViewMode("line")}
+   840→              className={cn("grid size-9 place-items-center border-l border-border transition", viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+   841→              aria-label="Line"><List className="size-4" /></button>
+   842→          </div>
+   843→        </div>
+   844→      </div>
+   845→
+   846→      {/* Results */}
+   847→      {listings.length === 0 ? (
+   848→        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+   849→          <Frown className="size-12 text-muted-foreground" />
+   850→          <h3 className="mt-3 text-lg font-semibold">Tidak ada iklan baru</h3>
+   851→          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tidak ditemukan iklan menunggu verifikasi untuk tab ini.</p>
+   852→        </div>
+   853→      ) : viewMode === "grid" ? (
+   854→        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{listings.map(renderGridCard)}</div>
+   855→      ) : (
+   856→        <div className="rounded-xl border border-border bg-card overflow-hidden">{listings.map(renderLineCard)}</div>
+   857→      )}
+   858→
+   859→      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+   860→        <Sparkle className="mr-1 inline size-4" />
+   861→        {tr("admNewAdsHint")}
+   862→      </div>
+   863→
+   864→      {/* PREVIEW DIALOG */}
+   865→      {previewListing && (
+   866→        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewListing(null)}>
+   867→          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+   868→            <div className="flex items-center justify-between border-b border-border p-4">
+   869→              <h3 className="line-clamp-1 text-base font-bold">{previewListing.title}</h3>
+   870→              <button onClick={() => setPreviewListing(null)} className="grid size-8 place-items-center rounded-lg hover:bg-accent"><XCircle className="size-5" /></button>
+   871→            </div>
+   872→            <div className="p-4">
+   873→              <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
+   874→                {previewListing.images?.[activeImg] && (
+   875→                  <img src={previewListing.images[activeImg]} alt={previewListing.title} className="size-full object-cover" />
+   876→                )}
+   877→                {previewListing.images?.length > 1 && (
+   878→                  <>
+   879→                    <button onClick={() => setActiveImg((p) => (p - 1 + previewListing.images.length) % previewListing.images.length)} className="absolute left-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronLeft className="size-4" /></button>
+   880→                    <button onClick={() => setActiveImg((p) => (p + 1) % previewListing.images.length)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronRight className="size-4" /></button>
+   881→                    <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">{activeImg + 1} / {previewListing.images.length}</span>
+   882→                  </>
+   883→                )}
+   884→              </div>
+   885→              {previewListing.images?.length > 1 && (
+   886→                <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
+   887→                  {previewListing.images.map((img: string, i: number) => (
+   888→                    <button key={i} onClick={() => setActiveImg(i)} className={cn("relative size-14 shrink-0 overflow-hidden rounded-lg border-2", i === activeImg ? "border-primary" : "border-transparent opacity-60")}>
+   889→                      <img src={img} alt="" className="size-full object-cover" />
+   890→                    </button>
+   891→                  ))}
+   892→                </div>
+   893→              )}
+   894→              <div className="mt-4 space-y-2">
+   895→                <div className="flex items-center gap-2">
+   896→                  <Badge className={previewListing.paymentStatus === "paid" ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"}>{previewListing.paymentStatus === "paid" ? "Lunas" : "Belum Bayar"}</Badge>
+   897→                  <Badge className="bg-blue-100 text-blue-700">{previewListing.status}</Badge>
+   898→                  {previewListing.condition === "baru" ? <Badge className="bg-primary">Baru</Badge> : <Badge className="bg-orange-600">Bekas</Badge>}
+   899→                  <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-bold", getPkgBadge(previewListing.packageType).bg)}>{getPkgBadge(previewListing.packageType).name}</span>
+   900→                </div>
+   901→                <p className="text-2xl font-bold text-primary">{formatRupiahFull(previewListing.price)}</p>
+   902→                <p className="text-sm text-muted-foreground">{previewListing.description}</p>
+   903→                <div className="grid grid-cols-2 gap-2 text-xs">
+   904→                  <div><span className="text-muted-foreground">Kategori:</span> {previewListing.category?.name}</div>
+   905→                  <div><span className="text-muted-foreground">Brand:</span> {previewListing.brand || "-"}</div>
+   906→                  <div><span className="text-muted-foreground">Lokasi:</span> {previewListing.city}, {previewListing.province}</div>
+   907→                  <div><span className="text-muted-foreground">Penjual:</span> {previewListing.seller?.name}</div>
+   908→                </div>
+   909→              </div>
+   910→              <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
+   911→                <Button size="sm" variant="default" onClick={() => { setStatus.mutate({ id: previewListing.id, status: "active" }); setPreviewListing(null); }}><CheckCircle2 className="size-4" /> Setujui & Tayangkan</Button>
+   912→                <Button size="sm" variant="destructive" onClick={() => { setStatus.mutate({ id: previewListing.id, status: "rejected" }); setPreviewListing(null); }}><XCircle className="size-4" /> Tolak Iklan</Button>
+   913→              </div>
+   914→            </div>
+   915→          </div>
+   916→        </div>
+   917→      )}
+   918→    </div>
+   919→  );
+   920→}
+   921→
+   922→// ============ IKLAN EXPIRED TAB (paymentExpiry < now) ============
+   923→function IklanExpiredTab() {
+   924→  const { t } = useLang();
+   925→  const mounted = useMounted();
+   926→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   927→  const qc = useQueryClient();
+   928→  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+   929→  const [previewListing, setPreviewListing] = useState<any>(null);
+   930→  const [activeImg, setActiveImg] = useState(0);
+   931→  const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
+   932→  const [viewMode, setViewMode] = useState<"grid" | "line">("grid");
+   933→  const [search, setSearch] = useState("");
+   934→  const renew = useMutation({
+   935→    mutationFn: ({ id, days }: { id: string; days: number }) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "active", paymentExpiry: new Date(Date.now() + days * 86400000).toISOString() }) }),
+   936→    onSuccess: () => { toast.success(tr("admExtended")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+   937→  });
+   938→  const del = useMutation({
+   939→    mutationFn: (id: string) => fetch("/api/admin/listings", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
+   940→    onSuccess: () => { toast.success(tr("admDeleted")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+   941→  });
+   942→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+   943→
+   944→  const now = new Date();
+   945→  const expiredListings = data.listings.filter((l: any) => {
+   946→    if (!l.paymentExpiry) return false;
+   947→    return new Date(l.paymentExpiry) < now;
+   948→  });
+   949→
+   950→  const fmtDate = (iso: string) => {
+   951→    const d = new Date(iso);
+   952→    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+   953→  };
+   954→
+   955→  // Tab counts
+   956→  const tabCounts = useMemo(() => {
+   957→    const c: Record<string, number> = { all: expiredListings.length };
+   958→    for (const tab of ADMIN_PKG_TABS) {
+   959→      if (tab.key !== "all") c[tab.key] = expiredListings.filter((l: any) => l.packageType === tab.key).length;
+   960→    }
+   961→    return c;
+   962→  }, [expiredListings]);
+   963→
+   964→  // Filter by tab + search
+   965→  const listings = useMemo(() => {
+   966→    let filtered = activeTab === "all" ? expiredListings : expiredListings.filter((l: any) => l.packageType === activeTab);
+   967→    if (search.trim()) {
+   968→      const q = search.toLowerCase();
+   969→      filtered = filtered.filter((l: any) =>
+   970→        l.title?.toLowerCase().includes(q) ||
+   971→        l.seller?.name?.toLowerCase().includes(q) ||
+   972→        l.city?.toLowerCase().includes(q) ||
+   973→        l.category?.name?.toLowerCase().includes(q)
+   974→      );
+   975→    }
+   976→    return filtered;
+   977→  }, [expiredListings, activeTab, search]);
+   978→
+   979→  const openPreview = (l: any) => { setPreviewListing(l); setActiveImg(0); };
+   980→
+   981→  // --- Grid Card ---
+   982→  const renderGridCard = (l: any) => {
+   983→    const img = l.images?.[0];
+   984→    const pkg = getPkgBadge(l.packageType);
+   985→
+   986→    return (
+   987→      <div
+   988→        key={l.id}
+   989→        onClick={() => openPreview(l)}
+   990→        className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-red-300 bg-card transition hover:shadow-lg"
+   991→      >
+   992→        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+   993→          {img ? (
+   994→            <img src={img} alt={l.title} className="size-full object-cover transition group-hover:scale-105" />
+   995→          ) : (
+   996→            <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-8" /></div>
+   997→          )}
+   998→          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
+   999→            <Clock className="size-3" /> Expired
+  1000→          </span>
+  1001→          <span className={cn("absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold", pkg.bg)}>
+  1002→            {pkg.name}
+  1003→          </span>
+  1004→        </div>
+  1005→        <div className="flex flex-1 flex-col p-3">
+  1006→          <p className="text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+  1007→          <h3 className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-foreground">{l.title}</h3>
+  1008→          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+  1009→            <MapPin className="size-3 shrink-0" /> {l.city}{l.seller?.name ? ` · ${l.seller.name}` : ""}
+  1010→          </div>
+  1011→          {l.paymentExpiry && (
+  1012→            <p className="mt-1 text-[10px] text-muted-foreground">Berakhir: {fmtDate(l.paymentExpiry)}</p>
+  1013→          )}
+  1014→          <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+  1015→            <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
+  1016→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+  1017→              <button onClick={() => renew.mutate({ id: l.id, days: 30 })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-orange-600 transition hover:bg-orange-500 hover:text-white hover:border-orange-500" title="Perpanjang 30 hari">
+  1018→                <RefreshCw className="size-3" />
+  1019→              </button>
+  1020→              <button onClick={() => del.mutate(l.id)} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}>
+  1021→                <Trash2 className="size-3" />
+  1022→              </button>
+  1023→            </div>
+  1024→          </div>
+  1025→        </div>
+  1026→      </div>
+  1027→    );
+  1028→  };
+  1029→
+  1030→  // --- Line Card ---
+  1031→  const renderLineCard = (l: any) => {
+  1032→    const img = l.images?.[0];
+  1033→    const pkg = getPkgBadge(l.packageType);
+  1034→
+  1035→    return (
+  1036→      <div
+  1037→        key={l.id}
+  1038→        onClick={() => openPreview(l)}
+  1039→        className="group flex cursor-pointer gap-3 border-b border-border p-3 transition hover:bg-accent/50"
+  1040→      >
+  1041→        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
+  1042→          {img ? <img src={img} alt={l.title} className="size-full object-cover" /> : <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-6" /></div>}
+  1043→        </div>
+  1044→        <div className="flex min-w-0 flex-1 flex-col">
+  1045→          <div className="flex items-start justify-between gap-2">
+  1046→            <div className="min-w-0 flex-1">
+  1047→              <h3 className="line-clamp-1 text-sm font-semibold text-foreground group-hover:text-primary">{l.title}</h3>
+  1048→              <p className="mt-0.5 text-[11px] text-muted-foreground">{l.seller?.name} · {l.category?.name} · {l.city}</p>
+  1049→            </div>
+  1050→            <p className="shrink-0 text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+  1051→          </div>
+  1052→          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+  1053→            <span className="flex items-center gap-1 rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+  1054→              <Clock className="size-2.5" /> Expired
+  1055→            </span>
+  1056→            <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold", pkg.bg)}>{pkg.name}</span>
+  1057→            {l.paymentExpiry && <span className="text-[10px] text-muted-foreground">Berakhir: {fmtDate(l.paymentExpiry)}</span>}
+  1058→          </div>
+  1059→          <div className="mt-auto flex items-center justify-between pt-2">
+  1060→            <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
+  1061→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+  1062→              <button onClick={() => renew.mutate({ id: l.id, days: 30 })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-orange-600 transition hover:bg-orange-500 hover:text-white hover:border-orange-500" title="Perpanjang 30 hari"><RefreshCw className="size-3" /></button>
+  1063→              <button onClick={() => del.mutate(l.id)} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}><Trash2 className="size-3" /></button>
+  1064→            </div>
+  1065→          </div>
+  1066→        </div>
+  1067→      </div>
+  1068→    );
+  1069→  };
+  1070→
+  1071→  return (
+  1072→    <div className="space-y-3">
+  1073→      <h2 className="text-base font-bold">Iklan Expired — Perlu Perpanjangan ({expiredListings.length})</h2>
+  1074→
+  1075→      {/* Package Tabs */}
+  1076→      <div className="overflow-x-auto gomesin-scroll">
+  1077→        <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+  1078→          {ADMIN_PKG_TABS.map((tab) => {
+  1079→            const isActive = activeTab === tab.key;
+  1080→            const count = tabCounts[tab.key] ?? 0;
+  1081→            return (
+  1082→              <button
+  1083→                key={tab.key}
+  1084→                onClick={() => setActiveTab(tab.key)}
+  1085→                className={cn(
+  1086→                  "relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition",
+  1087→                  isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+  1088→                )}
+  1089→              >
+  1090→                <tab.icon className="size-3.5" />
+  1091→                <span>{tab.label}</span>
+  1092→                <span className={cn(
+  1093→                  "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+  1094→                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+  1095→                )}>{count}</span>
+  1096→              </button>
+  1097→            );
+  1098→          })}
+  1099→        </div>
+  1100→      </div>
+  1101→
+  1102→      {/* Toolbar: Search + View Toggle */}
+  1103→      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  1104→        <div className="flex items-center gap-2">
+  1105→          <div className="relative flex-1 sm:flex-none">
+  1106→            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+  1107→            <input
+  1108→              type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+  1109→              placeholder="Cari iklan..."
+  1110→              className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary sm:w-56"
+  1111→            />
+  1112→          </div>
+  1113→          <span className="text-xs text-muted-foreground">{listings.length} iklan</span>
+  1114→        </div>
+  1115→        <div className="flex items-center gap-2">
+  1116→          <div className="flex overflow-hidden rounded-lg border border-border">
+  1117→            <button type="button" onClick={() => setViewMode("grid")}
+  1118→              className={cn("grid size-9 place-items-center transition", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1119→              aria-label="Grid"><LayoutGrid className="size-4" /></button>
+  1120→            <button type="button" onClick={() => setViewMode("line")}
+  1121→              className={cn("grid size-9 place-items-center border-l border-border transition", viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1122→              aria-label="Line"><List className="size-4" /></button>
+  1123→          </div>
+  1124→        </div>
+  1125→      </div>
+  1126→
+  1127→      {/* Results */}
+  1128→      {listings.length === 0 ? (
+  1129→        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+  1130→          <Frown className="size-12 text-muted-foreground" />
+  1131→          <h3 className="mt-3 text-lg font-semibold">Tidak ada iklan expired</h3>
+  1132→          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tidak ditemukan iklan expired untuk tab ini.</p>
+  1133→        </div>
+  1134→      ) : viewMode === "grid" ? (
+  1135→        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{listings.map(renderGridCard)}</div>
+  1136→      ) : (
+  1137→        <div className="rounded-xl border border-border bg-card overflow-hidden">{listings.map(renderLineCard)}</div>
+  1138→      )}
+  1139→
+  1140→      <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-700">
+  1141→        <Clock className="mr-1 inline size-4" />
+  1142→        Iklan expired adalah iklan yang masa tayangnya sudah habis (paymentExpiry terlewati). Perpanjang untuk aktifkan kembali, atau hapus jika tidak diperlukan.
+  1143→      </div>
+  1144→
+  1145→      {/* PREVIEW DIALOG */}
+  1146→      {previewListing && (
+  1147→        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewListing(null)}>
+  1148→          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+  1149→            <div className="flex items-center justify-between border-b border-border p-4">
+  1150→              <h3 className="line-clamp-1 text-base font-bold">{previewListing.title}</h3>
+  1151→              <button onClick={() => setPreviewListing(null)} className="grid size-8 place-items-center rounded-lg hover:bg-accent"><XCircle className="size-5" /></button>
+  1152→            </div>
+  1153→            <div className="p-4">
+  1154→              <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
+  1155→                {previewListing.images?.[activeImg] && (
+  1156→                  <img src={previewListing.images[activeImg]} alt={previewListing.title} className="size-full object-cover" />
+  1157→                )}
+  1158→                {previewListing.images?.length > 1 && (
+  1159→                  <>
+  1160→                    <button onClick={() => setActiveImg((p) => (p - 1 + previewListing.images.length) % previewListing.images.length)} className="absolute left-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronLeft className="size-4" /></button>
+  1161→                    <button onClick={() => setActiveImg((p) => (p + 1) % previewListing.images.length)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronRight className="size-4" /></button>
+  1162→                    <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">{activeImg + 1} / {previewListing.images.length}</span>
+  1163→                  </>
+  1164→                )}
+  1165→              </div>
+  1166→              {previewListing.images?.length > 1 && (
+  1167→                <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
+  1168→                  {previewListing.images.map((img: string, i: number) => (
+  1169→                    <button key={i} onClick={() => setActiveImg(i)} className={cn("relative size-14 shrink-0 overflow-hidden rounded-lg border-2", i === activeImg ? "border-primary" : "border-transparent opacity-60")}>
+  1170→                      <img src={img} alt="" className="size-full object-cover" />
+  1171→                    </button>
+  1172→                  ))}
+  1173→                </div>
+  1174→              )}
+  1175→              <div className="mt-4 space-y-2">
+  1176→                <div className="flex items-center gap-2">
+  1177→                  <Badge className="bg-red-100 text-red-700"><Clock className="mr-0.5 size-3" /> Expired</Badge>
+  1178→                  {previewListing.paymentExpiry && <span className="text-xs text-muted-foreground">Berakhir: {fmtDate(previewListing.paymentExpiry)}</span>}
+  1179→                </div>
+  1180→                <p className="text-2xl font-bold text-primary">{formatRupiahFull(previewListing.price)}</p>
+  1181→                <p className="text-sm text-muted-foreground">{previewListing.description}</p>
+  1182→                <div className="grid grid-cols-2 gap-2 text-xs">
+  1183→                  <div><span className="text-muted-foreground">Kategori:</span> {previewListing.category?.name}</div>
+  1184→                  <div><span className="text-muted-foreground">Brand:</span> {previewListing.brand || "-"}</div>
+  1185→                  <div><span className="text-muted-foreground">Lokasi:</span> {previewListing.city}, {previewListing.province}</div>
+  1186→                  <div><span className="text-muted-foreground">Penjual:</span> {previewListing.seller?.name}</div>
+  1187→                </div>
+  1188→              </div>
+  1189→              <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
+  1190→                <Button size="sm" variant="default" onClick={() => { renew.mutate({ id: previewListing.id, days: 30 }); setPreviewListing(null); }}><RefreshCw className="size-4" /> Perpanjang 30 Hari</Button>
+  1191→                <Button size="sm" variant="outline" onClick={() => { renew.mutate({ id: previewListing.id, days: 90 }); setPreviewListing(null); }}><RefreshCw className="size-4" /> Perpanjang 90 Hari</Button>
+  1192→                <Button size="sm" variant="destructive" onClick={() => { del.mutate(previewListing.id); setPreviewListing(null); }}><Trash2 className="size-4" /> Hapus Iklan</Button>
+  1193→              </div>
+  1194→            </div>
+  1195→          </div>
+  1196→        </div>
+  1197→      )}
+  1198→    </div>
+  1199→  );
+  1200→}
+  1201→
+  1202→// ============ IKLAN DITOLAK TAB ============
+  1203→function IklanDitolakTab() {
+  1204→  const { t } = useLang();
+  1205→  const mounted = useMounted();
+  1206→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1207→  const qc = useQueryClient();
+  1208→  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  1209→  const [previewListing, setPreviewListing] = useState<any>(null);
+  1210→  const [activeImg, setActiveImg] = useState(0);
+  1211→  const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
+  1212→  const [viewMode, setViewMode] = useState<"grid" | "line">("grid");
+  1213→  const [search, setSearch] = useState("");
+  1214→  const restore = useMutation({
+  1215→    mutationFn: ({ id }: { id: string }) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "active", violationFlag: false, violationReason: null }) }),
+  1216→    onSuccess: () => { toast.success(tr("admRestored")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+  1217→  });
+  1218→  const del = useMutation({
+  1219→    mutationFn: (id: string) => fetch("/api/admin/listings", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
+  1220→    onSuccess: () => { toast.success(tr("admDeletedPermanent")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+  1221→  });
+  1222→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  1223→
+  1224→  const rejectedListings = data.listings.filter((l: any) => l.status === "rejected" || l.violationFlag === true);
+  1225→
+  1226→  // Tab counts
+  1227→  const tabCounts = useMemo(() => {
+  1228→    const c: Record<string, number> = { all: rejectedListings.length };
+  1229→    for (const tab of ADMIN_PKG_TABS) {
+  1230→      if (tab.key !== "all") c[tab.key] = rejectedListings.filter((l: any) => l.packageType === tab.key).length;
+  1231→    }
+  1232→    return c;
+  1233→  }, [rejectedListings]);
+  1234→
+  1235→  // Filter by tab + search
+  1236→  const listings = useMemo(() => {
+  1237→    let filtered = activeTab === "all" ? rejectedListings : rejectedListings.filter((l: any) => l.packageType === activeTab);
+  1238→    if (search.trim()) {
+  1239→      const q = search.toLowerCase();
+  1240→      filtered = filtered.filter((l: any) =>
+  1241→        l.title?.toLowerCase().includes(q) ||
+  1242→        l.seller?.name?.toLowerCase().includes(q) ||
+  1243→        l.city?.toLowerCase().includes(q) ||
+  1244→        l.category?.name?.toLowerCase().includes(q)
+  1245→      );
+  1246→    }
+  1247→    return filtered;
+  1248→  }, [rejectedListings, activeTab, search]);
+  1249→
+  1250→  const openPreview = (l: any) => { setPreviewListing(l); setActiveImg(0); };
+  1251→
+  1252→  // --- Grid Card ---
+  1253→  const renderGridCard = (l: any) => {
+  1254→    const img = l.images?.[0];
+  1255→    const pkg = getPkgBadge(l.packageType);
+  1256→
+  1257→    return (
+  1258→      <div
+  1259→        key={l.id}
+  1260→        onClick={() => openPreview(l)}
+  1261→        className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-red-400 bg-card transition hover:shadow-lg"
+  1262→      >
+  1263→        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+  1264→          {img ? (
+  1265→            <img src={img} alt={l.title} className="size-full object-cover transition group-hover:scale-105" />
+  1266→          ) : (
+  1267→            <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-8" /></div>
+  1268→          )}
+  1269→          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
+  1270→            <XCircle className="size-3" /> Ditolak
+  1271→          </span>
+  1272→          <span className={cn("absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold", pkg.bg)}>
+  1273→            {pkg.name}
+  1274→          </span>
+  1275→        </div>
+  1276→        <div className="flex flex-1 flex-col p-3">
+  1277→          <p className="text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+  1278→          <h3 className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-foreground">{l.title}</h3>
+  1279→          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+  1280→            <MapPin className="size-3 shrink-0" /> {l.city}{l.seller?.name ? ` · ${l.seller.name}` : ""}
+  1281→          </div>
+  1282→          {l.violationReason && (
+  1283→            <p className="mt-1 text-[10px] text-red-600">{l.violationReason}</p>
+  1284→          )}
+  1285→          <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+  1286→            <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
+  1287→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+  1288→              <button onClick={() => restore.mutate({ id: l.id })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Pulihkan & Tayangkan">
+  1289→                <CheckCircle2 className="size-3" />
+  1290→              </button>
+  1291→              <button onClick={() => { if (confirm("Hapus permanen?")) del.mutate(l.id); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title="Hapus Permanen">
+  1292→                <Trash2 className="size-3" />
+  1293→              </button>
+  1294→            </div>
+  1295→          </div>
+  1296→        </div>
+  1297→      </div>
+  1298→    );
+  1299→  };
+  1300→
+  1301→  // --- Line Card ---
+  1302→  const renderLineCard = (l: any) => {
+  1303→    const img = l.images?.[0];
+  1304→    const pkg = getPkgBadge(l.packageType);
+  1305→
+  1306→    return (
+  1307→      <div
+  1308→        key={l.id}
+  1309→        onClick={() => openPreview(l)}
+  1310→        className="group flex cursor-pointer gap-3 border-b border-red-200 p-3 transition hover:bg-red-50/50"
+  1311→      >
+  1312→        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
+  1313→          {img ? <img src={img} alt={l.title} className="size-full object-cover" /> : <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-6" /></div>}
+  1314→        </div>
+  1315→        <div className="flex min-w-0 flex-1 flex-col">
+  1316→          <div className="flex items-start justify-between gap-2">
+  1317→            <div className="min-w-0 flex-1">
+  1318→              <h3 className="line-clamp-1 text-sm font-semibold text-foreground group-hover:text-primary">{l.title}</h3>
+  1319→              <p className="mt-0.5 text-[11px] text-muted-foreground">{l.seller?.name} · {l.category?.name} · {l.city}</p>
+  1320→            </div>
+  1321→            <p className="shrink-0 text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+  1322→          </div>
+  1323→          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+  1324→            <span className="flex items-center gap-1 rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+  1325→              <XCircle className="size-2.5" /> Ditolak
+  1326→            </span>
+  1327→            <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold", pkg.bg)}>{pkg.name}</span>
+  1328→            {l.violationReason && <span className="text-[10px] text-red-600">{l.violationReason}</span>}
+  1329→          </div>
+  1330→          <div className="mt-auto flex items-center justify-between pt-2">
+  1331→            <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
+  1332→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+  1333→              <button onClick={() => restore.mutate({ id: l.id })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Pulihkan & Tayangkan"><CheckCircle2 className="size-3" /></button>
+  1334→              <button onClick={() => { if (confirm("Hapus permanen?")) del.mutate(l.id); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title="Hapus Permanen"><Trash2 className="size-3" /></button>
+  1335→            </div>
+  1336→          </div>
+  1337→        </div>
+  1338→      </div>
+  1339→    );
+  1340→  };
+  1341→
+  1342→  return (
+  1343→    <div className="space-y-3">
+  1344→      <h2 className="text-base font-bold">Iklan Ditolak ({rejectedListings.length})</h2>
+  1345→
+  1346→      {/* Package Tabs */}
+  1347→      <div className="overflow-x-auto gomesin-scroll">
+  1348→        <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+  1349→          {ADMIN_PKG_TABS.map((tab) => {
+  1350→            const isActive = activeTab === tab.key;
+  1351→            const count = tabCounts[tab.key] ?? 0;
+  1352→            return (
+  1353→              <button
+  1354→                key={tab.key}
+  1355→                onClick={() => setActiveTab(tab.key)}
+  1356→                className={cn(
+  1357→                  "relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition",
+  1358→                  isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+  1359→                )}
+  1360→              >
+  1361→                <tab.icon className="size-3.5" />
+  1362→                <span>{tab.label}</span>
+  1363→                <span className={cn(
+  1364→                  "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+  1365→                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+  1366→                )}>{count}</span>
+  1367→              </button>
+  1368→            );
+  1369→          })}
+  1370→        </div>
+  1371→      </div>
+  1372→
+  1373→      {/* Toolbar: Search + View Toggle */}
+  1374→      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  1375→        <div className="flex items-center gap-2">
+  1376→          <div className="relative flex-1 sm:flex-none">
+  1377→            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+  1378→            <input
+  1379→              type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+  1380→              placeholder="Cari iklan..."
+  1381→              className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary sm:w-56"
+  1382→            />
+  1383→          </div>
+  1384→          <span className="text-xs text-muted-foreground">{listings.length} iklan</span>
+  1385→        </div>
+  1386→        <div className="flex items-center gap-2">
+  1387→          <div className="flex overflow-hidden rounded-lg border border-border">
+  1388→            <button type="button" onClick={() => setViewMode("grid")}
+  1389→              className={cn("grid size-9 place-items-center transition", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1390→              aria-label="Grid"><LayoutGrid className="size-4" /></button>
+  1391→            <button type="button" onClick={() => setViewMode("line")}
+  1392→              className={cn("grid size-9 place-items-center border-l border-border transition", viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1393→              aria-label="Line"><List className="size-4" /></button>
+  1394→          </div>
+  1395→        </div>
+  1396→      </div>
+  1397→
+  1398→      {/* Results */}
+  1399→      {listings.length === 0 ? (
+  1400→        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+  1401→          <Frown className="size-12 text-muted-foreground" />
+  1402→          <h3 className="mt-3 text-lg font-semibold">Tidak ada iklan ditolak</h3>
+  1403→          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tidak ditemukan iklan ditolak untuk tab ini.</p>
+  1404→        </div>
+  1405→      ) : viewMode === "grid" ? (
+  1406→        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{listings.map(renderGridCard)}</div>
+  1407→      ) : (
+  1408→        <div className="rounded-xl border border-border bg-card overflow-hidden">{listings.map(renderLineCard)}</div>
+  1409→      )}
+  1410→
+  1411→      <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+  1412→        <XCircle className="mr-1 inline size-4" />
+  1413→        Iklan ditolak karena melanggar ketentuan atau ditolak admin. Pulihkan untuk tayang kembali, atau hapus permanen.
+  1414→      </div>
+  1415→
+  1416→      {/* PREVIEW DIALOG */}
+  1417→      {previewListing && (
+  1418→        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewListing(null)}>
+  1419→          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+  1420→            <div className="flex items-center justify-between border-b border-border p-4">
+  1421→              <h3 className="line-clamp-1 text-base font-bold">{previewListing.title}</h3>
+  1422→              <button onClick={() => setPreviewListing(null)} className="grid size-8 place-items-center rounded-lg hover:bg-accent"><XCircle className="size-5" /></button>
+  1423→            </div>
+  1424→            <div className="p-4">
+  1425→              <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
+  1426→                {previewListing.images?.[activeImg] && (
+  1427→                  <img src={previewListing.images[activeImg]} alt={previewListing.title} className="size-full object-cover" />
+  1428→                )}
+  1429→                {previewListing.images?.length > 1 && (
+  1430→                  <>
+  1431→                    <button onClick={() => setActiveImg((p) => (p - 1 + previewListing.images.length) % previewListing.images.length)} className="absolute left-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronLeft className="size-4" /></button>
+  1432→                    <button onClick={() => setActiveImg((p) => (p + 1) % previewListing.images.length)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronRight className="size-4" /></button>
+  1433→                    <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">{activeImg + 1} / {previewListing.images.length}</span>
+  1434→                  </>
+  1435→                )}
+  1436→              </div>
+  1437→              <div className="mt-4 space-y-2">
+  1438→                <div className="flex items-center gap-2">
+  1439→                  <Badge className="bg-red-100 text-red-700"><XCircle className="mr-0.5 size-3" /> Ditolak</Badge>
+  1440→                  {previewListing.violationReason && <span className="text-xs text-red-600">Alasan: {previewListing.violationReason}</span>}
+  1441→                </div>
+  1442→                <p className="text-sm text-muted-foreground">{previewListing.description}</p>
+  1443→                <div className="grid grid-cols-2 gap-2 text-xs">
+  1444→                  <div><span className="text-muted-foreground">Kategori:</span> {previewListing.category?.name}</div>
+  1445→                  <div><span className="text-muted-foreground">Penjual:</span> {previewListing.seller?.name}</div>
+  1446→                  <div><span className="text-muted-foreground">Lokasi:</span> {previewListing.city}, {previewListing.province}</div>
+  1447→                  <div><span className="text-muted-foreground">Harga:</span> {formatRupiahFull(previewListing.price)}</div>
+  1448→                </div>
+  1449→              </div>
+  1450→              <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
+  1451→                <Button size="sm" variant="default" onClick={() => { restore.mutate({ id: previewListing.id }); setPreviewListing(null); }}><CheckCircle2 className="size-4" /> Pulihkan & Tayangkan</Button>
+  1452→                <Button size="sm" variant="destructive" onClick={() => { if (confirm("Hapus permanen?")) { del.mutate(previewListing.id); setPreviewListing(null); } }}><Trash2 className="size-4" /> Hapus Permanen</Button>
+  1453→              </div>
+  1454→            </div>
+  1455→          </div>
+  1456→        </div>
+  1457→      )}
+  1458→    </div>
+  1459→  );
+  1460→}
+  1461→
+  1462→// ============ PENJUAL TAB ============
+  1463→function PenjualTab() {
+  1464→  const { t } = useLang();
+  1465→  const mounted = useMounted();
+  1466→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1467→  const qc = useQueryClient();
+  1468→  const { data, isLoading } = useQuery({ queryKey: ["admin-sellers"], queryFn: () => fetchJson("/api/admin/sellers") });
+  1469→  const toggle = useMutation({
+  1470→    mutationFn: ({ id, verified }: { id: string; verified: boolean }) => fetch("/api/admin/sellers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, verified }) }),
+  1471→    onSuccess: () => { toast.success(tr("admSellerStatusUpdated")); qc.invalidateQueries({ queryKey: ["admin-sellers"] }); },
+  1472→  });
+  1473→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  1474→  return (
+  1475→    <div className="space-y-3">
+  1476→      <h2 className="text-base font-bold">Verifikasi Penjual ({data.sellers.length})</h2>
+  1477→      <div className="space-y-2">
+  1478→        {data.sellers.map((s: any) => (
+  1479→          <div key={s.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+  1480→            <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{s.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}</div>
+  1481→            <div className="min-w-0 flex-1">
+  1482→              <div className="flex items-center gap-1"><p className="truncate text-sm font-semibold">{s.name}</p>{s.verified && <BadgeCheck className="size-4 shrink-0 text-primary" />}</div>
+  1483→              <p className="truncate text-xs text-muted-foreground">{s.phone} · {s.city}, {s.province}</p>
+  1484→              <p className="text-[10px] text-muted-foreground">{s.listingCount} iklan · ⭐ {s.rating} ({s.reviewCount} ulasan)</p>
+  1485→            </div>
+  1486→            <Button size="sm" variant={s.verified ? "outline" : "default"} onClick={() => toggle.mutate({ id: s.id, verified: !s.verified })}>
+  1487→              {s.verified ? <><XCircle className="size-3.5" /> Cabut</> : <><CheckCircle2 className="size-3.5" /> Verifikasi</>}
+  1488→            </Button>
+  1489→          </div>
+  1490→        ))}
+  1491→      </div>
+  1492→    </div>
+  1493→  );
+  1494→}
+  1495→
+  1496→// ============ KATEGORI TAB ============
+  1497→function KategoriTab() {
+  1498→  const { t } = useLang();
+  1499→  const mounted = useMounted();
+  1500→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1501→  const qc = useQueryClient();
+  1502→  const { data, isLoading } = useQuery({ queryKey: ["admin-categories"], queryFn: () => fetchJson("/api/admin/categories") });
+  1503→  const [showForm, setShowForm] = useState(false);
+  1504→  const [name, setName] = useState(""); const [slug, setSlug] = useState(""); const [icon, setIcon] = useState("Cog");
+  1505→  const create = useMutation({
+  1506→    mutationFn: () => fetch("/api/admin/categories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, slug: slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), icon }) }),
+  1507→    onSuccess: () => { toast.success(tr("admCategoryAdded")); setShowForm(false); setName(""); setSlug(""); qc.invalidateQueries({ queryKey: ["admin-categories"] }); },
+  1508→  });
+  1509→  const del = useMutation({
+  1510→    mutationFn: (id: string) => fetch(`/api/admin/categories/${id}`, { method: "DELETE" }),
+  1511→    onSuccess: () => { toast.success(tr("admCategoryDeleted")); qc.invalidateQueries({ queryKey: ["admin-categories"] }); },
+  1512→  });
+  1513→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  1514→  return (
+  1515→    <div className="space-y-3">
+  1516→      <div className="flex items-center justify-between">
+  1517→        <h2 className="text-base font-bold">Kelola Kategori ({data.categories.length})</h2>
+  1518→        <Button size="sm" onClick={() => setShowForm(!showForm)}><Plus className="size-4" /> Tambah</Button>
+  1519→      </div>
+  1520→      {showForm && (
+  1521→        <div className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-4">
+  1522→          <div><Label className="text-xs">Nama</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama kategori" /></div>
+  1523→          <div><Label className="text-xs">Slug</Label><Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="auto" /></div>
+  1524→          <div><Label className="text-xs">Icon</Label><Input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="Cog" /></div>
+  1525→          <div className="flex items-end"><Button className="w-full" onClick={() => create.mutate()} disabled={create.isPending}>{create.isPending ? <Loader2 className="size-4 animate-spin" /> : "Simpan"}</Button></div>
+  1526→        </div>
+  1527→      )}
+  1528→      <div className="grid gap-2 sm:grid-cols-2">
+  1529→        {data.categories.map((c: any) => (
+  1530→          <div key={c.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+  1531→            <span className="text-xs font-bold text-muted-foreground">#{c.sortOrder}</span>
+  1532→            <div className="flex-1"><p className="text-sm font-semibold">{c.name}</p><p className="text-xs text-muted-foreground">{c.slug} · {c.listingCount} iklan</p></div>
+  1533→            <button onClick={() => del.mutate(c.id)} className="grid size-7 place-items-center rounded bg-red-100 text-red-600 hover:bg-red-200" title={tr("admDelete")}><Trash2 className="size-4" /></button>
+  1534→          </div>
+  1535→        ))}
+  1536→      </div>
+  1537→    </div>
+  1538→  );
+  1539→}
+  1540→
+  1541→// ============ PENGGUNA TAB ============
+  1542→function PenggunaTab() {
+  1543→  const { t } = useLang();
+  1544→  const mounted = useMounted();
+  1545→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1546→  const qc = useQueryClient();
+  1547→  const { data, isLoading } = useQuery({ queryKey: ["admin-users"], queryFn: () => fetchJson("/api/admin/users") });
+  1548→  const [previewUser, setPreviewUser] = useState<any>(null);
+  1549→  const del = useMutation({
+  1550→    mutationFn: (id: string) => fetch("/api/admin/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
+  1551→    onSuccess: () => { toast.success(tr("admUserDeleted")); qc.invalidateQueries({ queryKey: ["admin-users"] }); },
+  1552→    onError: (e: any) => { const msg = e?.message || tr("admDeleteFailed2"); toast.error(msg); },
+  1553→  });
+  1554→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  1555→  const users = data.users;
+  1556→  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  1557→  const isAdmin = (u: any) => u.role === "admin" || u.role === "superadmin";
+  1558→
+  1559→  const handleDelete = (u: any, e: React.MouseEvent) => {
+  1560→    e.stopPropagation();
+  1561→    if (isAdmin(u)) { toast.error(tr("admCannotDeleteAdmin")); return; }
+  1562→    if (confirm(`Hapus user "${u.name}" (${u.email})?`)) {
+  1563→      del.mutate(u.id);
+  1564→    }
+  1565→  };
+  1566→
+  1567→  return (
+  1568→    <div className="space-y-3">
+  1569→      <h2 className="text-base font-bold">Pengguna Terdaftar ({users.length})</h2>
+  1570→      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+  1571→        <table className="w-full min-w-[640px] text-sm">
+  1572→          <thead><tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+  1573→            <th className="p-2">Nama</th><th className="p-2">Email</th><th className="hidden p-2 sm:table-cell">No. HP</th><th className="hidden p-2 sm:table-cell">Kota</th><th className="p-2">Role</th><th className="hidden p-2 sm:table-cell">Daftar</th><th className="p-2 text-center">Aksi</th>
+  1574→          </tr></thead>
+  1575→          <tbody>
+  1576→            {users.map((u: any) => (
+  1577→              <tr
+  1578→                key={u.id}
+  1579→                onClick={() => setPreviewUser(u)}
+  1580→                className="cursor-pointer border-b border-border hover:bg-accent/30"
+  1581→              >
+  1582→                <td className="p-2">
+  1583→                  <div className="flex items-center gap-2">
+  1584→                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+  1585→                      {u.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+  1586→                    </span>
+  1587→                    <span className="text-xs font-medium">{u.name}</span>
+  1588→                  </div>
+  1589→                </td>
+  1590→                <td className="p-2 text-xs text-muted-foreground">{u.email}</td>
+  1591→                <td className="hidden p-2 text-xs sm:table-cell">{u.phone || "-"}</td>
+  1592→                <td className="hidden p-2 text-xs sm:table-cell">{u.city || "-"}</td>
+  1593→                <td className="p-2"><Badge className={isAdmin(u) ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}>{u.role}</Badge></td>
+  1594→                <td className="hidden p-2 text-xs text-muted-foreground sm:table-cell">{fmtDate(u.createdAt)}</td>
+  1595→                <td className="p-2" onClick={(e) => e.stopPropagation()}>
+  1596→                  <div className="flex justify-center">
+  1597→                    <button
+  1598→                      onClick={(e) => handleDelete(u, e)}
+  1599→                      disabled={isAdmin(u) || del.isPending}
+  1600→                      className={cn(
+  1601→                        "grid size-7 place-items-center rounded transition",
+  1602→                        isAdmin(u) ? "cursor-not-allowed bg-muted text-muted-foreground/40" : "bg-red-100 text-red-600 hover:bg-red-200"
+  1603→                      )}
+  1604→                      title={isAdmin(u) ? "Tidak dapat menghapus admin" : "Hapus user"}
+  1605→                    >
+  1606→                      <Trash2 className="size-4" />
+  1607→                    </button>
+  1608→                  </div>
+  1609→                </td>
+  1610→              </tr>
+  1611→            ))}
+  1612→          </tbody>
+  1613→        </table>
+  1614→      </div>
+  1615→
+  1616→      {/* POPUP DATA USER LENGKAP */}
+  1617→      {previewUser && (
+  1618→        <div
+  1619→          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+  1620→          onClick={() => setPreviewUser(null)}
+  1621→        >
+  1622→          <div
+  1623→            className="w-full max-w-md overflow-y-auto rounded-xl bg-card shadow-2xl"
+  1624→            onClick={(e) => e.stopPropagation()}
+  1625→          >
+  1626→            {/* header */}
+  1627→            <div className="flex items-center justify-between border-b border-border p-4">
+  1628→              <h3 className="text-base font-bold">Detail Pengguna</h3>
+  1629→              <button onClick={() => setPreviewUser(null)} className="grid size-8 place-items-center rounded-lg hover:bg-accent">
+  1630→                <XCircle className="size-5" />
+  1631→              </button>
+  1632→            </div>
+  1633→
+  1634→            {/* content */}
+  1635→            <div className="p-4 space-y-4">
+  1636→              {/* avatar + name */}
+  1637→              <div className="flex items-center gap-3">
+  1638→                <span className="grid size-16 shrink-0 place-items-center rounded-full bg-primary/10 text-xl font-bold text-primary">
+  1639→                  {previewUser.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+  1640→                </span>
+  1641→                <div className="min-w-0">
+  1642→                  <p className="text-lg font-bold">{previewUser.name}</p>
+  1643→                  <Badge className={isAdmin(previewUser) ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}>{previewUser.role}</Badge>
+  1644→                </div>
+  1645→              </div>
+  1646→
+  1647→              {/* data lengkap */}
+  1648→              <div className="space-y-2 rounded-lg border border-border p-3">
+  1649→                <div className="flex items-center justify-between text-sm">
+  1650→                  <span className="flex items-center gap-1.5 text-muted-foreground"><Mail className="size-3.5" /> Email</span>
+  1651→                  <span className="font-medium">{previewUser.email}</span>
+  1652→                </div>
+  1653→                <Separator className="bg-border" />
+  1654→                <div className="flex items-center justify-between text-sm">
+  1655→                  <span className="flex items-center gap-1.5 text-muted-foreground"><Phone className="size-3.5" /> No. HP</span>
+  1656→                  <span className="font-medium">{previewUser.phone || "-"}</span>
+  1657→                </div>
+  1658→                <Separator className="bg-border" />
+  1659→                <div className="flex items-center justify-between text-sm">
+  1660→                  <span className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="size-3.5" /> Kota</span>
+  1661→                  <span className="font-medium">{previewUser.city || "-"}</span>
+  1662→                </div>
+  1663→                <Separator className="bg-border" />
+  1664→                <div className="flex items-center justify-between text-sm">
+  1665→                  <span className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="size-3.5" /> Tanggal Daftar</span>
+  1666→                  <span className="font-medium">{fmtDate(previewUser.createdAt)}</span>
+  1667→                </div>
+  1668→                <Separator className="bg-border" />
+  1669→                <div className="flex items-center justify-between text-sm">
+  1670→                  <span className="flex items-center gap-1.5 text-muted-foreground"><ShieldCheck className="size-3.5" /> Role</span>
+  1671→                  <Badge className={isAdmin(previewUser) ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}>{previewUser.role}</Badge>
+  1672→                </div>
+  1673→              </div>
+  1674→
+  1675→              {/* actions */}
+  1676→              {!isAdmin(previewUser) ? (
+  1677→                <Button
+  1678→                  variant="destructive"
+  1679→                  className="w-full gap-2"
+  1680→                  onClick={() => {
+  1681→                    if (confirm(`Hapus user "${previewUser.name}"?`)) {
+  1682→                      del.mutate(previewUser.id);
+  1683→                      setPreviewUser(null);
+  1684→                    }
+  1685→                  }}
+  1686→                  disabled={del.isPending}
+  1687→                >
+  1688→                  <Trash2 className="size-4" /> Hapus User
+  1689→                </Button>
+  1690→              ) : (
+  1691→                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-center text-xs text-amber-700">
+  1692→                  <ShieldCheck className="mx-auto mb-1 size-5" />
+  1693→                  Akun admin tidak dapat dihapus
+  1694→                </div>
+  1695→              )}
+  1696→            </div>
+  1697→          </div>
+  1698→        </div>
+  1699→      )}
+  1700→    </div>
+  1701→  );
+  1702→}
+  1703→
+  1704→// ============ MEREK TAB ============
+  1705→function MerekTab() {
+  1706→  const { t } = useLang();
+  1707→  const mounted = useMounted();
+  1708→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1709→  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  1710→  const [extraBrands, setExtraBrands] = useState<string[]>([]);
+  1711→  const [newBrand, setNewBrand] = useState("");
+  1712→
+  1713→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  1714→
+  1715→  // Compute brands from listings + extra brands added by admin
+  1716→  const brands: Record<string, number> = {};
+  1717→  data.listings.forEach((l: any) => { if (l.brand) brands[l.brand] = (brands[l.brand] || 0) + 1; });
+  1718→  extraBrands.forEach((b) => { if (!(b in brands)) brands[b] = 0; });
+  1719→  const sorted = Object.entries(brands).sort((a, b) => b[1] - a[1]);
+  1720→
+  1721→  const addBrand = () => {
+  1722→    const name = newBrand.trim();
+  1723→    if (!name) return;
+  1724→    if (name in brands) { toast.error(tr("admBrandExists")); return; }
+  1725→    setExtraBrands([...extraBrands, name]);
+  1726→    setNewBrand("");
+  1727→    toast.success(tr("admBrandAdded"));
+  1728→  };
+  1729→
+  1730→  const deleteBrand = (name: string) => {
+  1731→    setExtraBrands(extraBrands.filter((b) => b !== name));
+  1732→    toast.success(tr("admBrandDeleted"));
+  1733→  };
+  1734→
+  1735→  return (
+  1736→    <div className="space-y-3">
+  1737→      <div className="flex items-center justify-between">
+  1738→        <h2 className="text-base font-bold">Kelola Merek ({sorted.length})</h2>
+  1739→      </div>
+  1740→      <div className="flex gap-2">
+  1741→        <Input
+  1742→          value={newBrand}
+  1743→          onChange={(e) => setNewBrand(e.target.value)}
+  1744→          placeholder="Nama merek baru (mis. Heidelberg)"
+  1745→          className="h-9"
+  1746→          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBrand(); } }}
+  1747→        />
+  1748→        <Button size="sm" onClick={addBrand} disabled={!newBrand.trim()}>
+  1749→          <Plus className="size-4" /> Tambah
+  1750→        </Button>
+  1751→      </div>
+  1752→      <div className="grid gap-2 sm:grid-cols-3">
+  1753→        {sorted.map(([brand, count]) => (
+  1754→          <div key={brand} className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
+  1755→            <div className="flex items-center gap-2 min-w-0">
+  1756→              <Award className="size-5 shrink-0 text-amber-500" />
+  1757→              <div className="min-w-0">
+  1758→                <p className="truncate text-sm font-semibold">{brand}</p>
+  1759→                <p className="text-xs text-muted-foreground">{count} iklan</p>
+  1760→              </div>
+  1761→            </div>
+  1762→            <button
+  1763→              onClick={() => deleteBrand(brand)}
+  1764→              className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+  1765→              aria-label="Hapus merek"
+  1766→            >
+  1767→              <Trash2 className="size-3.5" />
+  1768→            </button>
+  1769→          </div>
+  1770→        ))}
+  1771→        {sorted.length === 0 && (
+  1772→          <div className="col-span-full rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+  1773→            Belum ada merek. Tambah merek baru di atas.
+  1774→          </div>
+  1775→        )}
+  1776→      </div>
+  1777→    </div>
+  1778→  );
+  1779→}
+  1780→
+  1781→// ============ LOKASI TAB ============
+  1782→function LokasiTab() {
+  1783→  const { t } = useLang();
+  1784→  const mounted = useMounted();
+  1785→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1786→  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  1787→  const [extraCities, setExtraCities] = useState<string[]>([]);
+  1788→  const [extraProvinces, setExtraProvinces] = useState<string[]>([]);
+  1789→  const [newCity, setNewCity] = useState("");
+  1790→  const [newProvince, setNewProvince] = useState("");
+  1791→
+  1792→  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  1793→
+  1794→  // Compute from listings + extra entries
+  1795→  const cities: Record<string, number> = {};
+  1796→  const provinces: Record<string, number> = {};
+  1797→  data.listings.forEach((l: any) => {
+  1798→    cities[l.city] = (cities[l.city] || 0) + 1;
+  1799→    provinces[l.province] = (provinces[l.province] || 0) + 1;
+  1800→  });
+  1801→  extraCities.forEach((c) => { if (!(c in cities)) cities[c] = 0; });
+  1802→  extraProvinces.forEach((p) => { if (!(p in provinces)) provinces[p] = 0; });
+  1803→  const cityList = Object.entries(cities).sort((a, b) => b[1] - a[1]);
+  1804→  const provList = Object.entries(provinces).sort((a, b) => b[1] - a[1]);
+  1805→
+  1806→  const addCity = () => {
+  1807→    const name = newCity.trim();
+  1808→    if (!name) return;
+  1809→    if (name in cities) { toast.error(tr("admCityExists")); return; }
+  1810→    setExtraCities([...extraCities, name]);
+  1811→    setNewCity("");
+  1812→    toast.success(tr("admCityAdded"));
+  1813→  };
+  1814→  const addProvince = () => {
+  1815→    const name = newProvince.trim();
+  1816→    if (!name) return;
+  1817→    if (name in provinces) { toast.error(tr("admProvinceExists")); return; }
+  1818→    setExtraProvinces([...extraProvinces, name]);
+  1819→    setNewProvince("");
+  1820→    toast.success(tr("admProvinceAdded"));
+  1821→  };
+  1822→  const deleteCity = (name: string) => {
+  1823→    setExtraCities(extraCities.filter((c) => c !== name));
+  1824→    toast.success(tr("admCityDeleted"));
+  1825→  };
+  1826→  const deleteProvince = (name: string) => {
+  1827→    setExtraProvinces(extraProvinces.filter((p) => p !== name));
+  1828→    toast.success(tr("admProvinceDeleted"));
+  1829→  };
+  1830→
+  1831→  return (
+  1832→    <div className="space-y-4">
+  1833→      <h2 className="text-base font-bold">Kelola Lokasi</h2>
+  1834→      <div className="grid gap-4 sm:grid-cols-2">
+  1835→        {/* Cities */}
+  1836→        <div>
+  1837→          <div className="mb-2 flex items-center justify-between">
+  1838→            <h3 className="text-sm font-bold">Kota ({cityList.length})</h3>
+  1839→          </div>
+  1840→          <div className="mb-2 flex gap-2">
+  1841→            <Input
+  1842→              value={newCity}
+  1843→              onChange={(e) => setNewCity(e.target.value)}
+  1844→              placeholder="Tambah kota..."
+  1845→              className="h-9"
+  1846→              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCity(); } }}
+  1847→            />
+  1848→            <Button size="sm" onClick={addCity} disabled={!newCity.trim()}>
+  1849→              <Plus className="size-4" />
+  1850→            </Button>
+  1851→          </div>
+  1852→          <div className="space-y-1.5">
+  1853→            {cityList.map(([city, count]) => (
+  1854→              <div key={city} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-sm">
+  1855→                <span className="flex items-center gap-1"><MapPin className="size-3 text-primary" />{city}</span>
+  1856→                <div className="flex items-center gap-2">
+  1857→                  <Badge variant="secondary">{count}</Badge>
+  1858→                  <button onClick={() => deleteCity(city)} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Hapus kota">
+  1859→                    <X className="size-3" />
+  1860→                  </button>
+  1861→                </div>
+  1862→              </div>
+  1863→            ))}
+  1864→            {cityList.length === 0 && (
+  1865→              <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">Belum ada kota.</div>
+  1866→            )}
+  1867→          </div>
+  1868→        </div>
+  1869→        {/* Provinces */}
+  1870→        <div>
+  1871→          <div className="mb-2 flex items-center justify-between">
+  1872→            <h3 className="text-sm font-bold">Provinsi ({provList.length})</h3>
+  1873→          </div>
+  1874→          <div className="mb-2 flex gap-2">
+  1875→            <Input
+  1876→              value={newProvince}
+  1877→              onChange={(e) => setNewProvince(e.target.value)}
+  1878→              placeholder="Tambah provinsi..."
+  1879→              className="h-9"
+  1880→              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addProvince(); } }}
+  1881→            />
+  1882→            <Button size="sm" onClick={addProvince} disabled={!newProvince.trim()}>
+  1883→              <Plus className="size-4" />
+  1884→            </Button>
+  1885→          </div>
+  1886→          <div className="space-y-1.5">
+  1887→            {provList.map(([prov, count]) => (
+  1888→              <div key={prov} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-sm">
+  1889→                <span>{prov}</span>
+  1890→                <div className="flex items-center gap-2">
+  1891→                  <Badge variant="secondary">{count}</Badge>
+  1892→                  <button onClick={() => deleteProvince(prov)} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Hapus provinsi">
+  1893→                    <X className="size-3" />
+  1894→                  </button>
+  1895→                </div>
+  1896→              </div>
+  1897→            ))}
+  1898→            {provList.length === 0 && (
+  1899→              <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">Belum ada provinsi.</div>
+  1900→            )}
+  1901→          </div>
+  1902→        </div>
+  1903→      </div>
+  1904→    </div>
+  1905→  );
+  1906→}
+  1907→
+  1908→// ============ BANNER TAB ============
+  1909→function BannerTab() {
+  1910→  const { t } = useLang();
+  1911→  const mounted = useMounted();
+  1912→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1913→  const [banners, setBanners] = useState([
+  1914→    { id: 1, title: tr("admBanner1Title"), status: "active", placement: "Home Hero", clicks: 342 },
+  1915→    { id: 2, title: tr("admBanner2Title"), status: "scheduled", placement: "Category Page", clicks: 0 },
+  1916→    { id: 3, title: tr("admBanner3Title"), status: "active", placement: "Sidebar", clicks: 128 },
+  1917→  ]);
+  1918→  const [showForm, setShowForm] = useState(false);
+  1919→  const [newTitle, setNewTitle] = useState("");
+  1920→  const [newPlacement, setNewPlacement] = useState("Home Hero");
+  1921→
+  1922→  const addBanner = () => {
+  1923→    if (!newTitle.trim()) return;
+  1924→    setBanners([...banners, { id: Date.now(), title: newTitle.trim(), status: "scheduled", placement: newPlacement, clicks: 0 }]);
+  1925→    setNewTitle("");
+  1926→    setShowForm(false);
+  1927→    toast.success(tr("admBannerAdded"));
+  1928→  };
+  1929→  const toggleStatus = (id: number) => {
+  1930→    setBanners(banners.map(b => b.id === id ? { ...b, status: b.status === "active" ? "scheduled" : "active" } : b));
+  1931→  };
+  1932→  const deleteBanner = (id: number) => {
+  1933→    setBanners(banners.filter(b => b.id !== id));
+  1934→    toast.success(tr("admBannerDeleted"));
+  1935→  };
+  1936→
+  1937→  return (
+  1938→    <div className="space-y-3">
+  1939→      <div className="flex items-center justify-between">
+  1940→        <h2 className="text-base font-bold">Banner Promosi ({banners.length})</h2>
+  1941→        <Button size="sm" onClick={() => setShowForm(!showForm)}>
+  1942→          <Plus className="size-4" /> {showForm ? "Batal" : "Tambah Banner"}
+  1943→        </Button>
+  1944→      </div>
+  1945→
+  1946→      {/* Add banner form */}
+  1947→      {showForm && (
+  1948→        <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+  1949→          <Input
+  1950→            value={newTitle}
+  1951→            onChange={(e) => setNewTitle(e.target.value)}
+  1952→            placeholder="Judul banner (mis. Promo Lebaran)"
+  1953→            className="h-9"
+  1954→          />
+  1955→          <div className="flex gap-2">
+  1956→            <select
+  1957→              value={newPlacement}
+  1958→              onChange={(e) => setNewPlacement(e.target.value)}
+  1959→              className="h-9 flex-1 rounded-md border border-border bg-card px-2 text-sm"
+  1960→            >
+  1961→              <option value="Home Hero">Home Hero</option>
+  1962→              <option value="Category Page">Category Page</option>
+  1963→              <option value="Sidebar">Sidebar</option>
+  1964→              <option value="Detail Page">Detail Page</option>
+  1965→            </select>
+  1966→            <Button size="sm" onClick={addBanner} disabled={!newTitle.trim()}>
+  1967→              <CheckCircle2 className="size-4" /> Simpan
+  1968→            </Button>
+  1969→          </div>
+  1970→        </div>
+  1971→      )}
+  1972→
+  1973→      {/* Banner list */}
+  1974→      <div className="space-y-2">
+  1975→        {banners.map((b) => (
+  1976→          <div key={b.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+  1977→            <Image className="size-5 shrink-0 text-primary" />
+  1978→            <div className="min-w-0 flex-1">
+  1979→              <p className="truncate text-sm font-semibold">{b.title}</p>
+  1980→              <p className="text-xs text-muted-foreground">{b.placement} · {b.clicks} klik</p>
+  1981→            </div>
+  1982→            <button
+  1983→              onClick={() => toggleStatus(b.id)}
+  1984→              className="shrink-0"
+  1985→              title="Toggle aktif"
+  1986→            >
+  1987→              <Badge className={b.status === "active" ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"}>
+  1988→                {b.status === "active" ? tr("admActive2") : tr("admScheduled")}
+  1989→              </Badge>
+  1990→            </button>
+  1991→            <button
+  1992→              onClick={() => deleteBanner(b.id)}
+  1993→              className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+  1994→              aria-label="Hapus banner"
+  1995→            >
+  1996→              <Trash2 className="size-3.5" />
+  1997→            </button>
+  1998→          </div>
+  1999→        ))}
+  2000→        {banners.length === 0 && (
+
+[showing lines 1-2000 of 2940; use offset=2001 with limit to continue reading]
