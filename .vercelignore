@@ -11,6 +11,7 @@ daemon*.log
 daemon*.pid
 daemon*.cjs
 *.mjs
+!postcss.config.mjs
 !src/**/*.mjs
 .git
 .zscripts
