@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@/lib/store";
 import Image from "next/image";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Heart,
   Share2,
@@ -64,6 +64,41 @@ export function DetailView() {
     enabled: !!slug,
   });
 
+  const l = data?.listing;
+  const related = data?.related;
+
+  // Update OG meta tags dynamically so shared links show ad image
+  useEffect(() => {
+    if (!l) return;
+    const title = listingTitle(l, mounted ? lang : "id");
+    const desc = listingDesc(l, mounted ? lang : "id").slice(0, 200);
+    const imageUrl = l.images[0] ? proxyUrl(l.images[0]) : "";
+    const setMeta = (prop: string, content: string) => {
+      let el = document.querySelector(`meta[property="${prop}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("property", prop);
+        document.head.appendChild(el);
+      }
+      el.content = content;
+    };
+    setMeta("og:title", title);
+    setMeta("og:description", desc);
+    setMeta("og:image", imageUrl);
+    setMeta("og:image:width", "1200");
+    setMeta("og:image:height", "630");
+    setMeta("og:type", "article");
+    setMeta("og:url", window.location.href);
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", title);
+    setMeta("twitter:description", desc);
+    setMeta("twitter:image", imageUrl);
+    document.title = `${title} — Gomesin`;
+    return () => {
+      document.title = "Gomesin — Jual baru/bekas Mesin Cetak, Mesin Industri & Jasa Teknisi Berkualitas";
+    };
+  }, [l, mounted, lang]);
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-6">
@@ -90,8 +125,6 @@ export function DetailView() {
     );
   }
 
-  const l = data.listing;
-  const related = data.related;
   const fav = favIds.includes(l.id);
   // Use the ad owner's registered phone (from User table) if available,
   // otherwise fall back to seller phone.
@@ -103,8 +136,15 @@ export function DetailView() {
 
   const share = async () => {
     try {
+      const title = listingTitle(l, mounted ? lang : "id");
+      const imageUrl = l.images[0] ? proxyUrl(l.images[0]) : undefined;
       if (navigator.share) {
-        await navigator.share({ title: l.title, text: l.title, url: window.location.href });
+        await navigator.share({
+          title,
+          text: `${title} — ${formatRupiahFull(l.price)}`,
+          url: window.location.href,
+          ...(imageUrl ? { files: [] } : {}),
+        });
       } else {
         await navigator.clipboard.writeText(window.location.href);
         toast.success(tr("linkCopied"));

@@ -75,7 +75,7 @@ export function SellerView() {
       <div className="mx-auto max-w-7xl px-4 py-16 text-center">
         <p className="text-lg font-semibold">{tr("notFound")}</p>
         <p className="mt-1 text-sm text-muted-foreground">Penjual tidak ditemukan atau belum memiliki iklan.</p>
-        <Button className="mt-4" onClick={goBack}>
+        <Button className="mt-4 bg-orange-500 text-white hover:bg-orange-600" onClick={goBack}>
           <ChevronLeft className="size-4" /> {tr("back")}
         </Button>
       </div>
@@ -117,7 +117,7 @@ export function SellerView() {
         <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
           <button
             onClick={goBack}
-            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm font-medium text-foreground shadow-sm transition hover:bg-accent"
+            className="inline-flex items-center gap-1 rounded-lg border border-orange-500 bg-orange-500 px-2.5 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600"
             aria-label={tr("back")}
           >
             <ChevronLeft className="size-4" /> {tr("back")}

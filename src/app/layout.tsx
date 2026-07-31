@@ -30,6 +30,7 @@ export const metadata: Metadata = {
     description: "Jual beli mesin industri, mesin cetak, CNC & sparepart mesin di Indonesia.",
     siteName: "Gomesin",
     type: "website",
+    images: [{ url: "/pwa-icon-512.png", width: 512, height: 512 }],
   },
   manifest: "/manifest.json",
   other: {
