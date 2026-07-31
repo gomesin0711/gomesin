@@ -66,7 +66,7 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
           : isHighlight
           ? "border-orange-400 bg-card ring-1 ring-orange-400/30 shadow-md"
           : isSundul
-          ? "border-purple-500 bg-purple-200 ring-2 ring-purple-400/40 shadow-md"
+          ? "border-purple-500 bg-purple-100 dark:bg-purple-950 ring-2 ring-purple-400/40 shadow-md"
           : isColek
           ? "border-blue-400 bg-card ring-1 ring-blue-400/30 shadow-sm"
           : "border-border bg-card"

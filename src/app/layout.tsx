@@ -76,7 +76,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${spaceGrotesk.variable} font-sans antialiased bg-background text-foreground`}>
+      <body className={`${spaceGrotesk.variable} font-sans antialiased bg-background text-foreground overflow-x-hidden`}>
         <Providers>{children}</Providers>
         <Toaster />
         <SonnerToaster richColors position="top-center" />

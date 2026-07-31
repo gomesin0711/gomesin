@@ -104,7 +104,7 @@ function ListingSection({
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   if (loading) {
     return viewMode === "grid" ? (
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {Array.from({ length: skeletonCount }).map((_, i) => (
           <ListingCardSkeleton key={i} />
         ))}
@@ -131,7 +131,7 @@ function ListingSection({
   }
   if (listings.length === 0) return null;
   return viewMode === "grid" ? (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {listings.map((l) => (
         <ListingCard key={l.id} listing={l} />
       ))}
@@ -221,7 +221,7 @@ function CarouselSection({
   }
 
   return (
-    <div className="relative" onMouseEnter={() => { pausedRef.current = true; }} onMouseLeave={() => { pausedRef.current = false; }}>
+    <div className="relative overflow-hidden" onMouseEnter={() => { pausedRef.current = true; }} onMouseLeave={() => { pausedRef.current = false; }}>
       {/* left arrow */}
       <button
         type="button"

@@ -134,7 +134,7 @@ export function AppShell() {
       {/* Hide footer on account/dashboard/admin views for cleaner UX */}
       {!["profile", "dashboard", "favorites", "login", "post", ...ADMIN_VIEWS].includes(view) && <Footer />}
       {/* Spacer so the fixed bottom nav (mobile) doesn't cover footer content */}
-      <div className="h-16 shrink-0 md:hidden" aria-hidden="true" />
+      <div className="h-[4.25rem] shrink-0 md:hidden" aria-hidden="true" />
       <BottomNav />
     </div>
   );

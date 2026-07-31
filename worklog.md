@@ -154,3 +154,43 @@ Stage Summary:
 - Project fully restored and running from uploaded workspace
 - All previous customizations re-applied (sidebar filter, mobile layout, delete confirmation, @theme inline)
 - Dev server running on port 3000, chat service on port 3003
+---
+Task ID: fix-layout
+Agent: Main Agent
+Task: Fix messy display ("tampilan berantakan")
+
+Work Log:
+- Analyzed all key layout components: page.tsx, app-shell.tsx, header.tsx, footer.tsx, bottom-nav.tsx, home.tsx, listings.tsx, detail.tsx, seller.tsx, listing-card.tsx, listing-row.tsx, listing-card-carousel.tsx, ad-banner.tsx, admin-sidebar.tsx
+- Found 147 "Module not found: @swc/helpers/_/_interop_require_default" warnings in dev log
+- Installed @swc/helpers@0.5.23 to resolve module warnings
+
+**Grid Column Fixes:**
+- home.tsx ListingSection: `md:grid-cols-6` → `md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6` (both grid and skeleton)
+- listings.tsx: terpopuler/terdahsyat/dicari `md:grid-cols-6` → `md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6`
+- detail.tsx similar ads: `grid-cols-3 sm:grid-cols-4 md:grid-cols-6` → `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`
+- seller.tsx listings: `md:grid-cols-4 lg:grid-cols-6` → `md:grid-cols-4 lg:grid-cols-5`
+
+**Overflow Fixes:**
+- layout.tsx body: added `overflow-x-hidden` to prevent horizontal scroll
+- home.tsx CarouselSection: added `overflow-hidden` to outer relative wrapper to contain `pe-[50vw]` padding
+
+**Spacing Fix:**
+- app-shell.tsx bottom nav spacer: `h-16` (64px) → `h-[4.25rem]` (68px) to match BottomNav height
+
+**Dark Mode Fixes:**
+- listing-card.tsx: sundul card `bg-purple-200` → `bg-purple-100 dark:bg-purple-950`
+- listing-row.tsx: added dark mode variants for spotlight (amber), highlight (orange), sundul (purple), colek (blue) rows
+
+**Consistency Fix:**
+- listing-row.tsx: added `proxyUrl()` import and wrapped image src (was the only component missing proxy)
+
+**Dependency Fix:**
+- Installed @swc/helpers@0.5.23 — resolved 147 Module not found warnings
+
+Stage Summary:
+- All grid layouts now use responsive column progression (2→3→4→5→6) instead of jumping to 6 at md
+- No horizontal overflow possible (body overflow-x-hidden + carousel overflow-hidden)
+- Bottom nav spacer matches actual nav height
+- Dark mode now has proper colors for all listing card/row package types
+- All images use consistent proxy URL
+- Dev log clean: all ✓ Compiled, all APIs 200, no module warnings

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useLang, translations as i18nTranslations, categoryName, listingTitle } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
+import { proxyUrl } from "@/lib/image";
 
 export function ListingRow({
   listing,
@@ -54,10 +55,10 @@ export function ListingRow({
       }}
       className={cn(
         "group cursor-pointer border-b border-border transition hover:bg-accent/50",
-        isSpotlight && "bg-amber-50 hover:bg-amber-100 border-amber-200",
-        isHighlight && "bg-orange-50 hover:bg-orange-100 border-orange-200",
-        isSundul && "bg-purple-50 hover:bg-purple-100 border-purple-200",
-        isColek && "bg-blue-50 hover:bg-blue-100 border-blue-200"
+        isSpotlight && "bg-amber-50 dark:bg-amber-950 hover:bg-amber-100 dark:hover:bg-amber-900 border-amber-200 dark:border-amber-800",
+        isHighlight && "bg-orange-50 dark:bg-orange-950 hover:bg-orange-100 dark:hover:bg-orange-900 border-orange-200 dark:border-orange-800",
+        isSundul && "bg-purple-100 dark:bg-purple-950 hover:bg-purple-200 dark:hover:bg-purple-900 border-purple-200 dark:border-purple-800",
+        isColek && "bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 dark:hover:bg-blue-900 border-blue-200 dark:border-blue-800"
       )}
     >
       {/* image */}
@@ -71,7 +72,7 @@ export function ListingRow({
         )}>
           {img ? (
             <Image
-              src={img}
+              src={proxyUrl(img)}
               alt={listingTitle(listing, mounted ? lang : "id")}
               fill
               sizes="120px"

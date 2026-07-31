@@ -218,7 +218,7 @@ export function SellerView() {
             <p className="mt-1 text-xs text-muted-foreground">Iklan dari penjual ini akan muncul di sini.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {activeListings.map((listing: any) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
