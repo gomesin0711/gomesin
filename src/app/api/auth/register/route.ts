@@ -76,6 +76,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (e: any) {
+    const msg = e?.message || "";
+    if (msg.includes("Unable to open the database") || msg.includes("database file") || msg.includes("DATABASE_URL")) {
+      return NextResponse.json(
+        { error: "Pendaftaran belum tersedia di versi online. Gunakan aplikasi lokal untuk mendaftar." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: "Gagal mendaftar: " + (e?.message || "unknown") },
       { status: 500 }

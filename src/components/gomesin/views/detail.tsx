@@ -367,6 +367,17 @@ export function DetailView() {
                 </p>
               </div>
             </div>
+            <Button
+              variant="outline"
+              className="mt-3 w-full gap-2 rounded-full text-xs"
+              size="sm"
+              onClick={() => {
+                const uid = (l as any).user?.id || l.seller.id;
+                if (uid) goToSeller(uid);
+              }}
+            >
+              <Tag className="size-3.5" /> {tr("viewSellerListings")}
+            </Button>
           </div>
         </div>
       </div>

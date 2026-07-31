@@ -43,6 +43,13 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (e: any) {
+    const msg = e?.message || "";
+    if (msg.includes("Unable to open the database") || msg.includes("database file") || msg.includes("DATABASE_URL")) {
+      return NextResponse.json(
+        { error: "Login belum tersedia di versi online. Gunakan aplikasi lokal untuk masuk." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: "Gagal masuk: " + (e?.message || "unknown") },
       { status: 500 }
