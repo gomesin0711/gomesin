@@ -2307,8 +2307,8 @@ function TransaksiTab() {
           </div>
         )
       ) : (
-        /* Line View — card rows like Iklan Aktif */
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        /* Table View */
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Frown className="size-12 text-muted-foreground" />
@@ -2316,57 +2316,86 @@ function TransaksiTab() {
               <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tidak ada data penjualan untuk filter ini.</p>
             </div>
           ) : (
-            filtered.map((l: any) => {
-              const pkg = getPkgBadge(l.packageType);
-              const { days: remainingDays, expired } = getRemainingDaysAdmin(l.paymentExpiry);
-              return (
-                <div key={l.id} className="group flex cursor-pointer gap-3 border-b border-border p-3 transition hover:bg-accent/50">
-                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
-                    {l.images?.[0] ? (
-                      <img src={l.images[0]} alt={l.title} className="size-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-6" /></div>
-                    )}
-                    <span className={cn("absolute right-1 top-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold shadow-sm", pkg.bg)}>
-                      {pkg.name}
-                    </span>
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="line-clamp-1 text-sm font-semibold text-foreground group-hover:text-primary">{l.title}</h3>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">{l.seller?.name || "-"} · {l.category?.name} · {l.city}</p>
-                      </div>
-                      <p className="shrink-0 text-sm font-bold text-orange-600">{formatRupiahFull(adFee(l))}</p>
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-bold",
-                        l.status === "active" ? "bg-green-50 text-green-600" : l.status === "expired" ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-600"
-                      )}>
-                        {l.status === "active" ? "Aktif" : l.status === "expired" ? "Expired" : l.status || "-"}
-                      </span>
-                      {l.paymentExpiry && l.paymentStatus === "paid" && (
-                        <span className={cn("flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold",
-                          expired ? "bg-red-50 text-red-600" : remainingDays <= 3 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"
-                        )}>
-                          <Timer className="size-2.5" />
-                          {expired ? "Non Aktif" : remainingDays === 0 ? "Berakhir hari ini" : `${remainingDays} hari lagi`}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-auto flex items-center justify-between pt-2">
-                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                        <span className="flex items-center gap-0.5"><Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0} dilihat</span>
-                        <span>Dipasang: {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
-                        {l.paymentExpiry && l.paymentStatus === "paid" && (
-                          <span className={cn(expired && "text-red-500 font-medium")}>Expired: {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+            <table className="w-full min-w-[700px] text-sm">
+              <thead>
+                <tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+                  <th className="p-2.5 w-10">#</th>
+                  <th className="p-2.5">Iklan</th>
+                  <th className="p-2.5">Paket</th>
+                  <th className="p-2.5">Penjual</th>
+                  <th className="p-2.5">Kota</th>
+                  <th className="p-2.5 text-right">Harga Iklan</th>
+                  <th className="p-2.5">Dipasang</th>
+                  <th className="p-2.5">Expired</th>
+                  <th className="p-2.5">Status</th>
+                  <th className="p-2.5 text-right">Views</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((l: any, idx: number) => {
+                  const pkg = getPkgBadge(l.packageType);
+                  const { days: remainingDays, expired } = getRemainingDaysAdmin(l.paymentExpiry);
+                  return (
+                    <tr key={l.id} className="border-b border-border transition hover:bg-accent/30">
+                      <td className="p-2.5 text-xs text-muted-foreground">{idx + 1}</td>
+                      <td className="p-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
+                            {l.images?.[0] ? (
+                              <img src={l.images[0]} alt={l.title} className="size-full object-cover" />
+                            ) : (
+                              <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-4" /></div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="line-clamp-1 max-w-[180px] text-xs font-semibold text-foreground">{l.title}</p>
+                            <p className="text-[10px] text-muted-foreground">{l.category?.name}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2.5">
+                        <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-bold", pkg.bg)}>{pkg.name}</span>
+                      </td>
+                      <td className="p-2.5 text-xs">{l.seller?.name || "-"}</td>
+                      <td className="p-2.5 text-xs">{l.city}</td>
+                      <td className="p-2.5 text-right text-xs font-bold text-orange-600">{formatRupiahFull(adFee(l))}</td>
+                      <td className="p-2.5 text-xs text-muted-foreground">
+                        {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                      </td>
+                      <td className="p-2.5">
+                        {l.paymentExpiry && l.paymentStatus === "paid" ? (
+                          <span className={cn("text-xs",
+                            expired ? "font-medium text-red-500" : remainingDays <= 3 ? "text-amber-600" : "text-muted-foreground"
+                          )}>
+                            {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
                         )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+                      </td>
+                      <td className="p-2.5">
+                        <div className="flex flex-col gap-0.5">
+                          <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-bold w-fit",
+                            l.status === "active" ? "bg-green-50 text-green-600" : l.status === "expired" ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-600"
+                          )}>
+                            {l.status === "active" ? "Aktif" : l.status === "expired" ? "Expired" : l.status === "sold" ? "Terjual" : l.status === "draft" ? "Draft" : l.status || "-"}
+                          </span>
+                          {l.paymentExpiry && l.paymentStatus === "paid" && (
+                            <span className={cn("flex w-fit items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold",
+                              expired ? "bg-red-50 text-red-600" : remainingDays <= 3 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"
+                            )}>
+                              <Timer className="size-2.5" />
+                              {expired ? "Non Aktif" : remainingDays === 0 ? "Hari ini" : `${remainingDays} hari`}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2.5 text-right text-xs text-muted-foreground">{l.views?.toLocaleString("id-ID") || 0}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       )}
