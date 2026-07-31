@@ -13,7 +13,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, BadgeCheck, MessageCircle, Loader2, MapPin, Tag, Trash2, Ban, Eraser, Check } from "lucide-react";
+import { Send, BadgeCheck, MessageCircle, Loader2, MapPin, Tag, Trash2, Ban, Eraser, Check, ImagePlus, Camera, FileImage } from "lucide-react";
 import type { Listing, Seller } from "@/lib/types";
 import { formatRupiahFull } from "@/lib/types";
 import { toast } from "sonner";
@@ -21,8 +21,9 @@ import { useLang, translations as i18nTranslations, formatT } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
 import { useChatSocket, type ChatMessage } from "@/lib/use-chat-socket";
+import { compressImage } from "@/lib/image";
 
-type Msg = { id?: string; role: "user" | "assistant"; content: string; time?: string };
+type Msg = { id?: string; role: "user" | "assistant"; content: string; image?: string | null; time?: string };
 
 // ===== Context menu position =====
 type MenuState = {
@@ -48,8 +49,11 @@ export function ChatWidget({
   const [menu, setMenu] = useState<MenuState>({ visible: false, x: 0, y: 0, msgIndex: -1 });
   const [selectedMsg, setSelectedMsg] = useState<number | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const [imgSending, setImgSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const imgFileRef = useRef<HTMLInputElement>(null);
+  const imgCamRef = useRef<HTMLInputElement>(null);
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
@@ -87,6 +91,7 @@ export function ChatWidget({
           id: m.id,
           role: m.sent ? "user" : "assistant",
           content: m.content,
+          image: m.image || null,
           time: new Date(m.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
         }));
         setMessages(dbMsgs);
@@ -111,7 +116,7 @@ export function ChatWidget({
         if (last && last.role === (msg.sent ? "user" : "assistant") && last.content === msg.content && last.time === time) {
           return prev;
         }
-        return [...prev, { id: msg.id, role: msg.sent ? "user" : "assistant", content: msg.content, time }];
+        return [...prev, { id: msg.id, role: msg.sent ? "user" : "assistant", content: msg.content, image: (msg as any).image || null, time }];
       });
       if (!msg.sent) {
         markRead(currentUser.id, ownerId);
@@ -239,6 +244,45 @@ export function ChatWidget({
     }
   };
 
+  const handleChatImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    if (!currentUser) {
+      toast.info(tr("chatLoginRequired"), { action: { label: tr("chatLoginAction"), onClick: goToLogin } });
+      e.target.value = "";
+      return;
+    }
+    if (!ownerId) { toast.info(tr("chatSellerNotRegistered")); e.target.value = ""; return; }
+    if (currentUser.id === ownerId) { toast.info(tr("chatOwnListing")); e.target.value = ""; return; }
+    setImgSending(true);
+    try {
+      for (const file of Array.from(files)) {
+        const compressed = await compressImage(file);
+        const now = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+        const localMsg: Msg = { role: "user", content: "📷 Foto", image: compressed, time: now };
+        setMessages((prev) => [...prev, localMsg]);
+        try {
+          const ack = await sendMessage({
+            senderId: currentUser.id, receiverId: ownerId, content: "📷 Foto",
+            image: compressed, listingId: listing.id, listingTitle: listing.title,
+          });
+          if (!ack?.ok) {
+            await fetch("/api/messages", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ senderId: currentUser.id, receiverId: ownerId, content: "📷 Foto", image: compressed, listingId: listing.id, listingTitle: listing.title }),
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: ["messages"] });
+        } catch { toast.error("Gagal mengirim foto"); }
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Gagal memproses gambar");
+    } finally {
+      setImgSending(false);
+      e.target.value = "";
+    }
+  };
+
   const initials = ownerName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   const img = listing.images?.[0];
 
@@ -316,7 +360,14 @@ export function ChatWidget({
                     selectedMsg === i && "ring-2 ring-blue-400 ring-offset-1"
                   )}
                 >
-                  {m.content}
+                  {m.image && (
+                    <img src={m.image} alt="" className="mb-1.5 max-h-48 w-auto rounded-lg object-contain" />
+                  )}
+                  {m.content && !m.image && m.content}
+                  {m.content && m.image && (
+                    <span className="text-xs opacity-70">{m.content}</span>
+                  )}
+                  {!m.content && !m.image && ""}
                   {m.time && (
                     <span className="ml-2 inline-block text-[9px] opacity-60">{m.time}</span>
                   )}
@@ -347,16 +398,29 @@ export function ChatWidget({
         {/* ===== INPUT ===== */}
         <form
           onSubmit={(e) => { e.preventDefault(); send(input); }}
-          className="flex items-center gap-2 border-t border-border bg-card p-3"
+          className="flex items-center gap-1.5 border-t border-border bg-card p-2.5"
         >
+          {/* Hidden image inputs */}
+          <input ref={imgFileRef} type="file" accept="image/*" className="hidden" onChange={handleChatImage} />
+          <input ref={imgCamRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleChatImage} />
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-9 shrink-0 text-muted-foreground hover:text-primary"
+            disabled={imgSending || blocked}
+            onClick={() => imgFileRef.current?.click()}
+          >
+            {imgSending ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+          </Button>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={blocked ? "Pengguna diblokir" : tr("chatPlaceholder")}
-            className="h-10 rounded-full"
+            className="h-9 flex-1 rounded-full"
             disabled={sending || blocked}
           />
-          <Button type="submit" size="icon" className="size-10 shrink-0 rounded-full bg-primary" disabled={sending || !input.trim() || blocked}>
+          <Button type="submit" size="icon" className="size-9 shrink-0 rounded-full bg-primary" disabled={sending || !input.trim() || blocked}>
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </form>

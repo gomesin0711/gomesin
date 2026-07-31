@@ -721,7 +721,7 @@ export function PostAdView() {
           <p className="-mt-1 mb-3 text-xs text-muted-foreground">
             {tr("packageDesc")}
           </p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {pkgKeys.map((key) => {
               const pk = paketMap[key];
               const isUpgradeOnly = key === 'sundul';
@@ -740,7 +740,7 @@ export function PostAdView() {
                   disabled={isUpgradeOnly}
                   onClick={() => { setSelectedPackage(key); setShowPayment(price > 0); setPaymentMethod(''); }}
                   className={cn(
-                    'relative rounded-xl border-2 bg-card p-5 text-left transition',
+                    'relative rounded-lg border-2 bg-card p-3 text-left transition',
                     isUpgradeOnly
                       ? 'cursor-not-allowed border-border bg-muted/40 opacity-60'
                       : selectedPackage === key
@@ -750,40 +750,40 @@ export function PostAdView() {
                   title={isUpgradeOnly ? 'Paket Colek hanya untuk iklan yang sudah terbit (upgrade)' : undefined}
                 >
                   {key === 'highlight' && !isUpgradeOnly && (
-                    <span className="absolute -top-2 left-3 rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">Populer</span>
+                    <span className="absolute -top-2 left-2 rounded-full bg-primary px-1.5 py-0.5 text-[8px] font-bold uppercase text-primary-foreground">Populer</span>
                   )}
                   {isUpgradeOnly && (
-                    <span className="absolute -top-2 right-2 rounded-full bg-slate-500 px-2 py-0.5 text-[8px] font-bold uppercase text-white">Upgrade saja</span>
+                    <span className="absolute -top-2 right-1 rounded-full bg-slate-500 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white">Upgrade saja</span>
                   )}
                   {disc > 0 && (
-                    <span className={cn('absolute -top-2 right-2 rounded-full bg-red-500 px-2 py-0.5 text-[9px] font-bold text-white', key === 'highlight' && '-top-8')}>-{disc}%</span>
+                    <span className={cn('absolute -top-2 right-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[8px] font-bold text-white', key === 'highlight' && '-top-7')}>-{disc}%</span>
                   )}
                   <div className="flex items-center justify-between">
-                    <span className="grid size-10 place-items-center rounded-lg bg-secondary">
-                      <Icon className={cn('size-5', pkgIconColorMap[key] || 'text-muted-foreground')} />
+                    <span className="grid size-7 place-items-center rounded-md bg-secondary">
+                      <Icon className={cn('size-4', pkgIconColorMap[key] || 'text-muted-foreground')} />
                     </span>
                     {selectedPackage === key && !isUpgradeOnly && (
-                      <span className="rounded-full bg-primary p-1">
-                        <CheckCircle2 className="size-4 text-primary-foreground" />
+                      <span className="rounded-full bg-primary p-0.5">
+                        <CheckCircle2 className="size-3 text-primary-foreground" />
                       </span>
                     )}
                   </div>
-                  <p className="mt-3 text-lg font-bold">{name}</p>
-                  <p className="mt-1 text-2xl font-extrabold text-primary">
+                  <p className="mt-2 text-xs font-bold">{name}</p>
+                  <p className="mt-0.5 text-sm font-extrabold text-primary">
                     {formatRupiahFull(price)}
                     {origPrice > 0 && origPrice > price && (
-                      <span className="ml-2 text-sm font-medium text-muted-foreground line-through">{formatRupiahFull(origPrice)}</span>
+                      <span className="ml-1 text-[10px] font-medium text-muted-foreground line-through">{formatRupiahFull(origPrice)}</span>
                     )}
-                    <span className="text-xs font-normal text-muted-foreground">/{dur} hari</span>
+                    <span className="text-[10px] font-normal text-muted-foreground">/{dur}hari</span>
                   </p>
                   {savings > 0 && (
-                    <p className="mt-0.5 text-xs font-semibold text-red-500">Hemat {formatRupiahFull(savings)}</p>
+                    <p className="mt-0.5 text-[10px] font-semibold text-red-500">Hemat {formatRupiahFull(savings)}</p>
                   )}
                   {feats.length > 0 && (
-                    <ul className="mt-3 space-y-1.5">
+                    <ul className="mt-2 space-y-1">
                       {feats.map((f: string, i: number) => (
-                        <li key={i} className="flex items-start gap-2 text-[11px] text-foreground">
-                          <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-orange-500" />
+                        <li key={i} className="flex items-start gap-1.5 text-[10px] leading-tight text-foreground">
+                          <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-orange-500" />
                           {f}
                         </li>
                       ))}
