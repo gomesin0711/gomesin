@@ -37,7 +37,7 @@ function Logo() {
           height={36}
           className="size-9 rounded-lg object-cover shadow-sm"
         />
-        <span className="text-xl tracking-tight" style={{ fontFamily: 'var(--font-archive-black), ui-sans-serif, system-ui, sans-serif' }}>
+        <span className="text-xl tracking-tight" style={{ fontFamily: 'var(--font-sora), ui-sans-serif, system-ui, sans-serif' }}>
           <span className="text-primary">go</span>mesin
         </span>
       </button>

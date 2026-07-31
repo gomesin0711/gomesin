@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Archivo_Black } from "next/font/google";
+import { Space_Grotesk, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -10,9 +10,9 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
 });
 
-const archivoBlack = Archivo_Black({
-  variable: "--font-archive-black",
-  weight: "400",
+const sora = Sora({
+  variable: "--font-sora",
+  weight: "700",
   subsets: ["latin"],
 });
 
@@ -84,7 +84,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${spaceGrotesk.variable} ${archivoBlack.variable} font-sans antialiased bg-background text-foreground overflow-x-hidden`}>
+      <body className={`${spaceGrotesk.variable} ${sora.variable} font-sans antialiased bg-background text-foreground overflow-x-hidden`}>
         <Providers>{children}</Providers>
         <Toaster />
         <SonnerToaster richColors position="top-center" />
