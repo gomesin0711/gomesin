@@ -301,3 +301,36 @@ Stage Summary:
 - Root cause: git commits were not pushed to GitHub, so Vercel deployed stale code
 - Fix: git push origin main + vercel --prod
 - Deployment: https://gomesin.vercel.app - Ready in 54s
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Add fallback data for API routes when SQLite DB is unavailable (Vercel serverless)
+
+Work Log:
+- Created src/lib/fallback-data.ts with 7 exported helper functions:
+  - getFallbackCategories() — returns categories with computed listingCount from seed
+  - getFallbackListings(filters?) — filtered/paginated listings matching API response shape
+  - getFallbackListingBySlug(slug) — single listing + related listings
+  - getFallbackPakets() — raw paket array from seed
+  - searchFallbackListings(q) — search results (listings, categories, sellers)
+  - getFallbackPopularListings(limit) — listings sorted by views (popular proxy)
+  - getFallbackMostSearchedListings(limit) — listings with chatCount/views fields
+- All helpers include a normalizeListing() internal function that ensures specs is parsed from JSON string, images is array, price is number, dates are ISO strings
+- Filters support: q (text search in title/description/brand/seller.name/city), category (slug, with jasa-teknisi special case), condition, province, packageType (comma-separated), sort (newest/price-asc/price-desc/popular), page, limit, ids, featured
+- Modified 6 API route files to wrap DB calls in try/catch with fallback:
+  - src/app/api/categories/route.ts GET
+  - src/app/api/listings/route.ts GET (POST handler untouched)
+  - src/app/api/listings/[slug]/route.ts GET (PATCH/DELETE untouched)
+  - src/app/api/search/route.ts GET
+  - src/app/api/listings/popular/route.ts GET
+  - src/app/api/listings/most-searched/route.ts GET
+- Removed unused jasaCategoryIds variable from getFallbackListings
+- Lint: only pre-existing errors (3 in daemon.cjs), no new issues
+- Dev log: all APIs returning 200, server compiled successfully
+
+Stage Summary:
+- All GET API routes now gracefully fall back to seed-data.json when SQLite is unavailable
+- POST/PATCH/DELETE handlers are completely untouched
+- Fallback responses match original DB response shapes exactly
+- Application will work on Vercel serverless without SQLite

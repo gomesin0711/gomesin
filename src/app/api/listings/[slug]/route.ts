@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { parseListing } from "@/lib/types";
 import { getPaketMap } from "@/lib/paket";
 import { saveImagesToLocal } from "@/lib/save-image";
+import { getFallbackListingBySlug } from "@/lib/fallback-data";
 
 export async function GET(
   _req: NextRequest,
@@ -10,36 +11,47 @@ export async function GET(
 ) {
   const { slug } = await params;
 
-  const listing = await db.listing.findUnique({
-    where: { slug },
-    include: { category: true, seller: true, user: true },
-  });
-
-  if (!listing) {
-    return NextResponse.json({ error: "Iklan tidak ditemukan" }, { status: 404 });
-  }
-
-  // increment views (non-blocking, fire and forget)
-  db.listing.update({ where: { id: listing.id }, data: { views: { increment: 1 } } }).catch(() => {});
-
-  // related: same category, exclude self — parallel with the above fire-and-forget
-  const [related] = await Promise.all([
-    db.listing.findMany({
-      where: {
-        status: "active",
-        categoryId: listing.categoryId,
-        id: { not: listing.id },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 6,
+  try {
+    const listing = await db.listing.findUnique({
+      where: { slug },
       include: { category: true, seller: true, user: true },
-    }),
-  ]);
+    });
 
-  return NextResponse.json({
-    listing: parseListing(listing),
-    related: related.map(parseListing),
-  });
+    if (!listing) {
+      return NextResponse.json({ error: "Iklan tidak ditemukan" }, { status: 404 });
+    }
+
+    // increment views (non-blocking, fire and forget)
+    db.listing.update({ where: { id: listing.id }, data: { views: { increment: 1 } } }).catch(() => {});
+
+    // related: same category, exclude self — parallel with the above fire-and-forget
+    const [related] = await Promise.all([
+      db.listing.findMany({
+        where: {
+          status: "active",
+          categoryId: listing.categoryId,
+          id: { not: listing.id },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        include: { category: true, seller: true, user: true },
+      }),
+    ]);
+
+    return NextResponse.json({
+      listing: parseListing(listing),
+      related: related.map(parseListing),
+    });
+  } catch (error) {
+    console.error("GET /api/listings/[slug] DB error, falling back to seed data", error);
+
+    const fallback = getFallbackListingBySlug(slug);
+    if (!fallback) {
+      return NextResponse.json({ error: "Iklan tidak ditemukan" }, { status: 404 });
+    }
+
+    return NextResponse.json(fallback);
+  }
 }
 
 export async function PATCH(

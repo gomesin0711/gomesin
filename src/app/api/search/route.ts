@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { searchFallbackListings } from "@/lib/fallback-data";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  try {
-    const q = req.nextUrl.searchParams.get("q")?.trim();
-    if (!q || q.length < 1) {
-      return NextResponse.json({ listings: [], categories: [], sellers: [] });
-    }
+  const q = req.nextUrl.searchParams.get("q")?.trim();
+  if (!q || q.length < 1) {
+    return NextResponse.json({ listings: [], categories: [], sellers: [] });
+  }
 
+  try {
     // Search users/sellers (name, company, city) — also to find their listings
     const matchingUsers = await db.user.findMany({
       where: {
@@ -118,8 +119,8 @@ export async function GET(req: NextRequest) {
       categories,
       sellers: sellersFormatted,
     });
-  } catch (e: any) {
-    console.error("GET /api/search error", e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (error) {
+    console.error("GET /api/search DB error, falling back to seed data", error);
+    return NextResponse.json(searchFallbackListings(q));
   }
 }
