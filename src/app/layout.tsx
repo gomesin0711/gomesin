@@ -60,6 +60,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="120x120" href="/pwa-icon-120.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/pwa-icon-192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/pwa-icon-512.png" />
+        <link rel="preload" href="/logo-sm.jpeg" as="image" type="image/jpeg" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

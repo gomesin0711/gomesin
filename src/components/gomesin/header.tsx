@@ -31,8 +31,10 @@ function Logo() {
         aria-label="Gomesin Beranda"
       >
         <img
-          src="/logo.jpeg"
+          src="/logo-sm.jpeg"
           alt="Gomesin"
+          width={36}
+          height={36}
           className="size-9 rounded-lg object-cover shadow-sm"
         />
         <span className="text-xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif' }}>
@@ -315,7 +317,7 @@ export function Header() {
       {/* ===== MOBILE (below md) ===== */}
       <div className="md:hidden">
         {/* Row 1: Logo (left) + Favorit & Location (top-right, aligned with logo) */}
-        <div className="flex h-14 items-center gap-1 px-3">
+        <div className="flex h-14 items-center gap-1 overflow-hidden px-3">
           <Logo />
           <div className="ml-auto flex items-center gap-0.5">
             <Popover open={langOpenMobile} onOpenChange={setLangOpenMobile}>
