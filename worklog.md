@@ -194,3 +194,38 @@ Stage Summary:
 - Dark mode now has proper colors for all listing card/row package types
 - All images use consistent proxy URL
 - Dev log clean: all ✓ Compiled, all APIs 200, no module warnings
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Image compression 120KB, chat image upload, smaller package cards, deploy
+
+Work Log:
+- Changed `src/lib/image.ts`: TARGET_BYTES from 200KB → 120KB, MAX_DIMENSION from 1024 → 800
+- Updated `src/components/gomesin/chat-widget.tsx`:
+  - Added Msg type `image?: string | null` field
+  - Added image upload with compression (compressImage 120KB)
+  - Added ImagePlus button in chat input area
+  - Hidden file inputs for gallery and camera
+  - Image display in chat message bubbles (max-h-48, object-contain)
+  - History loading includes image field
+  - Realtime message subscription includes image field
+  - Chat service (mini-services/chat-service/index.ts) already supports image field
+- Updated `src/components/gomesin/views/post-ad.tsx` package cards:
+  - Grid: `gap-4 sm:grid-cols-2 lg:grid-cols-4` → `grid-cols-2 gap-2.5 sm:grid-cols-4`
+  - Card padding: `p-5 rounded-xl` → `p-3 rounded-lg`
+  - Icon: `size-10 rounded-lg` → `size-7 rounded-md` with `size-4` icon
+  - Name: `text-lg` → `text-xs`
+  - Price: `text-2xl` → `text-sm`
+  - Features: `text-[11px]` → `text-[10px]`
+  - Check badge: `size-4 p-1` → `size-3 p-0.5`
+  - Badges: smaller text and padding
+- Pushed to GitHub: gomesin0711/gomesin (commit c09c0dc)
+- Vercel auto-deploy triggered but DEPLOYMENT_NOT_FOUND (Vercel auth token expired, needs re-login)
+- Local dev server confirmed working (HTTP 200)
+
+Stage Summary:
+- All images auto-compressed to max 120KB (pasang iklan, edit iklan, chat, payment proof)
+- Chat now supports image upload with auto-compression (ImagePlus button)
+- Package cards on Pasang Iklan page are now compact (2 cols on mobile, 4 on desktop)
+- Code pushed to GitHub, Vercel needs auth re-login to deploy
