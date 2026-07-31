@@ -284,3 +284,20 @@ Stage Summary:
 - Key fix: `@theme inline` → `@theme` in globals.css line 6
 - Added: `@source "../../src"` for explicit content scanning
 - Deployment: Successful, https://gomesin.vercel.app
+
+---
+Task ID: 2
+Agent: main
+Task: Fix Vercel deploying old code - push unpushed commits
+
+Work Log:
+- Discovered branch was ahead of origin/main by 2 commits (not pushed)
+- Vercel deploys from GitHub remote, so it was using OLD code without the @theme fix
+- Pushed 2 commits to origin/main: git push origin main
+- Triggered Vercel production deploy with the now-pushed code
+- Build completed in 28s, deployed successfully
+
+Stage Summary:
+- Root cause: git commits were not pushed to GitHub, so Vercel deployed stale code
+- Fix: git push origin main + vercel --prod
+- Deployment: https://gomesin.vercel.app - Ready in 54s
