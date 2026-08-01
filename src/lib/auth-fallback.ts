@@ -209,6 +209,21 @@ export async function fallbackChangePassword(
   return { ok: false, error: "User tidak ditemukan.", status: 404 };
 }
 
+export async function fallbackFindUserByPhone(phone: string): Promise<
+  | { ok: true; user: SafeUser }
+  | { ok: false; error: string; status: number }
+> {
+  const store = await getAuthStore();
+  const last10 = phone.replace(/[^0-9]/g, '').slice(-10);
+  for (const u of store.values()) {
+    const uPhone = (u.phone || '').replace(/[^0-9]/g, '');
+    if (uPhone.slice(-10) === last10 || uPhone === phone) {
+      return { ok: true, user: toSafe(u) };
+    }
+  }
+  return { ok: false, error: 'Nomor WhatsApp tidak terdaftar.', status: 404 };
+}
+
 export async function fallbackUpdateUser(
   userId: string,
   data: Partial<Pick<StoredUser, "name" | "phone" | "city" | "company" | "address" | "bannerImage" | "logoImage">>

@@ -381,3 +381,29 @@ Stage Summary:
 - All previous changes (orange back button, Sora Bold font) now live on production
 - Build completed in 28s, no errors
 - Deployment: https://gomesin.vercel.app
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Swap province/city on register, profile after register, WhatsApp OTP login
+
+Work Log:
+- Swapped Province and City field order on register form (Province now before City)
+- Changed post-register navigation: goToPost() → goToProfile() (beranda akun)
+- Created /api/auth/otp/route.ts: POST send OTP (6-digit, 5min TTL, 60s cooldown) + POST verify OTP
+- Added fallbackFindUserByPhone() to auth-fallback.ts for phone-based login
+- Updated /api/auth/login/route.ts to support phone-based login (find user by phone after OTP)
+- Rewrote login.tsx:
+  - Login tab: WhatsApp number → auto-send OTP → enter 6-digit PIN → login
+  - Register tab: Name, Email, WhatsApp (auto-OTP) → verify OTP → Province → City → Password → submit
+  - OtpPinInput component: 6 separate digit inputs with auto-advance, paste support
+  - OTP verified badge (green) shown after successful verification
+  - Login/Register button disabled until OTP verified
+  - Dev mode: OTP code shown in toast
+- Verified: OTP send 200, verify 200, phone login 200
+
+Stage Summary:
+- Register: Province before City, post-register → profile page
+- Login: WhatsApp + OTP required (no email+password)
+- Register: WhatsApp + OTP required before submit
+- OTP auto-sends when phone has 10+ digits, 60s cooldown
