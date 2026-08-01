@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { X, Download, Smartphone, Monitor, Tablet, Share2, ArrowUpFromLine } from "lucide-react";
+import { X, Download, Smartphone, Monitor, Tablet, Share2, ArrowUpFromLine, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/lib/i18n";
 
@@ -24,7 +24,7 @@ type Browser = "chrome" | "edge" | "samsung" | "huawei" | "opera" | "firefox" | 
 const DISMISSED_KEY = "gomesin-pwa-dismissed";
 const INSTALLED_KEY = "gomesin-pwa-installed";
 const DISMISS_MS = 24 * 60 * 60 * 1000; // 1 day
-const SHOW_DELAY_MS = 1500; // show popup after 1.5s
+const SHOW_DELAY_MS = 2000;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -103,7 +103,9 @@ const T: Record<string, Record<string, string>> = {
   iosStep1Icon:  { id: "Share", en: "Share", zh: "\u5206\u4eab" },
   iosStep2:      { id: "di bilah bawah browser", en: "button in the browser bottom bar", zh: "\u6d4f\u89c8\u5668\u5e95\u90e8\u680f\u7684\u6309\u94ae" },
   iosStep3:      { id: 'Lalu pilih "Tambahkan ke Layar Utama"', en: 'Then select "Add to Home Screen"', zh: '\u7136\u540e\u9009\u62e9\u201c\u6dfb\u52a0\u5230\u4e3b\u5c4f\u5e55\u201d' },
-  desktopHint:   { id: "Klik tombol install di bilah alamat browser Anda", en: "Click the install icon in your browser address bar", zh: "\u70b9\u51fb\u6d4f\u89c8\u5668\u5730\u5740\u680f\u4e2d\u7684\u5b89\u88c5\u56fe\u6807" },
+  desktopHint:   { id: "Klik ikon install (\u2295 atau panah ke bawah) di bilah alamat browser Anda, lalu pilih \"Install\"", en: "Click the install icon in your browser address bar, then select \"Install\"", zh: "\u70b9\u51fb\u6d4f\u89c8\u5668\u5730\u5740\u680f\u4e2d\u7684\u5b89\u88c5\u56fe\u6807\uff0c\u7136\u540e\u9009\u62e9\"\u5b89\u88c5\"" },
+  desktopHintShort: { id: "Klik ikon install di bilah alamat browser", en: "Click install icon in address bar", zh: "\u70b9\u51fb\u5730\u5740\u680f\u5b89\u88c5\u56fe\u6807" },
+  gotIt:        { id: "Mengerti", en: "Got it", zh: "\u660e\u767d\u4e86" },
 };
 
 function tr(key: string, lang: string): string {
@@ -125,46 +127,31 @@ export function PwaInstallPrompt() {
   const browser: Browser = typeof window !== "undefined" ? detectBrowser() : "chrome";
   const chromium = isChromium(browser);
 
-  /* ------ Main logic: show popup after delay ------ */
+  /* ------ Main logic: always show popup after delay ------ */
   useEffect(() => {
     if (isStandalone() || isInstalled() || !canShow()) return;
 
+    // Capture beforeinstallprompt for Chromium (enables native install dialog)
     if (chromium) {
-      // Chromium: capture beforeinstallprompt, show our popup + offer native install
       const handler = (e: Event) => {
         e.preventDefault();
-        const evt = e as BeforeInstallPromptEvent;
-        deferredRef.current = evt;
-
-        if (!autoFiredRef.current) {
-          autoFiredRef.current = true;
-          // Show our custom popup (user clicks Install to trigger native dialog)
-          setShowPopup(true);
-        }
+        deferredRef.current = e as BeforeInstallPromptEvent;
       };
-
       window.addEventListener("beforeinstallprompt", handler);
-
-      // Fallback: if no beforeinstallprompt after 5s, still show popup
-      const fallback = setTimeout(() => {
-        if (!autoFiredRef.current && !isStandalone() && canShow()) {
-          setShowPopup(true);
-        }
-      }, 5000);
-
-      return () => {
-        window.removeEventListener("beforeinstallprompt", handler);
-        clearTimeout(fallback);
-      };
     }
 
-    // Non-Chromium (iOS Safari, Firefox, etc.): show popup after delay
-    if (!chromium && canShow()) {
-      const timer = setTimeout(() => {
-        if (!isStandalone()) setShowPopup(true);
-      }, SHOW_DELAY_MS);
-      return () => clearTimeout(timer);
-    }
+    // Show popup after delay for ALL browsers/platforms
+    const timer = setTimeout(() => {
+      if (!isStandalone() && canShow()) {
+        autoFiredRef.current = true;
+        setShowPopup(true);
+      }
+    }, SHOW_DELAY_MS);
+
+    return () => {
+      if (chromium) window.removeEventListener("beforeinstallprompt", () => {});
+      clearTimeout(timer);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ------ listen for appinstalled ------ */
@@ -180,7 +167,7 @@ export function PwaInstallPrompt() {
 
   /* ------ handle install button tap ------ */
   const handleInstall = useCallback(async () => {
-    // Chromium with deferred prompt: trigger native install dialog
+    // If we have the native install prompt, trigger it
     if (deferredRef.current) {
       setInstalling(true);
       try {
@@ -211,7 +198,8 @@ export function PwaInstallPrompt() {
       return;
     }
 
-    // Fallback: dismiss
+    // Desktop/Android Chromium without deferred prompt (Edge, etc.):
+    // Just close popup — user needs to use browser's address bar install icon
     setShowPopup(false);
     markDismissed();
   }, [platform]);
@@ -225,8 +213,12 @@ export function PwaInstallPrompt() {
   /* ------ don't render if standalone, installed, or hidden ------ */
   if (isStandalone() || isInstalled() || !showPopup) return null;
 
+  /* ------ Whether we can trigger native install directly ------ */
+  const hasNativeInstall = !!deferredRef.current;
+
   /* ------ Platform-specific instruction content ------ */
   const renderInstructions = () => {
+    // iOS: share sheet instructions
     if (platform === "ios") {
       return (
         <div className="mt-4 rounded-xl bg-muted/50 p-3">
@@ -241,6 +233,23 @@ export function PwaInstallPrompt() {
         </div>
       );
     }
+
+    // Desktop/Android Chromium (Chrome, Edge, etc.) WITHOUT native prompt:
+    // Show instructions to use browser address bar
+    if (chromium && !hasNativeInstall) {
+      return (
+        <div className="mt-4 rounded-xl bg-primary/5 border border-primary/10 p-3">
+          <div className="flex items-start gap-2.5">
+            <MonitorSmartphone className="size-5 shrink-0 mt-0.5 text-primary" />
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {tr("desktopHint", lang)}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Non-Chromium desktop (Firefox, Safari desktop)
     if (platform === "desktop" && !chromium) {
       return (
         <div className="mt-4 rounded-xl bg-muted/50 p-3">
@@ -250,6 +259,7 @@ export function PwaInstallPrompt() {
         </div>
       );
     }
+
     return null;
   };
 
@@ -257,6 +267,11 @@ export function PwaInstallPrompt() {
     platform === "ios" ? <Tablet className="size-5" /> :
     platform === "android" ? <Smartphone className="size-5" /> :
     <Monitor className="size-5" />;
+
+  // Button label changes based on whether we have native install
+  const installBtnLabel = hasNativeInstall
+    ? tr("install", lang)
+    : (platform === "ios" ? tr("install", lang) : tr("gotIt", lang));
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -282,6 +297,7 @@ export function PwaInstallPrompt() {
 
             {/* App icon */}
             <div className="mx-auto mb-3 grid size-20 place-items-center rounded-2xl bg-white shadow-lg">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/pwa-icon-192.png" alt="Gomesin" className="size-16 rounded-xl" />
             </div>
 
@@ -317,7 +333,7 @@ export function PwaInstallPrompt() {
             </div>
           </div>
 
-          {/* Platform instructions (iOS etc.) */}
+          {/* Platform instructions */}
           <div className="px-5">
             {renderInstructions()}
           </div>
@@ -330,7 +346,7 @@ export function PwaInstallPrompt() {
               disabled={installing}
             >
               <Download className="size-5" />
-              {installing ? "Menginstall..." : tr("install", lang)}
+              {installing ? "Menginstall..." : installBtnLabel}
             </Button>
             <button
               onClick={handleDismiss}
