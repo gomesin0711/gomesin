@@ -96,16 +96,16 @@ export function LoginView() {
     return () => { if (checkTimerRef.current) clearTimeout(checkTimerRef.current); };
   }, [lEmail, checkEmail]);
 
+  const [rName, setRName] = useState("");
+  const [rEmail, setREmail] = useState("");
+  const [rPhone, setRPhone] = useState("");
+
   useEffect(() => {
     if (rCheckTimerRef.current) clearTimeout(rCheckTimerRef.current);
     if (!rEmail.trim()) { setREmailStatus("idle"); return; }
     rCheckTimerRef.current = setTimeout(() => checkREmail(rEmail.trim()), 500);
     return () => { if (rCheckTimerRef.current) clearTimeout(rCheckTimerRef.current); };
   }, [rEmail, checkREmail]);
-
-  const [rName, setRName] = useState("");
-  const [rEmail, setREmail] = useState("");
-  const [rPhone, setRPhone] = useState("");
   const [rCity, setRCity] = useState("");
   const [rProvince, setRProvince] = useState("");
   const [rPass, setRPass] = useState("");
