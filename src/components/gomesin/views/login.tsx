@@ -264,6 +264,9 @@ export function LoginView() {
   const [success, setSuccess] = useState(false);
 
   // Login state
+  const [loginMethod, setLoginMethod] = useState<"email" | "whatsapp">("whatsapp");
+  const [lEmail, setLEmail] = useState("");
+  const [lPass, setLPass] = useState("");
   const [lPhone, setLPhone] = useState("");
   const loginOtp = useOtp();
 
@@ -287,20 +290,30 @@ export function LoginView() {
 
   const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (lPhone.replace(/\D/g, "").length < 10) {
-      toast.error(tr("errPhoneRequired"));
-      return;
-    }
-    if (loginOtp.otpState !== "verified") {
-      toast.error(tr("errPhoneNotVerified"));
-      return;
-    }
     setLoading(true);
     try {
+      let body: Record<string, string>;
+      if (loginMethod === "email") {
+        if (!lEmail.trim() || !lPass) {
+          toast.error(tr("errEmailPass"));
+          return;
+        }
+        body = { email: lEmail, password: lPass };
+      } else {
+        if (lPhone.replace(/\D/g, "").length < 10) {
+          toast.error(tr("errPhoneRequired"));
+          return;
+        }
+        if (loginOtp.otpState !== "verified") {
+          toast.error(tr("errPhoneNotVerified"));
+          return;
+        }
+        body = { phone: lPhone };
+      }
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: lPhone }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -419,6 +432,9 @@ export function LoginView() {
             tab={tab} setTab={setTab}
             showPass={showPass} setShowPass={setShowPass}
             loading={loading}
+            loginMethod={loginMethod} setLoginMethod={setLoginMethod}
+            lEmail={lEmail} setLEmail={setLEmail}
+            lPass={lPass} setLPass={setLPass}
             lPhone={lPhone} setLPhone={setLPhone}
             loginOtp={loginOtp}
             rName={rName} setRName={setRName}
@@ -500,6 +516,9 @@ export function LoginView() {
               tab={tab} setTab={setTab}
               showPass={showPass} setShowPass={setShowPass}
               loading={loading}
+              loginMethod={loginMethod} setLoginMethod={setLoginMethod}
+              lEmail={lEmail} setLEmail={setLEmail}
+              lPass={lPass} setLPass={setLPass}
               lPhone={lPhone} setLPhone={setLPhone}
               loginOtp={loginOtp}
               rName={rName} setRName={setRName}
@@ -528,6 +547,8 @@ export function LoginView() {
 /* ===== Reusable form section (used in both mobile & desktop) ===== */
 function FormSection({
   tab, setTab, showPass, setShowPass, loading,
+  loginMethod, setLoginMethod,
+  lEmail, setLEmail, lPass, setLPass,
   lPhone, setLPhone, loginOtp,
   rName, setRName, rEmail, setREmail, rPhone, setRPhone, registerOtp,
   rCity, setRCity, rProvince, setRProvince,
@@ -537,6 +558,10 @@ function FormSection({
   tab: string; setTab: (v: "login" | "register") => void;
   showPass: boolean; setShowPass: (v: boolean | ((p: boolean) => boolean)) => void;
   loading: boolean;
+  loginMethod: "email" | "whatsapp";
+  setLoginMethod: (v: "email" | "whatsapp") => void;
+  lEmail: string; setLEmail: (v: string) => void;
+  lPass: string; setLPass: (v: string) => void;
   lPhone: string; setLPhone: (v: string) => void;
   loginOtp: ReturnType<typeof useOtp>;
   rName: string; setRName: (v: string) => void;
@@ -562,11 +587,63 @@ function FormSection({
       {/* ========== LOGIN TAB ========== */}
       <TabsContent value="login">
         <form onSubmit={doLogin} className="space-y-4 rounded-xl border border-border bg-card p-5">
-          <WaOtpField phone={lPhone} setPhone={setLPhone} otp={loginOtp} tr={tr} />
+          {/* Login method dropdown */}
+          <div className="space-y-1.5">
+            <Label>{tr("loginMethod")}</Label>
+            <Select value={loginMethod} onValueChange={(v) => { setLoginMethod(v as "email" | "whatsapp"); loginOtp.reset(); }}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="whatsapp">
+                  <span className="inline-flex items-center gap-2">
+                    <Phone className="size-4 text-[#25D366]" />
+                    {tr("whatsapp")}
+                  </span>
+                </SelectItem>
+                <SelectItem value="email">
+                  <span className="inline-flex items-center gap-2">
+                    <Mail className="size-4" />
+                    {tr("email")}
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Email + Password fields */}
+          {loginMethod === "email" && (
+            <>
+              <div className="space-y-1.5 animate-fade-up">
+                <Label htmlFor="l-email">{tr("email")}</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input id="l-email" type="email" autoComplete="email" value={lEmail} onChange={(e) => setLEmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="l-pass">{tr("password")}</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input id="l-pass" type={showPass ? "text" : "password"} autoComplete="current-password" value={lPass} onChange={(e) => setLPass(e.target.value)} placeholder="••••••••" className="px-9" />
+                  <button type="button" onClick={() => setShowPass((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={showPass ? tr("hidePass") : tr("showPass")}>
+                    {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* WhatsApp OTP fields */}
+          {loginMethod === "whatsapp" && (
+            <div className="animate-fade-up">
+              <WaOtpField phone={lPhone} setPhone={setLPhone} otp={loginOtp} tr={tr} />
+            </div>
+          )}
 
           <Button
             type="submit"
-            disabled={loading || loginOtp.otpState !== "verified"}
+            disabled={loading || (loginMethod === "whatsapp" && loginOtp.otpState !== "verified")}
             className="w-full gap-2 bg-primary font-semibold"
             size="lg"
           >

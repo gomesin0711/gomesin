@@ -436,3 +436,24 @@ Stage Summary:
 - Login API now supports { phone } in addition to { email, password }
 - i18n: all 3 languages (id, en, zh) have OTP-related keys
 - Dev server compiled successfully with no new errors
+---
+Task ID: 2
+Agent: main
+Task: Add email/WhatsApp dropdown on login tab
+
+Work Log:
+- Added `loginMethod` state ("email" | "whatsapp") to LoginView, defaulting to "whatsapp"
+- Added `lEmail` and `lPass` states for email-based login
+- Updated `doLogin` to handle both email+password and WhatsApp OTP login methods
+- Added `loginMethod`, `setLoginMethod`, `lEmail`, `setLEmail`, `lPass`, `setLPass` props to FormSection
+- Login tab now has a dropdown (Select) with WhatsApp (with green phone icon) and Email (with mail icon)
+- When WhatsApp selected: shows WhatsApp OTP field, Masuk button disabled until OTP verified
+- When Email selected: shows email input + password input with show/hide toggle, Masuk button enabled immediately
+- Added `loginMethod` i18n key to all 3 languages (id: "Masuk dengan", en: "Login with", zh: "登录方式")
+- Verified with Agent Browser: dropdown works, both modes show correct fields
+
+Stage Summary:
+- Login tab has 2-option dropdown: WhatsApp (default) and Email
+- WhatsApp mode: phone + OTP flow
+- Email mode: email + password flow
+- Smooth animate-fade-up transition between modes
