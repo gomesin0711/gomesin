@@ -53,9 +53,11 @@ export function LoginView() {
   const [lEmail, setLEmail] = useState("");
   const [lPass, setLPass] = useState("");
   const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "exists" | "notfound">("idle");
+  const [rEmailStatus, setREmailStatus] = useState<"idle" | "checking" | "exists" | "notfound">("idle");
   const checkTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const rCheckTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Debounced email check
+  // Debounced email check (login tab)
   const checkEmail = useCallback(async (email: string) => {
     if (!email.includes("@") || !email.includes(".")) {
       setEmailStatus("idle");
@@ -71,12 +73,35 @@ export function LoginView() {
     }
   }, []);
 
+  // Debounced email check (register tab)
+  const checkREmail = useCallback(async (email: string) => {
+    if (!email.includes("@") || !email.includes(".")) {
+      setREmailStatus("idle");
+      return;
+    }
+    setREmailStatus("checking");
+    try {
+      const res = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      setREmailStatus(data.exists ? "exists" : "notfound");
+    } catch {
+      setREmailStatus("idle");
+    }
+  }, []);
+
   useEffect(() => {
     if (checkTimerRef.current) clearTimeout(checkTimerRef.current);
     if (!lEmail.trim()) { setEmailStatus("idle"); return; }
     checkTimerRef.current = setTimeout(() => checkEmail(lEmail.trim()), 500);
     return () => { if (checkTimerRef.current) clearTimeout(checkTimerRef.current); };
   }, [lEmail, checkEmail]);
+
+  useEffect(() => {
+    if (rCheckTimerRef.current) clearTimeout(rCheckTimerRef.current);
+    if (!rEmail.trim()) { setREmailStatus("idle"); return; }
+    rCheckTimerRef.current = setTimeout(() => checkREmail(rEmail.trim()), 500);
+    return () => { if (rCheckTimerRef.current) clearTimeout(rCheckTimerRef.current); };
+  }, [rEmail, checkREmail]);
 
   const [rName, setRName] = useState("");
   const [rEmail, setREmail] = useState("");
@@ -217,8 +242,9 @@ export function LoginView() {
             lEmail={lEmail} setLEmail={setLEmail}
             lPass={lPass} setLPass={setLPass}
             emailStatus={emailStatus}
-            rName={rName} setRName={setRName}
             rEmail={rEmail} setREmail={setREmail}
+            rEmailStatus={rEmailStatus}
+            rName={rName} setRName={setRName}
             rPhone={rPhone} setRPhone={setRPhone}
             rCity={rCity} setRCity={setRCity}
             rProvince={rProvince} setRProvince={setRProvince}
@@ -300,6 +326,7 @@ export function LoginView() {
               emailStatus={emailStatus}
               rName={rName} setRName={setRName}
               rEmail={rEmail} setREmail={setREmail}
+              rEmailStatus={rEmailStatus}
               rPhone={rPhone} setRPhone={setRPhone}
               rCity={rCity} setRCity={setRCity}
               rProvince={rProvince} setRProvince={setRProvince}
@@ -337,6 +364,7 @@ function FormSection({
   emailStatus: "idle" | "checking" | "exists" | "notfound";
   rName: string; setRName: (v: string) => void;
   rEmail: string; setREmail: (v: string) => void;
+  rEmailStatus: "idle" | "checking" | "exists" | "notfound";
   rPhone: string; setRPhone: (v: string) => void;
   rCity: string; setRCity: (v: string) => void;
   rProvince: string; setRProvince: (v: string) => void;
@@ -419,8 +447,20 @@ function FormSection({
             <Label htmlFor="r-email">{`${tr("email")} *`}</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input id="r-email" type="email" autoComplete="email" value={rEmail} onChange={(e) => setREmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
+              <Input id="r-email" type="email" autoComplete="email" value={rEmail} onChange={(e) => setREmail(e.target.value)} placeholder="nama@email.com" className={cn("pl-9", rEmailStatus === "exists" ? "border-destructive" : rEmailStatus === "notfound" ? "border-green-500" : "")} />
+              {rEmailStatus === "checking" && (
+                <Loader2 className="absolute right-3 top-1/2 size-4 animate-spin text-muted-foreground" />
+              )}
+              {rEmailStatus === "exists" && (
+                <AlertCircle className="absolute right-3 top-1/2 size-4 text-destructive" />
+              )}
+              {rEmailStatus === "notfound" && (
+                <CheckCircle2 className="absolute right-3 top-1/2 size-4 text-green-500" />
+              )}
             </div>
+            {rEmailStatus === "exists" && (
+              <p className="text-xs text-destructive">Email sudah terdaftar</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="r-phone">{tr("whatsapp")}</Label>
@@ -453,7 +493,7 @@ function FormSection({
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 accent-primary" />
             <span>{tr("agreeTerms")}</span>
           </label>
-          <Button type="submit" disabled={loading} className="w-full gap-2 bg-primary font-semibold" size="lg">
+          <Button type="submit" disabled={loading || rEmailStatus === "exists" || rEmailStatus === "checking"} className="w-full gap-2 bg-primary font-semibold" size="lg">
             {loading ? <Loader2 className="size-4 animate-spin" /> : null}
             {loading ? tr("processing") : tr("registerBtn")}
           </Button>
