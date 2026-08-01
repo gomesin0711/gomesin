@@ -213,6 +213,7 @@ export function LoginView() {
             <p className="mt-4 text-base leading-relaxed text-primary-foreground/80">
               Ribuan listing MESIN CETAK, CNC, Laser, kompresor, alat berat &amp; sparepart — baru dan bekas dari seller terverifikasi se-Indonesia.
             </p>
+            <p className="mt-2 text-lg font-black tracking-wider text-white">TANPA KOMISI !</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               {[
                 { icon: ShieldCheck, label: "Seller Terverifikasi" },
