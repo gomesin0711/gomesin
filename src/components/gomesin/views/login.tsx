@@ -50,35 +50,18 @@ function OtpPinInput({ length = 6, onComplete }: { length?: number; onComplete: 
   const handleChange = (index: number, value: string) => {
     const clean = value.replace(/[^0-9]/g, "");
     if (clean.length === 0) {
-      setDigits((prev) => {
-        const next = [...prev];
-        next[index] = "";
-        return next;
-      });
+      setDigits((prev) => { const next = [...prev]; next[index] = ""; return next; });
       return;
     }
     const digit = clean[0];
-    setDigits((prev) => {
-      const next = [...prev];
-      next[index] = digit;
-      return next;
-    });
-    // Auto-focus next
-    if (index < length - 1) {
-      refs.current[index + 1]?.focus();
-    }
-    // Check complete
-    const newDigits = [...digits];
-    newDigits[index] = digit;
-    if (newDigits.every((d) => d !== "")) {
-      onComplete(newDigits.join(""));
-    }
+    setDigits((prev) => { const next = [...prev]; next[index] = digit; return next; });
+    if (index < length - 1) refs.current[index + 1]?.focus();
+    const newDigits = [...digits]; newDigits[index] = digit;
+    if (newDigits.every((d) => d !== "")) onComplete(newDigits.join(""));
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !digits[index] && index > 0) {
-      refs.current[index - 1]?.focus();
-    }
+    if (e.key === "Backspace" && !digits[index] && index > 0) refs.current[index - 1]?.focus();
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
@@ -86,36 +69,23 @@ function OtpPinInput({ length = 6, onComplete }: { length?: number; onComplete: 
     const paste = e.clipboardData.getData("text").replace(/[^0-9]/g, "").slice(0, length);
     if (!paste) return;
     const newDigits = [...digits];
-    for (let i = 0; i < paste.length && i < length; i++) {
-      newDigits[i] = paste[i];
-    }
+    for (let i = 0; i < paste.length && i < length; i++) newDigits[i] = paste[i];
     setDigits(newDigits);
-    // Focus last filled or next empty
-    const focusIdx = Math.min(paste.length, length - 1);
-    refs.current[focusIdx]?.focus();
-    if (newDigits.every((d) => d !== "")) {
-      onComplete(newDigits.join(""));
-    }
+    refs.current[Math.min(paste.length, length - 1)]?.focus();
+    if (newDigits.every((d) => d !== "")) onComplete(newDigits.join(""));
   };
 
   return (
     <div className="flex items-center justify-center gap-2">
       {digits.map((d, i) => (
         <input
-          key={i}
-          ref={(el) => { refs.current[i] = el; }}
-          type="text"
-          inputMode="numeric"
-          maxLength={1}
-          value={d}
+          key={i} ref={(el) => { refs.current[i] = el; }}
+          type="text" inputMode="numeric" maxLength={1} value={d}
           onChange={(e) => handleChange(i, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
-          onPaste={handlePaste}
+          onKeyDown={(e) => handleKeyDown(i, e)} onPaste={handlePaste}
           className={cn(
             "size-11 rounded-lg border-2 text-center text-lg font-bold outline-none transition-all sm:size-12 sm:text-xl",
-            d
-              ? "border-primary bg-primary/5 text-foreground"
-              : "border-border bg-background text-foreground"
+            d ? "border-primary bg-primary/5 text-foreground" : "border-border bg-background text-foreground"
           )}
           autoFocus={i === 0}
         />
@@ -128,9 +98,10 @@ function OtpPinInput({ length = 6, onComplete }: { length?: number; onComplete: 
 /*  Main Component                                                     */
 /* ------------------------------------------------------------------ */
 
+type LoginMethod = "email" | "whatsapp";
+
 export function LoginView() {
   const goBack = useStore((s) => s.goBack);
-
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
@@ -139,7 +110,12 @@ export function LoginView() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // Login method
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>("whatsapp");
+
   // Login state
+  const [lEmail, setLEmail] = useState("");
+  const [lPass, setLPass] = useState("");
   const [lPhone, setLPhone] = useState("");
 
   // Register state
@@ -162,28 +138,25 @@ export function LoginView() {
   const [devOtpCode, setDevOtpCode] = useState("");
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Phone for current tab
+  // Phone for current context
   const phone = tab === "login" ? lPhone : rPhone;
-  const setPhone = tab === "login" ? setLPhone : setRPhone;
 
-  // Auto-send OTP when phone has 10+ digits
+  // Auto-send OTP when phone has 10+ digits (only for WhatsApp login/register)
   const hasEnoughDigits = phone.replace(/[^0-9]/g, "").length >= 10;
+  const shouldAutoOtp = (tab === "login" && loginMethod === "whatsapp") || tab === "register";
 
   useEffect(() => {
-    if (hasEnoughDigits && !otpSent && !otpVerified && !otpSending) {
+    if (hasEnoughDigits && !otpSent && !otpVerified && !otpSending && shouldAutoOtp) {
       sendOtp();
     }
-  }, [hasEnoughDigits]);
+  }, [hasEnoughDigits, shouldAutoOtp]);
 
   // Cooldown timer
   useEffect(() => {
     if (otpCooldown > 0) {
       cooldownRef.current = setInterval(() => {
         setOtpCooldown((prev) => {
-          if (prev <= 1) {
-            if (cooldownRef.current) clearInterval(cooldownRef.current);
-            return 0;
-          }
+          if (prev <= 1) { if (cooldownRef.current) clearInterval(cooldownRef.current); return 0; }
           return prev - 1;
         });
       }, 1000);
@@ -195,65 +168,37 @@ export function LoginView() {
     const digits = phone.replace(/[^0-9]/g, "");
     if (digits.length < 10) return;
     if (otpCooldown > 0) return;
-
     setOtpSending(true);
     try {
       const res = await fetch("/api/auth/otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, action: "send" }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Gagal mengirim OTP");
-        if (data.waitSec) setOtpCooldown(data.waitSec);
-        return;
-      }
-      setOtpSent(true);
-      setOtpCooldown(60);
-      // Show dev code for testing
-      if (data._devCode) {
-        setDevOtpCode(data._devCode);
-        toast.info(`OTP: ${data._devCode}`, { duration: 10000 });
-      } else {
-        toast.success("OTP terkirim ke WhatsApp Anda");
-      }
-    } catch {
-      toast.error("Gagal mengirim OTP");
-    } finally {
-      setOtpSending(false);
-    }
+      if (!res.ok) { toast.error(data.error || "Gagal mengirim OTP"); if (data.waitSec) setOtpCooldown(data.waitSec); return; }
+      setOtpSent(true); setOtpCooldown(60);
+      if (data._devCode) { setDevOtpCode(data._devCode); toast.info(`OTP: ${data._devCode}`, { duration: 10000 }); }
+      else { toast.success("OTP terkirim ke WhatsApp Anda"); }
+    } catch { toast.error("Gagal mengirim OTP"); } finally { setOtpSending(false); }
   }, [phone, otpCooldown, otpSent]);
 
   const handleOtpComplete = useCallback(async (code: string) => {
     setOtpVerifying(true);
     try {
       const res = await fetch("/api/auth/otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, code, action: "verify" }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "OTP salah");
-        return;
-      }
-      setOtpVerified(true);
-      toast.success("Nomor WhatsApp terverifikasi");
-    } catch {
-      toast.error("Gagal memverifikasi OTP");
-    } finally {
-      setOtpVerifying(false);
-    }
+      if (!res.ok) { toast.error(data.error || "OTP salah"); return; }
+      setOtpVerified(true); toast.success("Nomor WhatsApp terverifikasi");
+    } catch { toast.error("Gagal memverifikasi OTP"); } finally { setOtpVerifying(false); }
   }, [phone]);
 
-  // Reset OTP when tab changes
+  // Reset OTP when tab or login method changes
   useEffect(() => {
-    setOtpSent(false);
-    setOtpVerified(false);
-    setDevOtpCode("");
-    setOtpCooldown(0);
-  }, [tab]);
+    setOtpSent(false); setOtpVerified(false); setDevOtpCode(""); setOtpCooldown(0);
+  }, [tab, loginMethod]);
 
   // Reset OTP when phone changes significantly
   const prevPhoneRef = useRef(phone);
@@ -261,118 +206,87 @@ export function LoginView() {
     if (prevPhoneRef.current && phone !== prevPhoneRef.current) {
       const prevDigits = prevPhoneRef.current.replace(/[^0-9]/g, "");
       const currDigits = phone.replace(/[^0-9]/g, "");
-      // If phone changed (not just added digits), reset OTP
       if (!currDigits.startsWith(prevDigits) && prevDigits.length >= 5) {
-        setOtpSent(false);
-        setOtpVerified(false);
-        setDevOtpCode("");
+        setOtpSent(false); setOtpVerified(false); setDevOtpCode("");
       }
     }
     prevPhoneRef.current = phone;
   }, [phone]);
 
-  /* ------ Login (WhatsApp OTP-based) ------ */
+  /* ------ Login ------ */
   const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpVerified) {
-      toast.error("Verifikasi WhatsApp terlebih dahulu");
-      return;
-    }
     setLoading(true);
     try {
+      let body: Record<string, string>;
+      if (loginMethod === "email") {
+        if (!lEmail.trim() || !lPass) { toast.error(tr("errEmailPass")); setLoading(false); return; }
+        body = { email: lEmail, password: lPass };
+      } else {
+        if (!otpVerified) { toast.error("Verifikasi WhatsApp terlebih dahulu"); setLoading(false); return; }
+        body = { phone: lPhone };
+      }
       const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: lPhone }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Login gagal");
-        return;
-      }
+      if (!res.ok) { toast.error(data.error || "Login gagal"); return; }
       const setUser = useStore.getState().setUser;
-      const goHome = useStore.getState().goHome;
+      const goToProfile = useStore.getState().goToProfile;
       const goToAdmin = useStore.getState().goToAdmin;
-      setUser(data.user);
-      setSuccess(true);
+      setUser(data.user); setSuccess(true);
       toast.success(formatT(tr("welcomeBack"), { name: data.user.name }));
       const isAdmin = data.user.role === "admin" || data.user.role === "superadmin";
-      setTimeout(() => isAdmin ? goToAdmin() : goHome(), 900);
-    } catch {
-      toast.error(tr("errConnection"));
-    } finally {
-      setLoading(false);
-    }
+      setTimeout(() => isAdmin ? goToAdmin() : goToProfile(), 900);
+    } catch { toast.error(tr("errConnection")); } finally { setLoading(false); }
   };
 
   /* ------ Register ------ */
   const doRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpVerified) {
-      toast.error("Verifikasi WhatsApp terlebih dahulu");
-      return;
-    }
-    if (!rName.trim() || !rEmail.trim() || !rPass) {
-      toast.error(tr("errRequired"));
-      return;
-    }
-    if (rPass.length < 6) {
-      toast.error(tr("errPassLength"));
-      return;
-    }
-    if (rPass !== rPass2) {
-      toast.error(tr("errPassMatch"));
-      return;
-    }
-    if (!agree) {
-      toast.error(tr("errAgree"));
-      return;
-    }
+    if (!otpVerified) { toast.error("Verifikasi WhatsApp terlebih dahulu"); return; }
+    if (!rName.trim() || !rEmail.trim() || !rPass) { toast.error(tr("errRequired")); return; }
+    if (rPass.length < 6) { toast.error(tr("errPassLength")); return; }
+    if (rPass !== rPass2) { toast.error(tr("errPassMatch")); return; }
+    if (!agree) { toast.error(tr("errAgree")); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: rName,
-          email: rEmail,
-          password: rPass,
-          phone: rPhone,
-          city: rCity || rProvince,
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: rName, email: rEmail, password: rPass, phone: rPhone, city: rCity || rProvince }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || tr("errRegister"));
-        return;
-      }
+      if (!res.ok) { toast.error(data.error || tr("errRegister")); return; }
       const setUser = useStore.getState().setUser;
       const goToProfile = useStore.getState().goToProfile;
       const goToAdmin = useStore.getState().goToAdmin;
-      setUser(data.user);
-      setSuccess(true);
-      toast.success(tr("registerSuccess"));
+      setUser(data.user); setSuccess(true); toast.success(tr("registerSuccess"));
       const isAdmin = data.user.role === "admin" || data.user.role === "superadmin";
       setTimeout(() => isAdmin ? goToAdmin() : goToProfile(), 1100);
-    } catch {
-      toast.error(tr("errConnection"));
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error(tr("errConnection")); } finally { setLoading(false); }
   };
 
   if (success) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center animate-fade-up">
-        <div className="grid size-20 place-items-center rounded-full bg-primary/10">
-          <CheckCircle2 className="size-12 text-primary" />
-        </div>
+        <div className="grid size-20 place-items-center rounded-full bg-primary/10"><CheckCircle2 className="size-12 text-primary" /></div>
         <h2 className="mt-4 text-2xl font-bold">{tr("loginSuccess")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{tr("loginRedirect")}</p>
         <Loader2 className="mt-4 size-5 animate-spin text-primary" />
       </div>
     );
   }
+
+  const formProps = {
+ tab, setTab, showPass, setShowPass, loading, loginMethod, setLoginMethod,
+    lEmail, setLEmail, lPass, setLPass, lPhone, setLPhone,
+    rName, setRName, rEmail, setREmail, rPhone, setRPhone,
+    rCity, setRCity, rProvince, setRProvince,
+    rPass, setRPass, rPass2, setRPass2, agree, setAgree,
+    doLogin, doRegister, tr,
+    otpSent, otpVerified, otpSending, otpVerifying,
+    otpCooldown, devOtpCode, sendOtp, handleOtpComplete,
+  };
 
   return (
     <div className="animate-fade-up">
@@ -384,33 +298,10 @@ export function LoginView() {
         <div className="flex flex-col items-center text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.jpeg" alt="Gomesin" className="size-16 rounded-2xl shadow-lg object-cover" />
-          <h1 className="mt-3 text-2xl font-extrabold tracking-tight">
-            <span className="text-primary">go</span>mesin
-          </h1>
+          <h1 className="mt-3 text-2xl font-extrabold tracking-tight"><span className="text-primary">go</span>mesin</h1>
           <p className="mt-1 text-sm text-muted-foreground">{tr("loginTitle")}</p>
         </div>
-        <div className="mt-6 w-full max-w-md mx-auto">
-          <FormSection
-            tab={tab} setTab={setTab}
-            showPass={showPass} setShowPass={setShowPass}
-            loading={loading}
-            lPhone={lPhone} setLPhone={setLPhone}
-            rName={rName} setRName={setRName}
-            rEmail={rEmail} setREmail={setREmail}
-            rPhone={rPhone} setRPhone={setRPhone}
-            rCity={rCity} setRCity={setRCity}
-            rProvince={rProvince} setRProvince={setRProvince}
-            rPass={rPass} setRPass={setRPass}
-            rPass2={rPass2} setRPass2={setRPass2}
-            agree={agree} setAgree={setAgree}
-            doLogin={doLogin} doRegister={doRegister}
-            tr={tr}
-            otpSent={otpSent} otpVerified={otpVerified}
-            otpSending={otpSending} otpVerifying={otpVerifying}
-            otpCooldown={otpCooldown} devOtpCode={devOtpCode}
-            sendOtp={sendOtp} handleOtpComplete={handleOtpComplete}
-          />
-        </div>
+        <div className="mt-6 w-full max-w-md mx-auto"><FormSection {...formProps} /></div>
       </div>
 
       {/* ===== DESKTOP ===== */}
@@ -424,21 +315,13 @@ export function LoginView() {
           <div className="relative z-10 flex flex-col items-center text-center max-w-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.jpeg" alt="Gomesin" className="size-24 rounded-3xl shadow-2xl object-cover ring-4 ring-white/20" />
-            <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-primary-foreground">
-              <span className="text-white">go</span>mesin
-            </h1>
-            <h2 className="mt-5 text-2xl font-black leading-tight text-white">
-              Jual &amp; beli mesin industri, lebih cepat, lebih aman.
-            </h2>
+            <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-primary-foreground"><span className="text-white">go</span>mesin</h1>
+            <h2 className="mt-5 text-2xl font-black leading-tight text-white">Jual &amp; beli mesin industri, lebih cepat, lebih aman.</h2>
             <p className="mt-4 text-base leading-relaxed text-primary-foreground/80">
               Ribuan listing MESIN CETAK, CNC, Laser, kompresor, alat berat &amp; sparepart — baru dan bekas dari seller terverifikasi se-Indonesia. <strong className="text-white">TANPA KOMISI</strong>
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              {[
-                { icon: ShieldCheck, label: "Seller Terverifikasi" },
-                { icon: MapPin, label: "Se-Indonesia" },
-                { icon: Cog, label: "Mesin Berkualitas" },
-              ].map(({ icon: Icon, label }) => (
+              {[{ icon: ShieldCheck, label: "Seller Terverifikasi" }, { icon: MapPin, label: "Se-Indonesia" }, { icon: Cog, label: "Mesin Berkualitas" }].map(({ icon: Icon, label }) => (
                 <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
                   <Icon className="size-3.5" />{label}
                 </span>
@@ -454,33 +337,11 @@ export function LoginView() {
             <div className="mb-6 flex items-center gap-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.jpeg" alt="Gomesin" className="size-10 rounded-xl object-cover shadow-sm" />
-              <h1 className="text-xl font-extrabold tracking-tight">
-                <span className="text-primary">go</span>mesin
-              </h1>
+              <h1 className="text-xl font-extrabold tracking-tight"><span className="text-primary">go</span>mesin</h1>
             </div>
-            <FormSection
-              tab={tab} setTab={setTab}
-              showPass={showPass} setShowPass={setShowPass}
-              loading={loading}
-              lPhone={lPhone} setLPhone={setLPhone}
-              rName={rName} setRName={setRName}
-              rEmail={rEmail} setREmail={setREmail}
-              rPhone={rPhone} setRPhone={setRPhone}
-              rCity={rCity} setRCity={setRCity}
-              rProvince={rProvince} setRProvince={setRProvince}
-              rPass={rPass} setRPass={setRPass}
-              rPass2={rPass2} setRPass2={setRPass2}
-              agree={agree} setAgree={setAgree}
-              doLogin={doLogin} doRegister={doRegister}
-              tr={tr}
-              otpSent={otpSent} otpVerified={otpVerified}
-              otpSending={otpSending} otpVerifying={otpVerifying}
-              otpCooldown={otpCooldown} devOtpCode={devOtpCode}
-              sendOtp={sendOtp} handleOtpComplete={handleOtpComplete}
-            />
+            <FormSection {...formProps} />
             <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-              <ShieldCheck className={cn("size-3.5 text-primary")} />
-              {tr("dataSecure")}
+              <ShieldCheck className={cn("size-3.5 text-primary")} />{tr("dataSecure")}
             </div>
           </div>
         </div>
@@ -490,12 +351,12 @@ export function LoginView() {
 }
 
 /* ================================================================== */
-/*  Form Section (shared mobile + desktop)                             */
+/*  Form Section                                                        */
 /* ================================================================== */
 
 function FormSection({
-  tab, setTab, showPass, setShowPass, loading,
-  lPhone, setLPhone,
+  tab, setTab, showPass, setShowPass, loading, loginMethod, setLoginMethod,
+  lEmail, setLEmail, lPass, setLPass, lPhone, setLPhone,
   rName, setRName, rEmail, setREmail, rPhone, setRPhone,
   rCity, setRCity, rProvince, setRProvince,
   rPass, setRPass, rPass2, setRPass2, agree, setAgree,
@@ -506,6 +367,9 @@ function FormSection({
   tab: string; setTab: (v: "login" | "register") => void;
   showPass: boolean; setShowPass: (v: boolean | ((p: boolean) => boolean)) => void;
   loading: boolean;
+  loginMethod: LoginMethod; setLoginMethod: (v: LoginMethod) => void;
+  lEmail: string; setLEmail: (v: string) => void;
+  lPass: string; setLPass: (v: string) => void;
   lPhone: string; setLPhone: (v: string) => void;
   rName: string; setRName: (v: string) => void;
   rEmail: string; setREmail: (v: string) => void;
@@ -534,78 +398,99 @@ function FormSection({
       {/* ============ LOGIN TAB ============ */}
       <TabsContent value="login">
         <form onSubmit={doLogin} className="space-y-4 rounded-xl border border-border bg-card p-5">
-          {/* WhatsApp Number */}
+          {/* Method Dropdown */}
           <div className="space-y-1.5">
-            <Label htmlFor="l-phone">Nomor WhatsApp *</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="l-phone"
-                type="tel"
-                inputMode="numeric"
-                value={lPhone}
-                onChange={(e) => setLPhone(e.target.value.replace(/[^0-9+]/g, ""))}
-                placeholder="08xx xxxx xxxx"
-                className="pl-9 pr-24"
-              />
-              {otpSending && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
-              )}
-            </div>
+            <Label>Masuk dengan</Label>
+            <Select value={loginMethod} onValueChange={(v) => setLoginMethod(v as LoginMethod)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="whatsapp">
+                  <span className="flex items-center gap-2"><Phone className="size-4" /> WhatsApp (OTP)</span>
+                </SelectItem>
+                <SelectItem value="email">
+                  <span className="flex items-center gap-2"><Mail className="size-4" /> Email &amp; Password</span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* OTP Section */}
-          {otpSent && !otpVerified && (
-            <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="size-4 text-primary" />
-                <p className="text-sm font-medium">Masukkan kode OTP yang dikirim ke WhatsApp Anda</p>
+          {/* ===== EMAIL LOGIN ===== */}
+          {loginMethod === "email" && (<>
+            <div className="space-y-1.5">
+              <Label htmlFor="l-email">{tr("email")}</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input id="l-email" type="email" autoComplete="email" value={lEmail} onChange={(e) => setLEmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
               </div>
-              {otpVerifying ? (
-                <div className="flex justify-center py-2">
-                  <Loader2 className="size-6 animate-spin text-primary" />
-                </div>
-              ) : (
-                <OtpPinInput onComplete={handleOtpComplete} />
-              )}
-              <div className="flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  onClick={sendOtp}
-                  disabled={otpCooldown > 0}
-                  className="text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
-                >
-                  {otpCooldown > 0 ? `Kirim ulang (${otpCooldown}s)` : "Kirim ulang"}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="l-pass">{tr("password")}</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input id="l-pass" type={showPass ? "text" : "password"} autoComplete="current-password" value={lPass} onChange={(e) => setLPass(e.target.value)} placeholder="••••••••" className="px-9" />
+                <button type="button" onClick={() => setShowPass((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={showPass ? tr("hidePass") : tr("showPass")}>
+                  {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
-                {devOtpCode && (
-                  <span className="text-muted-foreground">Dev: {devOtpCode}</span>
-                )}
               </div>
             </div>
-          )}
-
-          {/* Verified badge */}
-          {otpVerified && (
-            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-              <CheckCircle2 className="size-5 text-emerald-600" />
-              <span className="text-sm font-medium text-emerald-700">Nomor WhatsApp terverifikasi</span>
+            <div className="flex items-center justify-between text-xs">
+              <label className="flex items-center gap-1.5 text-muted-foreground">
+                <input type="checkbox" className="accent-primary" /> {tr("rememberMe")}
+              </label>
+              <button type="button" onClick={() => toast.info(tr("forgotPasswordSoon"))} className="font-medium text-primary hover:underline">
+                {tr("forgotPassword")}
+              </button>
             </div>
-          )}
+          </>)}
 
-          <Button
-            type="submit"
-            disabled={loading || !otpVerified}
-            className="w-full gap-2 bg-primary font-semibold"
-            size="lg"
-          >
+          {/* ===== WHATSAPP LOGIN ===== */}
+          {loginMethod === "whatsapp" && (<>
+            <div className="space-y-1.5">
+              <Label htmlFor="l-phone">Nomor WhatsApp *</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input id="l-phone" type="tel" inputMode="numeric" value={lPhone} onChange={(e) => setLPhone(e.target.value.replace(/[^0-9+]/g, ""))} placeholder="08xx xxxx xxxx" className="pl-9 pr-24" />
+                {otpSending && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />}
+              </div>
+            </div>
+
+            {otpSent && !otpVerified && (
+              <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="size-4 text-primary" />
+                  <p className="text-sm font-medium">Masukkan kode OTP dari WhatsApp</p>
+                </div>
+                {otpVerifying ? (
+                  <div className="flex justify-center py-2"><Loader2 className="size-6 animate-spin text-primary" /></div>
+                ) : (
+                  <OtpPinInput onComplete={handleOtpComplete} />
+                )}
+                <div className="flex items-center justify-between text-xs">
+                  <button type="button" onClick={sendOtp} disabled={otpCooldown > 0} className="text-primary hover:underline disabled:text-muted-foreground disabled:no-underline">
+                    {otpCooldown > 0 ? `Kirim ulang (${otpCooldown}s)` : "Kirim ulang"}
+                  </button>
+                  {devOtpCode && <span className="text-muted-foreground">Dev: {devOtpCode}</span>}
+                </div>
+              </div>
+            )}
+
+            {otpVerified && (
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <CheckCircle2 className="size-5 text-emerald-600" />
+                <span className="text-sm font-medium text-emerald-700">WhatsApp terverifikasi</span>
+              </div>
+            )}
+          </>)}
+
+          <Button type="submit" disabled={loading || (loginMethod === "whatsapp" && !otpVerified)} className="w-full gap-2 bg-primary font-semibold" size="lg">
             {loading ? <Loader2 className="size-4 animate-spin" /> : null}
             {loading ? tr("processing") : tr("tabLogin")}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             {tr("noAccount")}{" "}
-            <button type="button" onClick={() => setTab("register")} className="font-semibold text-primary hover:underline">
-              {tr("registerNow")}
-            </button>
+            <button type="button" onClick={() => setTab("register")} className="font-semibold text-primary hover:underline">{tr("registerNow")}</button>
           </p>
         </form>
       </TabsContent>
@@ -613,7 +498,6 @@ function FormSection({
       {/* ============ REGISTER TAB ============ */}
       <TabsContent value="register">
         <form onSubmit={doRegister} className="space-y-4 rounded-xl border border-border bg-card p-5">
-          {/* Full Name */}
           <div className="space-y-1.5">
             <Label htmlFor="r-name">{`${tr("fullName")} *`}</Label>
             <div className="relative">
@@ -622,7 +506,6 @@ function FormSection({
             </div>
           </div>
 
-          {/* Email */}
           <div className="space-y-1.5">
             <Label htmlFor="r-email">{`${tr("email")} *`}</Label>
             <div className="relative">
@@ -631,57 +514,32 @@ function FormSection({
             </div>
           </div>
 
-          {/* WhatsApp */}
           <div className="space-y-1.5">
             <Label htmlFor="r-phone">Nomor WhatsApp *</Label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="r-phone"
-                type="tel"
-                inputMode="numeric"
-                value={rPhone}
-                onChange={(e) => setRPhone(e.target.value.replace(/[^0-9+]/g, ""))}
-                placeholder="08xx xxxx xxxx"
-                className="pl-9 pr-24"
-              />
-              {otpSending && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
-              )}
+              <Input id="r-phone" type="tel" inputMode="numeric" value={rPhone} onChange={(e) => setRPhone(e.target.value.replace(/[^0-9+]/g, ""))} placeholder="08xx xxxx xxxx" className="pl-9 pr-24" />
+              {otpSending && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />}
             </div>
           </div>
 
-          {/* OTP Section (Register) */}
           {otpSent && !otpVerified && (
             <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="size-4 text-primary" />
-                <p className="text-sm font-medium">Masukkan kode OTP dari WhatsApp</p>
-              </div>
+              <div className="flex items-center gap-2"><MessageSquare className="size-4 text-primary" /><p className="text-sm font-medium">Masukkan kode OTP dari WhatsApp</p></div>
               {otpVerifying ? (
-                <div className="flex justify-center py-2">
-                  <Loader2 className="size-6 animate-spin text-primary" />
-                </div>
+                <div className="flex justify-center py-2"><Loader2 className="size-6 animate-spin text-primary" /></div>
               ) : (
                 <OtpPinInput onComplete={handleOtpComplete} />
               )}
               <div className="flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  onClick={sendOtp}
-                  disabled={otpCooldown > 0}
-                  className="text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
-                >
+                <button type="button" onClick={sendOtp} disabled={otpCooldown > 0} className="text-primary hover:underline disabled:text-muted-foreground disabled:no-underline">
                   {otpCooldown > 0 ? `Kirim ulang (${otpCooldown}s)` : "Kirim ulang"}
                 </button>
-                {devOtpCode && (
-                  <span className="text-muted-foreground">Dev: {devOtpCode}</span>
-                )}
+                {devOtpCode && <span className="text-muted-foreground">Dev: {devOtpCode}</span>}
               </div>
             </div>
           )}
 
-          {/* Verified badge (Register) */}
           {otpVerified && (
             <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
               <CheckCircle2 className="size-5 text-emerald-600" />
@@ -689,35 +547,24 @@ function FormSection({
             </div>
           )}
 
-          {/* Province (BEFORE City — swapped) */}
+          {/* Province (before City) */}
           <div className="space-y-1.5">
             <Label>{tr("province")}</Label>
             <Select value={rProvince} onValueChange={(v) => { setRProvince(v); setRCity(""); }}>
               <SelectTrigger className="w-full"><SelectValue placeholder={tr("selectProvince")} /></SelectTrigger>
-              <SelectContent>
-                {PROVINCES.map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectContent>{PROVINCES.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}</SelectContent>
             </Select>
           </div>
 
-          {/* City (AFTER Province — swapped) */}
+          {/* City (after Province) */}
           <div className="space-y-1.5">
             <Label>{tr("cityLabel")}</Label>
             <Select value={rCity} onValueChange={(v) => { setRCity(v); }} disabled={!rProvince}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={rProvince ? tr("selectCity") : tr("selectProvinceFirst")} />
-              </SelectTrigger>
-              <SelectContent>
-                {(PROVINCE_CITIES[rProvince] || []).map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger className="w-full"><SelectValue placeholder={rProvince ? tr("selectCity") : tr("selectProvinceFirst")} /></SelectTrigger>
+              <SelectContent>{(PROVINCE_CITIES[rProvince] || []).map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}</SelectContent>
             </Select>
           </div>
 
-          {/* Password */}
           <div className="space-y-1.5">
             <Label htmlFor="r-pass">{`${tr("password")} *`}</Label>
             <div className="relative">
@@ -729,38 +576,27 @@ function FormSection({
             </div>
           </div>
 
-          {/* Confirm Password */}
           <div className="space-y-1.5">
             <Label htmlFor="r-pass2">{`${tr("passwordConfirm")} *`}</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input id="r-pass2" type={showPass ? "text" : "password"} autoComplete="new-password" value={rPass2} onChange={(e) => setRPass2(e.target.value)} placeholder={tr("passwordConfirmPlaceholder")} className="pl-9" />
             </div>
-            {rPass2 && rPass !== rPass2 && (
-              <p className="text-xs text-destructive">{tr("passwordMismatch")}</p>
-            )}
+            {rPass2 && rPass !== rPass2 && (<p className="text-xs text-destructive">{tr("passwordMismatch")}</p>)}
           </div>
 
-          {/* Terms */}
           <label className="flex items-start gap-2 text-xs text-muted-foreground">
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 accent-primary" />
             <span>{tr("agreeTerms")}</span>
           </label>
 
-          <Button
-            type="submit"
-            disabled={loading || !otpVerified}
-            className="w-full gap-2 bg-primary font-semibold"
-            size="lg"
-          >
+          <Button type="submit" disabled={loading || !otpVerified} className="w-full gap-2 bg-primary font-semibold" size="lg">
             {loading ? <Loader2 className="size-4 animate-spin" /> : null}
             {loading ? tr("processing") : tr("registerBtn")}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             {tr("haveAccount")}{" "}
-            <button type="button" onClick={() => setTab("login")} className="font-semibold text-primary hover:underline">
-              {tr("loginHere")}
-            </button>
+            <button type="button" onClick={() => setTab("login")} className="font-semibold text-primary hover:underline">{tr("loginHere")}</button>
           </p>
         </form>
       </TabsContent>
