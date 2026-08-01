@@ -25,14 +25,6 @@ import {
   ShieldCheck,
   CheckCircle2,
 } from "lucide-react";
-import { PROVINCES, PROVINCE_CITIES } from "@/lib/types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLang, translations as i18nTranslations, formatT } from "@/lib/i18n";
@@ -55,8 +47,6 @@ export function LoginView() {
   const [rName, setRName] = useState("");
   const [rEmail, setREmail] = useState("");
   const [rPhone, setRPhone] = useState("");
-  const [rCity, setRCity] = useState("");
-  const [rProvince, setRProvince] = useState("");
   const [rPass, setRPass] = useState("");
   const [rPass2, setRPass2] = useState("");
   const [agree, setAgree] = useState(false);
@@ -123,7 +113,6 @@ export function LoginView() {
           email: rEmail,
           password: rPass,
           phone: rPhone,
-          city: rCity || rProvince,
         }),
       });
       const data = await res.json();
@@ -189,8 +178,6 @@ export function LoginView() {
             rName={rName} setRName={setRName}
             rEmail={rEmail} setREmail={setREmail}
             rPhone={rPhone} setRPhone={setRPhone}
-            rCity={rCity} setRCity={setRCity}
-            rProvince={rProvince} setRProvince={setRProvince}
             rPass={rPass} setRPass={setRPass}
             rPass2={rPass2} setRPass2={setRPass2}
             agree={agree} setAgree={setAgree}
@@ -269,8 +256,6 @@ export function LoginView() {
               rName={rName} setRName={setRName}
               rEmail={rEmail} setREmail={setREmail}
               rPhone={rPhone} setRPhone={setRPhone}
-              rCity={rCity} setRCity={setRCity}
-              rProvince={rProvince} setRProvince={setRProvince}
               rPass={rPass} setRPass={setRPass}
               rPass2={rPass2} setRPass2={setRPass2}
               agree={agree} setAgree={setAgree}
@@ -293,7 +278,6 @@ function FormSection({
   tab, setTab, showPass, setShowPass, loading,
   lEmail, setLEmail, lPass, setLPass,
   rName, setRName, rEmail, setREmail, rPhone, setRPhone,
-  rCity, setRCity, rProvince, setRProvince,
   rPass, setRPass, rPass2, setRPass2, agree, setAgree,
   doLogin, doRegister, tr,
 }: {
@@ -305,8 +289,6 @@ function FormSection({
   rName: string; setRName: (v: string) => void;
   rEmail: string; setREmail: (v: string) => void;
   rPhone: string; setRPhone: (v: string) => void;
-  rCity: string; setRCity: (v: string) => void;
-  rProvince: string; setRProvince: (v: string) => void;
   rPass: string; setRPass: (v: string) => void;
   rPass2: string; setRPass2: (v: string) => void;
   agree: boolean; setAgree: (v: boolean) => void;
@@ -377,38 +359,12 @@ function FormSection({
               <Input id="r-email" type="email" autoComplete="email" value={rEmail} onChange={(e) => setREmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="r-phone">{tr("whatsapp")}</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="r-phone" value={rPhone} onChange={(e) => setRPhone(e.target.value)} placeholder={tr("whatsappPlaceholder")} className="pl-9" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{tr("cityLabel")}</Label>
-              <Select value={rCity} onValueChange={(v) => { setRCity(v); }} disabled={!rProvince}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={rProvince ? tr("selectCity") : tr("selectProvinceFirst")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(PROVINCE_CITIES[rProvince] || []).map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           <div className="space-y-1.5">
-            <Label>{tr("province")}</Label>
-            <Select value={rProvince} onValueChange={(v) => { setRProvince(v); setRCity(""); }}>
-              <SelectTrigger className="w-full"><SelectValue placeholder={tr("selectProvince")} /></SelectTrigger>
-              <SelectContent>
-                {PROVINCES.map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="r-phone">{tr("whatsapp")}</Label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="r-phone" value={rPhone} onChange={(e) => setRPhone(e.target.value)} placeholder={tr("whatsappPlaceholder")} className="pl-9" />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="r-pass">{`${tr("password")} *`}</Label>
