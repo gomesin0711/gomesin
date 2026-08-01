@@ -377,38 +377,12 @@ function FormSection({
               <Input id="r-email" type="email" autoComplete="email" value={rEmail} onChange={(e) => setREmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="r-phone">{tr("whatsapp")}</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="r-phone" value={rPhone} onChange={(e) => setRPhone(e.target.value)} placeholder={tr("whatsappPlaceholder")} className="pl-9" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{tr("cityLabel")}</Label>
-              <Select value={rCity} onValueChange={(v) => { setRCity(v); }} disabled={!rProvince}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={rProvince ? tr("selectCity") : tr("selectProvinceFirst")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(PROVINCE_CITIES[rProvince] || []).map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           <div className="space-y-1.5">
-            <Label>{tr("province")}</Label>
-            <Select value={rProvince} onValueChange={(v) => { setRProvince(v); setRCity(""); }}>
-              <SelectTrigger className="w-full"><SelectValue placeholder={tr("selectProvince")} /></SelectTrigger>
-              <SelectContent>
-                {PROVINCES.map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="r-phone">{tr("whatsapp")}</Label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="r-phone" value={rPhone} onChange={(e) => setRPhone(e.target.value)} placeholder={tr("whatsappPlaceholder")} className="pl-9" />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="r-pass">{`${tr("password")} *`}</Label>
