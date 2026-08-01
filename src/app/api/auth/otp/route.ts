@@ -8,7 +8,8 @@ import { db } from "@/lib/db";
 /* ------------------------------------------------------------------ */
 
 type OtpEntry = {
-  code: string;
+  waCode: string;
+  emailCode: string;
   expiresAt: number;
   verified: boolean;
 };
@@ -72,32 +73,33 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Tunggu ${waitSec} detik sebelum mengirim ulang`, waitSec });
       }
 
-      const otpCode = generateCode();
+      // Generate kode BEDA untuk WhatsApp dan Email
+      const waCode = generateCode();
+      const emailCode = generateCode();
       otpStore.set(phone, {
-        code: otpCode,
+        waCode,
+        emailCode,
         expiresAt: Date.now() + OTP_TTL_MS,
         verified: false,
       });
 
-      console.log(`[OTP] Phone: ${phone}, Code: ${otpCode}`);
+      console.log(`[OTP] Phone: ${phone}, WA: ${waCode}, Email: ${emailCode}`);
 
       // ---- 1. Kirim OTP via WhatsApp (Fonnte) ----
       const waResult = await sendWhatsAppMessage(
         phone,
-        `GoMesin - Kode Verifikasi. Kode OTP Anda: ${otpCode}. Jangan berikan kode ini. Kode berlaku 1 menit.`,
+        `GoMesin - Kode Verifikasi. Kode OTP Anda: ${waCode}. Jangan berikan kode ini. Kode berlaku 1 menit.`,
       );
-
       const waOk = waResult.success;
       if (!waOk) {
         console.warn(`[OTP] WhatsApp send failed for ${phone}: ${waResult.error}`);
       }
 
       // ---- 2. Kirim OTP via Email (Resend) ----
-      // Email bisa dari body (register) atau dari database (login)
       const email = bodyEmail || (await findEmailByPhone(phone));
       let emailOk = false;
       if (email) {
-        const emailResult = await sendOtpEmail(email, otpCode);
+        const emailResult = await sendOtpEmail(email, emailCode);
         emailOk = emailResult.success;
         if (!emailOk) {
           console.warn(`[OTP] Email send failed for ${email}: ${emailResult.error}`);
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         message: "OTP terkirim (mode dev)",
-        _devCode: otpCode,
+        _devCode: waCode,
         sentViaWhatsApp: false,
         sentViaEmail: false,
       });
@@ -142,7 +144,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "OTP sudah expired. Silakan kirim ulang." }, { status: 400 });
       }
 
-      if (entry.code !== code) {
+      // Terima kode WA ATAU Email — salah satu benar cukup
+      if (entry.waCode !== code && entry.emailCode !== code) {
         return NextResponse.json({ error: "Kode OTP salah" }, { status: 400 });
       }
 
