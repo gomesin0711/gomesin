@@ -325,6 +325,7 @@ export function Header() {
                 <button
                   className="flex items-center gap-0.5 rounded-lg px-1.5 py-1.5 text-xs font-bold text-foreground hover:bg-accent"
                   aria-label="Bahasa"
+                  suppressHydrationWarning
                 >
                   <span className="text-base leading-none">{langFlag(lang)}</span>
                 </button>
@@ -445,6 +446,7 @@ export function Header() {
               <button
                 className="flex h-10 items-center gap-1 rounded-lg px-2 text-sm font-bold text-foreground hover:bg-accent"
                 aria-label="Language"
+                suppressHydrationWarning
               >
                 <span className="text-base leading-none">{langFlag(lang)}</span>
                 
