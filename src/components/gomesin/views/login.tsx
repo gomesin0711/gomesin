@@ -431,7 +431,7 @@ export function LoginView() {
               Jual &amp; beli mesin industri, lebih cepat, lebih aman.
             </h2>
             <p className="mt-4 text-base leading-relaxed text-primary-foreground/80">
-              Ribuan listing MESIN CETAK, CNC, Laser, kompresor, alat berat &amp; sparepart — baru dan bekas dari seller terverifikasi se-Indonesia.
+              Ribuan listing MESIN CETAK, CNC, Laser, kompresor, alat berat &amp; sparepart — baru dan bekas dari seller terverifikasi se-Indonesia. <strong className="text-white">TANPA KOMISI</strong>
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               {[
