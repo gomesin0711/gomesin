@@ -1,0 +1,753 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useState, useEffect, useCallback, useRef } from "react";
+     4→     4→import { useStore } from "@/lib/store";
+     5→     5→import { Button } from "@/components/ui/button";
+     6→     6→import { Input } from "@/components/ui/input";
+     7→     7→import { Label } from "@/components/ui/label";
+     8→     8→import {
+     9→     9→  Tabs,
+    10→    10→  TabsContent,
+    11→    11→  TabsList,
+    12→    12→  TabsTrigger,
+    13→    13→} from "@/components/ui/tabs";
+    14→    14→import {
+    15→    15→  Cog,
+    16→    16→  ChevronLeft,
+    17→    17→  Mail,
+    18→    18→  Lock,
+    19→    19→  User,
+    20→    20→  Phone,
+    21→    21→  MapPin,
+    22→    22→  Eye,
+    23→    23→  EyeOff,
+    24→    24→  Loader2,
+    25→    25→  ShieldCheck,
+    26→    26→  CheckCircle2,
+    27→    27→  Send,
+    28→    28→  RefreshCw,
+    29→    29→} from "lucide-react";
+    30→    30→import { PROVINCES, PROVINCE_CITIES } from "@/lib/types";
+    31→    31→import {
+    32→    32→  Select,
+    33→    33→  SelectContent,
+    34→    34→  SelectItem,
+    35→    35→  SelectTrigger,
+    36→    36→  SelectValue,
+    37→    37→} from "@/components/ui/select";
+    38→    38→import { toast } from "sonner";
+    39→    39→import { cn } from "@/lib/utils";
+    40→    40→import { useLang, translations as i18nTranslations, formatT } from "@/lib/i18n";
+    41→    41→import { useMounted } from "@/lib/use-mounted";
+    42→    42→
+    43→    43→/* ------------------------------------------------------------------ */
+    44→    44→/*  OTP Hook – shared by login & register tabs                        */
+    45→    45→/* ------------------------------------------------------------------ */
+    46→    46→
+    47→    47→type OtpState = "idle" | "sending" | "sent" | "verifying" | "verified";
+    48→    48→
+    49→    49→function useOtp() {
+    50→    50→  const [otpState, setOtpState] = useState<OtpState>("idle");
+    51→    51→  const [otpCode, setOtpCode] = useState("");
+    52→    52→  const [cooldown, setCooldown] = useState(0);
+    53→    53→  const timerRef = useRef<ReturnType<typeof setInterval>>();
+    54→    54→
+    55→    55→  const clearTimer = useCallback(() => {
+    56→    56→    if (timerRef.current) {
+    57→    57→      clearInterval(timerRef.current);
+    58→    58→      timerRef.current = undefined;
+    59→    59→    }
+    60→    60→  }, []);
+    61→    61→
+    62→    62→  const sendOtp = useCallback(async (phone: string, tr: (k: any) => any) => {
+    63→    63→    if (phone.replace(/\D/g, "").length < 10) {
+    64→    64→      toast.error(tr("errPhoneRequired"));
+    65→    65→      return;
+    66→    66→    }
+    67→    67→    setOtpState("sending");
+    68→    68→    try {
+    69→    69→      const res = await fetch("/api/auth/otp", {
+    70→    70→        method: "POST",
+    71→    71→        headers: { "Content-Type": "application/json" },
+    72→    72→        body: JSON.stringify({ phone, action: "send" }),
+    73→    73→      });
+    74→    74→      const data = await res.json();
+    75→    75→      if (!res.ok) {
+    76→    76→        toast.error(data.error || "Gagal mengirim OTP");
+    77→    77→        setOtpState("idle");
+    78→    78→        return;
+    79→    79→      }
+    80→    80→      // Dev: show OTP code
+    81→    81→      if (data._devCode) {
+    82→    82→        toast.info(`[DEV] OTP: ${data._devCode}`);
+    83→    83→      }
+    84→    84→      setOtpState("sent");
+    85→    85→      setOtpCode("");
+    86→    86→      setCooldown(60);
+    87→    87→      toast.success(tr("otpSent"));
+    88→    88→    } catch {
+    89→    89→      toast.error(tr("errConnection"));
+    90→    90→      setOtpState("idle");
+    91→    91→    }
+    92→    92→  }, []);
+    93→    93→
+    94→    94→  const verifyOtp = useCallback(async (phone: string, tr: (k: any) => any) => {
+    95→    95→    if (otpCode.length !== 6) {
+    96→    96→      toast.error(tr("errOtpRequired"));
+    97→    97→      return;
+    98→    98→    }
+    99→    99→    setOtpState("verifying");
+   100→   100→    try {
+   101→   101→      const res = await fetch("/api/auth/otp", {
+   102→   102→        method: "POST",
+   103→   103→        headers: { "Content-Type": "application/json" },
+   104→   104→        body: JSON.stringify({ phone, action: "verify", code: otpCode }),
+   105→   105→      });
+   106→   106→      const data = await res.json();
+   107→   107→      if (!res.ok) {
+   108→   108→        toast.error(data.error || "Gagal verifikasi OTP");
+   109→   109→        setOtpState("sent");
+   110→   110→        return;
+   111→   111→      }
+   112→   112→      setOtpState("verified");
+   113→   113→      toast.success(tr("otpVerified"));
+   114→   114→    } catch {
+   115→   115→      toast.error(tr("errConnection"));
+   116→   116→      setOtpState("sent");
+   117→   117→    }
+   118→   118→  }, [otpCode]);
+   119→   119→
+   120→   120→  // Cooldown timer
+   121→   121→  useEffect(() => {
+   122→   122→    if (cooldown <= 0) { clearTimer(); return; }
+   123→   123→    timerRef.current = setInterval(() => {
+   124→   124→      setCooldown((p) => {
+   125→   125→        if (p <= 1) { clearTimer(); return 0; }
+   126→   126→        return p - 1;
+   127→   127→      });
+   128→   128→    }, 1000);
+   129→   129→    return clearTimer;
+   130→   130→  }, [cooldown, clearTimer]);
+   131→   131→
+   132→   132→  const reset = useCallback(() => {
+   133→   133→    setOtpState("idle");
+   134→   134→    setOtpCode("");
+   135→   135→    setCooldown(0);
+   136→   136→    clearTimer();
+   137→   137→  }, [clearTimer]);
+   138→   138→
+   139→   139→  return { otpState, setOtpState, otpCode, setOtpCode, cooldown, sendOtp, verifyOtp, reset };
+   140→   140→}
+   141→   141→
+   142→   142→/* ------------------------------------------------------------------ */
+   143→   143→/*  WhatsApp OTP Input Field                                          */
+   144→   144→/* ------------------------------------------------------------------ */
+   145→   145→
+   146→   146→function WaOtpField({
+   147→   147→  phone, setPhone, otp, tr,
+   148→   148→}: {
+   149→   149→  phone: string; setPhone: (v: string) => void;
+   150→   150→  otp: ReturnType<typeof useOtp>;
+   151→   151→  tr: (k: any) => any;
+   152→   152→}) {
+   153→   153→  const { otpState, otpCode, setOtpCode, cooldown, sendOtp, verifyOtp } = otp;
+   154→   154→  const digits = phone.replace(/\D/g, "");
+   155→   155→  const prevDigitsRef = useRef("");
+   156→   156→
+   157→   157→  // Auto-send OTP when digits reach 10+
+   158→   158→  useEffect(() => {
+   159→   159→    if (digits.length >= 10 && digits.length > prevDigitsRef.current.length && otpState === "idle") {
+   160→   160→      prevDigitsRef.current = digits;
+   161→   161→      sendOtp(phone, tr);
+   162→   162→    } else {
+   163→   163→      prevDigitsRef.current = digits;
+   164→   164→    }
+   165→   165→  }, [digits, otpState, phone, sendOtp, tr]);
+   166→   166→
+   167→   167→  // Auto-verify when 6 digits entered
+   168→   168→  useEffect(() => {
+   169→   169→    if (otpCode.length === 6 && (otpState === "sent" || otpState === "verifying")) {
+   170→   170→      verifyOtp(phone, tr);
+   171→   171→    }
+   172→   172→  }, [otpCode, otpState, phone, verifyOtp, tr]);
+   173→   173→
+   174→   174→  return (
+   175→   175→    <div className="space-y-3">
+   176→   176→      <div className="space-y-1.5">
+   177→   177→        <Label htmlFor="wa-phone">{tr("whatsapp")}</Label>
+   178→   178→        <div className="flex gap-2">
+   179→   179→          <div className="relative flex-1">
+   180→   180→            <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   181→   181→            <Input
+   182→   182→              id="wa-phone"
+   183→   183→              type="tel"
+   184→   184→              inputMode="numeric"
+   185→   185→              value={phone}
+   186→   186→              onChange={(e) => {
+   187→   187→                setPhone(e.target.value.replace(/[^0-9+\- ]/g, ""));
+   188→   188→                if (otpState === "verified") otp.reset();
+   189→   189→              }}
+   190→   190→              placeholder={tr("whatsappPlaceholder")}
+   191→   191→              className="pl-9"
+   192→   192→            />
+   193→   193→          </div>
+   194→   194→          <Button
+   195→   195→            type="button"
+   196→   196→            variant="outline"
+   197→   197→            size="sm"
+   198→   198→            disabled={digits.length < 10 || otpState === "sending" || cooldown > 0}
+   199→   199→            onClick={() => sendOtp(phone, tr)}
+   200→   200→            className="shrink-0 gap-1.5 px-3"
+   201→   201→          >
+   202→   202→            {otpState === "sending" ? (
+   203→   203→              <Loader2 className="size-3.5 animate-spin" />
+   204→   204→            ) : cooldown > 0 ? (
+   205→   205→              <>{cooldown}s</>
+   206→   206→            ) : otpState === "sent" || otpState === "verified" ? (
+   207→   207→              <RefreshCw className="size-3.5" />
+   208→   208→            ) : (
+   209→   209→              <Send className="size-3.5" />
+   210→   210→            )}
+   211→   211→            {cooldown > 0
+   212→   212→              ? tr("resendOtp")
+   213→   213→              : otpState === "sent" || otpState === "verified"
+   214→   214→                ? tr("resendOtp")
+   215→   215→                : tr("sendOtp")}
+   216→   216→          </Button>
+   217→   217→        </div>
+   218→   218→      </div>
+   219→   219→
+   220→   220→      {(otpState === "sent" || otpState === "verifying" || otpState === "verified") && (
+   221→   221→        <div className="space-y-1.5 animate-fade-up">
+   222→   222→          <Label htmlFor="otp-code">{tr("enterOtp")}</Label>
+   223→   223→          <div className="relative">
+   224→   224→            <Input
+   225→   225→              id="otp-code"
+   226→   226→              type="text"
+   227→   227→              inputMode="numeric"
+   228→   228→              maxLength={6}
+   229→   229→              value={otpCode}
+   230→   230→              onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+   231→   231→              placeholder="000000"
+   232→   232→              className={cn(
+   233→   233→                "pl-9 tracking-[0.3em] text-center font-mono text-lg",
+   234→   234→                otpState === "verified" && "border-green-500 bg-green-50 dark:bg-green-950/30"
+   235→   235→              )}
+   236→   236→              disabled={otpState === "verifying"}
+   237→   237→            />
+   238→   238→            {otpState === "verifying" && (
+   239→   239→              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-primary" />
+   240→   240→            )}
+   241→   241→            {otpState === "verified" && (
+   242→   242→              <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-green-500" />
+   243→   243→            )}
+   244→   244→          </div>
+   245→   245→        </div>
+   246→   246→      )}
+   247→   247→    </div>
+   248→   248→  );
+   249→   249→}
+   250→   250→
+   251→   251→/* ------------------------------------------------------------------ */
+   252→   252→/*  Main LoginView Component                                          */
+   253→   253→/* ------------------------------------------------------------------ */
+   254→   254→
+   255→   255→export function LoginView() {
+   256→   256→  const goBack = useStore((s) => s.goBack);
+   257→   257→
+   258→   258→  const { t } = useLang();
+   259→   259→  const mounted = useMounted();
+   260→   260→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   261→   261→
+   262→   262→  const [showPass, setShowPass] = useState(false);
+   263→   263→  const [loading, setLoading] = useState(false);
+   264→   264→  const [success, setSuccess] = useState(false);
+   265→   265→
+   266→   266→  // Login state
+   267→   267→  const [loginMethod, setLoginMethod] = useState<"email" | "whatsapp">("whatsapp");
+   268→   268→  const [lEmail, setLEmail] = useState("");
+   269→   269→  const [lPass, setLPass] = useState("");
+   270→   270→  const [lPhone, setLPhone] = useState("");
+   271→   271→  const loginOtp = useOtp();
+   272→   272→
+   273→   273→  // Register state
+   274→   274→  const [rName, setRName] = useState("");
+   275→   275→  const [rEmail, setREmail] = useState("");
+   276→   276→  const [rPhone, setRPhone] = useState("");
+   277→   277→  const [rCity, setRCity] = useState("");
+   278→   278→  const [rProvince, setRProvince] = useState("");
+   279→   279→  const [rPass, setRPass] = useState("");
+   280→   280→  const [rPass2, setRPass2] = useState("");
+   281→   281→  const [agree, setAgree] = useState(false);
+   282→   282→  const [tab, setTab] = useState<"login" | "register">("login");
+   283→   283→  const registerOtp = useOtp();
+   284→   284→
+   285→   285→  // Reset OTP when switching tabs
+   286→   286→  useEffect(() => {
+   287→   287→    loginOtp.reset();
+   288→   288→    registerOtp.reset();
+   289→   289→  }, [tab, loginOtp.reset, registerOtp.reset]);
+   290→   290→
+   291→   291→  const doLogin = async (e: React.FormEvent) => {
+   292→   292→    e.preventDefault();
+   293→   293→    setLoading(true);
+   294→   294→    try {
+   295→   295→      let body: Record<string, string>;
+   296→   296→      if (loginMethod === "email") {
+   297→   297→        if (!lEmail.trim() || !lPass) {
+   298→   298→          toast.error(tr("errEmailPass"));
+   299→   299→          return;
+   300→   300→        }
+   301→   301→        body = { email: lEmail, password: lPass };
+   302→   302→      } else {
+   303→   303→        if (lPhone.replace(/\D/g, "").length < 10) {
+   304→   304→          toast.error(tr("errPhoneRequired"));
+   305→   305→          return;
+   306→   306→        }
+   307→   307→        if (loginOtp.otpState !== "verified") {
+   308→   308→          toast.error(tr("errPhoneNotVerified"));
+   309→   309→          return;
+   310→   310→        }
+   311→   311→        body = { phone: lPhone };
+   312→   312→      }
+   313→   313→      const res = await fetch("/api/auth/login", {
+   314→   314→        method: "POST",
+   315→   315→        headers: { "Content-Type": "application/json" },
+   316→   316→        body: JSON.stringify(body),
+   317→   317→      });
+   318→   318→      const data = await res.json();
+   319→   319→      if (!res.ok) {
+   320→   320→        toast.error(data.error || tr("errLogin"));
+   321→   321→        return;
+   322→   322→      }
+   323→   323→      const setUser = useStore.getState().setUser;
+   324→   324→      const goToProfile = useStore.getState().goToProfile;
+   325→   325→      const goToAdmin = useStore.getState().goToAdmin;
+   326→   326→      setUser(data.user);
+   327→   327→      setSuccess(true);
+   328→   328→      toast.success(formatT(tr("welcomeBack"), { name: data.user.name }));
+   329→   329→      const isAdmin = data.user.role === "admin" || data.user.role === "superadmin";
+   330→   330→      setTimeout(() => isAdmin ? goToAdmin() : goToProfile(), 900);
+   331→   331→    } catch {
+   332→   332→      toast.error(tr("errConnection"));
+   333→   333→    } finally {
+   334→   334→      setLoading(false);
+   335→   335→    }
+   336→   336→  };
+   337→   337→
+   338→   338→  const doRegister = async (e: React.FormEvent) => {
+   339→   339→    e.preventDefault();
+   340→   340→    if (!rName.trim() || !rEmail.trim() || !rPass) {
+   341→   341→      toast.error(tr("errRequired"));
+   342→   342→      return;
+   343→   343→    }
+   344→   344→    if (rPhone.replace(/\D/g, "").length < 10) {
+   345→   345→      toast.error(tr("errPhoneRequired"));
+   346→   346→      return;
+   347→   347→    }
+   348→   348→    if (registerOtp.otpState !== "verified") {
+   349→   349→      toast.error(tr("errPhoneNotVerified"));
+   350→   350→      return;
+   351→   351→    }
+   352→   352→    if (rPass.length < 6) {
+   353→   353→      toast.error(tr("errPassLength"));
+   354→   354→      return;
+   355→   355→    }
+   356→   356→    if (rPass !== rPass2) {
+   357→   357→      toast.error(tr("errPassMatch"));
+   358→   358→      return;
+   359→   359→    }
+   360→   360→    if (!agree) {
+   361→   361→      toast.error(tr("errAgree"));
+   362→   362→      return;
+   363→   363→    }
+   364→   364→    setLoading(true);
+   365→   365→    try {
+   366→   366→      const res = await fetch("/api/auth/register", {
+   367→   367→        method: "POST",
+   368→   368→        headers: { "Content-Type": "application/json" },
+   369→   369→        body: JSON.stringify({
+   370→   370→          name: rName,
+   371→   371→          email: rEmail,
+   372→   372→          password: rPass,
+   373→   373→          phone: rPhone,
+   374→   374→          city: rCity || rProvince,
+   375→   375→        }),
+   376→   376→      });
+   377→   377→      const data = await res.json();
+   378→   378→      if (!res.ok) {
+   379→   379→        toast.error(data.error || tr("errRegister"));
+   380→   380→        return;
+   381→   381→      }
+   382→   382→      const setUser = useStore.getState().setUser;
+   383→   383→      const goToProfile = useStore.getState().goToProfile;
+   384→   384→      const goToAdmin = useStore.getState().goToAdmin;
+   385→   385→      setUser(data.user);
+   386→   386→      setSuccess(true);
+   387→   387→      toast.success(tr("registerSuccess"));
+   388→   388→      const isAdmin = data.user.role === "admin" || data.user.role === "superadmin";
+   389→   389→      setTimeout(() => isAdmin ? goToAdmin() : goToProfile(), 1100);
+   390→   390→    } catch {
+   391→   391→      toast.error(tr("errConnection"));
+   392→   392→    } finally {
+   393→   393→      setLoading(false);
+   394→   394→    }
+   395→   395→  };
+   396→   396→
+   397→   397→  if (success) {
+   398→   398→    return (
+   399→   399→      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center animate-fade-up">
+   400→   400→        <div className="grid size-20 place-items-center rounded-full bg-primary/10">
+   401→   401→          <CheckCircle2 className="size-12 text-primary" />
+   402→   402→        </div>
+   403→   403→        <h2 className="mt-4 text-2xl font-bold">{tr("loginSuccess")}</h2>
+   404→   404→        <p className="mt-2 text-sm text-muted-foreground">
+   405→   405→          {tr("loginRedirect")}
+   406→   406→        </p>
+   407→   407→        <Loader2 className="mt-4 size-5 animate-spin text-primary" />
+   408→   408→      </div>
+   409→   409→    );
+   410→   410→  }
+   411→   411→
+   412→   412→  return (
+   413→   413→    <div className="animate-fade-up">
+   414→   414→      {/* ===== MOBILE: compact single column ===== */}
+   415→   415→      <div className="flex min-h-[calc(100vh-4rem)] flex-col px-4 py-6 md:hidden">
+   416→   416→        <button
+   417→   417→          onClick={goBack}
+   418→   418→          className="mb-4 inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-primary"
+   419→   419→        >
+   420→   420→          <ChevronLeft className="size-4" /> {tr("back")}
+   421→   421→        </button>
+   422→   422→        <div className="flex flex-col items-center text-center">
+   423→   423→          {/* eslint-disable-next-line @next/next/no-img-element */}
+   424→   424→          <img src="/logo.jpeg" alt="Gomesin" className="size-16 rounded-2xl shadow-lg object-cover" />
+   425→   425→          <h1 className="mt-3 text-2xl font-extrabold tracking-tight">
+   426→   426→            <span className="text-primary">go</span>mesin
+   427→   427→          </h1>
+   428→   428→          <p className="mt-1 text-sm text-muted-foreground">{tr("loginTitle")}</p>
+   429→   429→        </div>
+   430→   430→        <div className="mt-6 w-full max-w-md mx-auto">
+   431→   431→          <FormSection
+   432→   432→            tab={tab} setTab={setTab}
+   433→   433→            showPass={showPass} setShowPass={setShowPass}
+   434→   434→            loading={loading}
+   435→   435→            loginMethod={loginMethod} setLoginMethod={setLoginMethod}
+   436→   436→            lEmail={lEmail} setLEmail={setLEmail}
+   437→   437→            lPass={lPass} setLPass={setLPass}
+   438→   438→            lPhone={lPhone} setLPhone={setLPhone}
+   439→   439→            loginOtp={loginOtp}
+   440→   440→            rName={rName} setRName={setRName}
+   441→   441→            rEmail={rEmail} setREmail={setREmail}
+   442→   442→            rPhone={rPhone} setRPhone={setRPhone}
+   443→   443→            registerOtp={registerOtp}
+   444→   444→            rCity={rCity} setRCity={setRCity}
+   445→   445→            rProvince={rProvince} setRProvince={setRProvince}
+   446→   446→            rPass={rPass} setRPass={setRPass}
+   447→   447→            rPass2={rPass2} setRPass2={setRPass2}
+   448→   448→            agree={agree} setAgree={setAgree}
+   449→   449→            doLogin={doLogin} doRegister={doRegister}
+   450→   450→            tr={tr}
+   451→   451→          />
+   452→   452→        </div>
+   453→   453→      </div>
+   454→   454→
+   455→   455→      {/* ===== DESKTOP: 1/2 orange block + 1/2 centered form ===== */}
+   456→   456→      <div className="hidden md:grid md:grid-cols-2 md:min-h-[calc(100vh-4rem)]">
+   457→   457→        {/* LEFT: Orange block with logo + marketing text */}
+   458→   458→        <div className="relative flex flex-col items-center justify-center bg-primary px-12 py-16 overflow-hidden">
+   459→   459→          {/* Decorative circles */}
+   460→   460→          <div className="absolute inset-0 opacity-10">
+   461→   461→            <div className="absolute -top-24 -left-24 size-72 rounded-full bg-white/20" />
+   462→   462→            <div className="absolute -bottom-32 -right-32 size-96 rounded-full bg-white/10" />
+   463→   463→            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[600px] rounded-full bg-white/5" />
+   464→   464→          </div>
+   465→   465→          <div className="relative z-10 flex flex-col items-center text-center max-w-sm">
+   466→   466→            {/* eslint-disable-next-line @next/next/no-img-element */}
+   467→   467→            <img
+   468→   468→              src="/logo.jpeg"
+   469→   469→              alt="Gomesin"
+   470→   470→              className="size-24 rounded-3xl shadow-2xl object-cover ring-4 ring-white/20"
+   471→   471→            />
+   472→   472→            <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-primary-foreground">
+   473→   473→              <span className="text-white">go</span>mesin
+   474→   474→            </h1>
+   475→   475→            <h2 className="mt-5 text-2xl font-black leading-tight text-white">
+   476→   476→              Jual &amp; beli mesin industri, lebih cepat, lebih aman.
+   477→   477→            </h2>
+   478→   478→            <p className="mt-4 text-base leading-relaxed text-primary-foreground/80">
+   479→   479→              Ribuan listing MESIN CETAK, CNC, Laser, kompresor, alat berat &amp; sparepart — baru dan bekas dari seller terverifikasi se-Indonesia.
+   480→   480→            </p>
+   481→   481→            <div className="mt-8 flex flex-wrap justify-center gap-3">
+   482→   482→              {[
+   483→   483→                { icon: ShieldCheck, label: "Seller Terverifikasi" },
+   484→   484→                { icon: MapPin, label: "Se-Indonesia" },
+   485→   485→                { icon: Cog, label: "Mesin Berkualitas" },
+   486→   486→              ].map(({ icon: Icon, label }) => (
+   487→   487→                <span
+   488→   488→                  key={label}
+   489→   489→                  className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-medium text-white backdrop-blur"
+   490→   490→                >
+   491→   491→                  <Icon className="size-3.5" />
+   492→   492→                  {label}
+   493→   493→                </span>
+   494→   494→              ))}
+   495→   495→            </div>
+   496→   496→          </div>
+   497→   497→        </div>
+   498→   498→
+   499→   499→        {/* RIGHT: Centered login/register form */}
+   500→   500→        <div className="flex flex-col items-center justify-center px-8 py-12">
+   501→   501→          <div className="w-full max-w-md">
+   502→   502→            <button
+   503→   503→              onClick={goBack}
+   504→   504→              className="mb-6 inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-primary"
+   505→   505→            >
+   506→   506→              <ChevronLeft className="size-4" /> {tr("back")}
+   507→   507→            </button>
+   508→   508→            <div className="mb-6 flex items-center gap-2.5">
+   509→   509→              {/* eslint-disable-next-line @next/next/no-img-element */}
+   510→   510→              <img src="/logo.jpeg" alt="Gomesin" className="size-10 rounded-xl object-cover shadow-sm" />
+   511→   511→              <h1 className="text-xl font-extrabold tracking-tight">
+   512→   512→                <span className="text-primary">go</span>mesin
+   513→   513→              </h1>
+   514→   514→            </div>
+   515→   515→            <FormSection
+   516→   516→              tab={tab} setTab={setTab}
+   517→   517→              showPass={showPass} setShowPass={setShowPass}
+   518→   518→              loading={loading}
+   519→   519→              loginMethod={loginMethod} setLoginMethod={setLoginMethod}
+   520→   520→              lEmail={lEmail} setLEmail={setLEmail}
+   521→   521→              lPass={lPass} setLPass={setLPass}
+   522→   522→              lPhone={lPhone} setLPhone={setLPhone}
+   523→   523→              loginOtp={loginOtp}
+   524→   524→              rName={rName} setRName={setRName}
+   525→   525→              rEmail={rEmail} setREmail={setREmail}
+   526→   526→              rPhone={rPhone} setRPhone={setRPhone}
+   527→   527→              registerOtp={registerOtp}
+   528→   528→              rCity={rCity} setRCity={setRCity}
+   529→   529→              rProvince={rProvince} setRProvince={setRProvince}
+   530→   530→              rPass={rPass} setRPass={setRPass}
+   531→   531→              rPass2={rPass2} setRPass2={setRPass2}
+   532→   532→              agree={agree} setAgree={setAgree}
+   533→   533→              doLogin={doLogin} doRegister={doRegister}
+   534→   534→              tr={tr}
+   535→   535→            />
+   536→   536→            <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+   537→   537→              <ShieldCheck className={cn("size-3.5 text-primary")} />
+   538→   538→              {tr("dataSecure")}
+   539→   539→            </div>
+   540→   540→          </div>
+   541→   541→        </div>
+   542→   542→      </div>
+   543→   543→    </div>
+   544→   544→  );
+   545→   545→}
+   546→   546→
+   547→   547→/* ===== Reusable form section (used in both mobile & desktop) ===== */
+   548→   548→function FormSection({
+   549→   549→  tab, setTab, showPass, setShowPass, loading,
+   550→   550→  loginMethod, setLoginMethod,
+   551→   551→  lEmail, setLEmail, lPass, setLPass,
+   552→   552→  lPhone, setLPhone, loginOtp,
+   553→   553→  rName, setRName, rEmail, setREmail, rPhone, setRPhone, registerOtp,
+   554→   554→  rCity, setRCity, rProvince, setRProvince,
+   555→   555→  rPass, setRPass, rPass2, setRPass2, agree, setAgree,
+   556→   556→  doLogin, doRegister, tr,
+   557→   557→}: {
+   558→   558→  tab: string; setTab: (v: "login" | "register") => void;
+   559→   559→  showPass: boolean; setShowPass: (v: boolean | ((p: boolean) => boolean)) => void;
+   560→   560→  loading: boolean;
+   561→   561→  loginMethod: "email" | "whatsapp";
+   562→   562→  setLoginMethod: (v: "email" | "whatsapp") => void;
+   563→   563→  lEmail: string; setLEmail: (v: string) => void;
+   564→   564→  lPass: string; setLPass: (v: string) => void;
+   565→   565→  lPhone: string; setLPhone: (v: string) => void;
+   566→   566→  loginOtp: ReturnType<typeof useOtp>;
+   567→   567→  rName: string; setRName: (v: string) => void;
+   568→   568→  rEmail: string; setREmail: (v: string) => void;
+   569→   569→  rPhone: string; setRPhone: (v: string) => void;
+   570→   570→  registerOtp: ReturnType<typeof useOtp>;
+   571→   571→  rCity: string; setRCity: (v: string) => void;
+   572→   572→  rProvince: string; setRProvince: (v: string) => void;
+   573→   573→  rPass: string; setRPass: (v: string) => void;
+   574→   574→  rPass2: string; setRPass2: (v: string) => void;
+   575→   575→  agree: boolean; setAgree: (v: boolean) => void;
+   576→   576→  doLogin: (e: React.FormEvent) => void;
+   577→   577→  doRegister: (e: React.FormEvent) => void;
+   578→   578→  tr: (key: any) => any;
+   579→   579→}) {
+   580→   580→  return (
+   581→   581→    <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "register")}>
+   582→   582→      <TabsList className="grid w-full grid-cols-2">
+   583→   583→        <TabsTrigger value="login">{tr("tabLogin")}</TabsTrigger>
+   584→   584→        <TabsTrigger value="register">{tr("tabRegister")}</TabsTrigger>
+   585→   585→      </TabsList>
+   586→   586→
+   587→   587→      {/* ========== LOGIN TAB ========== */}
+   588→   588→      <TabsContent value="login">
+   589→   589→        <form onSubmit={doLogin} className="space-y-4 rounded-xl border border-border bg-card p-5">
+   590→   590→          {/* Login method dropdown */}
+   591→   591→          <div className="space-y-1.5">
+   592→   592→            <Label>{tr("loginMethod")}</Label>
+   593→   593→            <Select value={loginMethod} onValueChange={(v) => { setLoginMethod(v as "email" | "whatsapp"); loginOtp.reset(); }}>
+   594→   594→              <SelectTrigger className="w-full">
+   595→   595→                <SelectValue />
+   596→   596→              </SelectTrigger>
+   597→   597→              <SelectContent>
+   598→   598→                <SelectItem value="whatsapp">
+   599→   599→                  <span className="inline-flex items-center gap-2">
+   600→   600→                    <Phone className="size-4 text-[#25D366]" />
+   601→   601→                    {tr("whatsapp")}
+   602→   602→                  </span>
+   603→   603→                </SelectItem>
+   604→   604→                <SelectItem value="email">
+   605→   605→                  <span className="inline-flex items-center gap-2">
+   606→   606→                    <Mail className="size-4" />
+   607→   607→                    {tr("email")}
+   608→   608→                  </span>
+   609→   609→                </SelectItem>
+   610→   610→              </SelectContent>
+   611→   611→            </Select>
+   612→   612→          </div>
+   613→   613→
+   614→   614→          {/* Email + Password fields */}
+   615→   615→          {loginMethod === "email" && (
+   616→   616→            <>
+   617→   617→              <div className="space-y-1.5 animate-fade-up">
+   618→   618→                <Label htmlFor="l-email">{tr("email")}</Label>
+   619→   619→                <div className="relative">
+   620→   620→                  <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   621→   621→                  <Input id="l-email" type="email" autoComplete="email" value={lEmail} onChange={(e) => setLEmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
+   622→   622→                </div>
+   623→   623→              </div>
+   624→   624→              <div className="space-y-1.5">
+   625→   625→                <Label htmlFor="l-pass">{tr("password")}</Label>
+   626→   626→                <div className="relative">
+   627→   627→                  <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   628→   628→                  <Input id="l-pass" type={showPass ? "text" : "password"} autoComplete="current-password" value={lPass} onChange={(e) => setLPass(e.target.value)} placeholder="••••••••" className="px-9" />
+   629→   629→                  <button type="button" onClick={() => setShowPass((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={showPass ? tr("hidePass") : tr("showPass")}>
+   630→   630→                    {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+   631→   631→                  </button>
+   632→   632→                </div>
+   633→   633→              </div>
+   634→   634→            </>
+   635→   635→          )}
+   636→   636→
+   637→   637→          {/* WhatsApp OTP fields */}
+   638→   638→          {loginMethod === "whatsapp" && (
+   639→   639→            <div className="animate-fade-up">
+   640→   640→              <WaOtpField phone={lPhone} setPhone={setLPhone} otp={loginOtp} tr={tr} />
+   641→   641→            </div>
+   642→   642→          )}
+   643→   643→
+   644→   644→          <Button
+   645→   645→            type="submit"
+   646→   646→            disabled={loading || (loginMethod === "whatsapp" && loginOtp.otpState !== "verified")}
+   647→   647→            className="w-full gap-2 bg-primary font-semibold"
+   648→   648→            size="lg"
+   649→   649→          >
+   650→   650→            {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+   651→   651→            {loading ? tr("processing") : tr("tabLogin")}
+   652→   652→          </Button>
+   653→   653→
+   654→   654→          <p className="text-center text-xs text-muted-foreground">
+   655→   655→            {tr("noAccount")}{" "}
+   656→   656→            <button type="button" onClick={() => setTab("register")} className="font-semibold text-primary hover:underline">
+   657→   657→              {tr("registerNow")}
+   658→   658→            </button>
+   659→   659→          </p>
+   660→   660→        </form>
+   661→   661→      </TabsContent>
+   662→   662→
+   663→   663→      {/* ========== REGISTER TAB ========== */}
+   664→   664→      <TabsContent value="register">
+   665→   665→        <form onSubmit={doRegister} className="space-y-4 rounded-xl border border-border bg-card p-5">
+   666→   666→          <div className="space-y-1.5">
+   667→   667→            <Label htmlFor="r-name">{`${tr("fullName")} *`}</Label>
+   668→   668→            <div className="relative">
+   669→   669→              <User className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   670→   670→              <Input id="r-name" value={rName} onChange={(e) => setRName(e.target.value)} placeholder={tr("fullNamePlaceholder")} className="pl-9" />
+   671→   671→            </div>
+   672→   672→          </div>
+   673→   673→
+   674→   674→          <div className="space-y-1.5">
+   675→   675→            <Label htmlFor="r-email">{`${tr("email")} *`}</Label>
+   676→   676→            <div className="relative">
+   677→   677→              <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   678→   678→              <Input id="r-email" type="email" autoComplete="email" value={rEmail} onChange={(e) => setREmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
+   679→   679→            </div>
+   680→   680→          </div>
+   681→   681→
+   682→   682→          <WaOtpField phone={rPhone} setPhone={setRPhone} otp={registerOtp} tr={tr} />
+   683→   683→
+   684→   684→          {/* Province BEFORE City */}
+   685→   685→          <div className="space-y-1.5">
+   686→   686→            <Label>{tr("province")}</Label>
+   687→   687→            <Select value={rProvince} onValueChange={(v) => { setRProvince(v); setRCity(""); }}>
+   688→   688→              <SelectTrigger className="w-full"><SelectValue placeholder={tr("selectProvince")} /></SelectTrigger>
+   689→   689→              <SelectContent>
+   690→   690→                {PROVINCES.map((p) => (
+   691→   691→                  <SelectItem key={p} value={p}>{p}</SelectItem>
+   692→   692→                ))}
+   693→   693→              </SelectContent>
+   694→   694→            </Select>
+   695→   695→          </div>
+   696→   696→
+   697→   697→          <div className="space-y-1.5">
+   698→   698→            <Label>{tr("cityLabel")}</Label>
+   699→   699→            <Select value={rCity} onValueChange={(v) => { setRCity(v); }} disabled={!rProvince}>
+   700→   700→              <SelectTrigger className="w-full">
+   701→   701→                <SelectValue placeholder={rProvince ? tr("selectCity") : tr("selectProvinceFirst")} />
+   702→   702→              </SelectTrigger>
+   703→   703→              <SelectContent>
+   704→   704→                {(PROVINCE_CITIES[rProvince] || []).map((c) => (
+   705→   705→                  <SelectItem key={c} value={c}>{c}</SelectItem>
+   706→   706→                ))}
+   707→   707→              </SelectContent>
+   708→   708→            </Select>
+   709→   709→          </div>
+   710→   710→
+   711→   711→          <div className="space-y-1.5">
+   712→   712→            <Label htmlFor="r-pass">{`${tr("password")} *`}</Label>
+   713→   713→            <div className="relative">
+   714→   714→              <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   715→   715→              <Input id="r-pass" type={showPass ? "text" : "password"} autoComplete="new-password" value={rPass} onChange={(e) => setRPass(e.target.value)} placeholder={tr("passwordPlaceholder")} className="px-9" />
+   716→   716→              <button type="button" onClick={() => setShowPass((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={showPass ? tr("hidePass") : tr("showPass")}>
+   717→   717→                {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+   718→   718→              </button>
+   719→   719→            </div>
+   720→   720→          </div>
+   721→   721→
+   722→   722→          <div className="space-y-1.5">
+   723→   723→            <Label htmlFor="r-pass2">{`${tr("passwordConfirm")} *`}</Label>
+   724→   724→            <div className="relative">
+   725→   725→              <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   726→   726→              <Input id="r-pass2" type={showPass ? "text" : "password"} autoComplete="new-password" value={rPass2} onChange={(e) => setRPass2(e.target.value)} placeholder={tr("passwordConfirmPlaceholder")} className="pl-9" />
+   727→   727→            </div>
+   728→   728→            {rPass2 && rPass !== rPass2 && (
+   729→   729→              <p className="text-xs text-destructive">{tr("passwordMismatch")}</p>
+   730→   730→            )}
+   731→   731→          </div>
+   732→   732→
+   733→   733→          <label className="flex items-start gap-2 text-xs text-muted-foreground">
+   734→   734→            <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 accent-primary" />
+   735→   735→            <span>{tr("agreeTerms")}</span>
+   736→   736→          </label>
+   737→   737→
+   738→   738→          <Button type="submit" disabled={loading} className="w-full gap-2 bg-primary font-semibold" size="lg">
+   739→   739→            {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+   740→   740→            {loading ? tr("processing") : tr("registerBtn")}
+   741→   741→          </Button>
+   742→   742→
+   743→   743→          <p className="text-center text-xs text-muted-foreground">
+   744→   744→            {tr("haveAccount")}{" "}
+   745→   745→            <button type="button" onClick={() => setTab("login")} className="font-semibold text-primary hover:underline">
+   746→   746→              {tr("loginHere")}
+   747→   747→            </button>
+   748→   748→          </p>
+   749→   749→        </form>
+   750→   750→      </TabsContent>
+   751→   751→    </Tabs>
+   752→   752→  );
+   753→   753→}

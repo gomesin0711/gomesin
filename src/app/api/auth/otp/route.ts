@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
 
 /* ------------------------------------------------------------------ */
 /*  In-memory OTP store (works on serverless / Vercel)                */
@@ -68,11 +69,32 @@ export async function POST(req: NextRequest) {
         verified: false,
       });
 
-      // In production, send OTP via WhatsApp API here.
-      // For dev/testing, return the code so frontend can display it.
       console.log(`[OTP] Phone: ${phone}, Code: ${otpCode}`);
 
-      return NextResponse.json({ success: true, message: "OTP terkirim", _devCode: otpCode });
+      // ---- Kirim OTP via WhatsApp (Fonnte) ----
+      const waSent = await sendWhatsAppMessage(
+        phone,
+        `*_GoMesin_* – Kode Verifikasi\n\nKode OTP Anda: *${otpCode}*\n\nJangan berikan kode ini kepada siapa pun. Kode berlaku 5 menit.`,
+      );
+
+      if (waSent.success) {
+        // OTP berhasil dikirim via WhatsApp
+        return NextResponse.json({
+          success: true,
+          message: "OTP terkirim ke WhatsApp",
+          sentViaWhatsApp: true,
+        });
+      }
+
+      // Fallback: Fonnte tidak tersedia (API key belum diset / error)
+      // Return _devCode agar frontend bisa menampilkan kodenya
+      console.warn(`[OTP] WhatsApp send failed for ${phone}: ${waSent.error}`);
+      return NextResponse.json({
+        success: true,
+        message: "OTP terkirim (mode dev)",
+        _devCode: otpCode,
+        sentViaWhatsApp: false,
+      });
     }
 
     if (action === "verify") {

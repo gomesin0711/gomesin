@@ -77,14 +77,17 @@ function useOtp() {
         setOtpState("idle");
         return;
       }
-      // Dev: show OTP code
-      if (data._devCode) {
-        toast.info(`[DEV] OTP: ${data._devCode}`);
+      // If OTP sent via WhatsApp (production mode)
+      if (data.sentViaWhatsApp) {
+        toast.success(tr("otpSent"));
+      } else if (data._devCode) {
+        // Fallback dev mode — show OTP code in toast
+        toast.info(`OTP: ${data._devCode}`, { duration: 10000 });
+        toast.success(tr("otpSent"));
       }
       setOtpState("sent");
       setOtpCode("");
       setCooldown(60);
-      toast.success(tr("otpSent"));
     } catch {
       toast.error(tr("errConnection"));
       setOtpState("idle");
