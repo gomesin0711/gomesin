@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { sendOtpEmail } from "@/lib/email";
 import { db } from "@/lib/db";
 
@@ -8,8 +7,7 @@ import { db } from "@/lib/db";
 /* ------------------------------------------------------------------ */
 
 type OtpEntry = {
-  waCode: string;
-  emailCode: string;
+  code: string;
   expiresAt: number;
   verified: boolean;
 };
@@ -73,58 +71,37 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Tunggu ${waitSec} detik sebelum mengirim ulang`, waitSec });
       }
 
-      // Generate kode BEDA untuk WhatsApp dan Email
-      const waCode = generateCode();
-      const emailCode = generateCode();
+      // Cari email: dari body (register) atau dari database (login)
+      const email = bodyEmail || (await findEmailByPhone(phone));
+      if (!email) {
+        return NextResponse.json({ error: "Email tidak ditemukan untuk nomor ini" }, { status: 400 });
+      }
+
+      const otpCode = generateCode();
       otpStore.set(phone, {
-        waCode,
-        emailCode,
+        code: otpCode,
         expiresAt: Date.now() + OTP_TTL_MS,
         verified: false,
       });
 
-      console.log(`[OTP] Phone: ${phone}, WA: ${waCode}, Email: ${emailCode}`);
+      console.log(`[OTP] Phone: ${phone}, Email: ${email}, Code: ${otpCode}`);
 
-      // ---- 1. Kirim OTP via WhatsApp (Fonnte) ----
-      const waResult = await sendWhatsAppMessage(
-        phone,
-        `GoMesin - Kode Verifikasi. Kode OTP Anda: ${waCode}. Jangan berikan kode ini. Kode berlaku 1 menit.`,
-      );
-      const waOk = waResult.success;
-      if (!waOk) {
-        console.warn(`[OTP] WhatsApp send failed for ${phone}: ${waResult.error}`);
-      }
-
-      // ---- 2. Kirim OTP via Email (Resend) ----
-      const email = bodyEmail || (await findEmailByPhone(phone));
-      let emailOk = false;
-      if (email) {
-        const emailResult = await sendOtpEmail(email, emailCode);
-        emailOk = emailResult.success;
-        if (!emailOk) {
-          console.warn(`[OTP] Email send failed for ${email}: ${emailResult.error}`);
-        }
-      }
-
-      // ---- Response ----
-      if (waOk || emailOk) {
-        const channels: string[] = [];
-        if (waOk) channels.push("WhatsApp");
-        if (emailOk) channels.push("Email");
+      // Kirim OTP via Email saja
+      const emailResult = await sendOtpEmail(email, otpCode);
+      if (emailResult.success) {
         return NextResponse.json({
           success: true,
-          message: `OTP terkirim via ${channels.join(" & ")}`,
-          sentViaWhatsApp: waOk,
-          sentViaEmail: emailOk,
+          message: `OTP terkirim ke ${email}`,
+          sentViaEmail: true,
         });
       }
 
-      // Fallback: keduanya gagal, tampilkan kode di frontend
+      // Fallback: email gagal, tampilkan kode di frontend
+      console.warn(`[OTP] Email send failed for ${email}: ${emailResult.error}`);
       return NextResponse.json({
         success: true,
         message: "OTP terkirim (mode dev)",
-        _devCode: waCode,
-        sentViaWhatsApp: false,
+        _devCode: otpCode,
         sentViaEmail: false,
       });
     }
@@ -144,8 +121,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "OTP sudah expired. Silakan kirim ulang." }, { status: 400 });
       }
 
-      // Terima kode WA ATAU Email — salah satu benar cukup
-      if (entry.waCode !== code && entry.emailCode !== code) {
+      if (entry.code !== code) {
         return NextResponse.json({ error: "Kode OTP salah" }, { status: 400 });
       }
 
