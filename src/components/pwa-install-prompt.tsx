@@ -9,13 +9,13 @@ import { useLang } from "@/lib/i18n";
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-interface BeforeInstallPromptEvent extends Event {
+type Platform = "ios" | "android" | "desktop";
+type Browser = "chrome" | "edge" | "samsung" | "huawei" | "opera" | "firefox" | "safari" | "other";
+
+interface DeferredPrompt extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
-
-type Platform = "ios" | "android" | "desktop";
-type Browser = "chrome" | "edge" | "samsung" | "huawei" | "opera" | "firefox" | "safari" | "other";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -24,11 +24,17 @@ type Browser = "chrome" | "edge" | "samsung" | "huawei" | "opera" | "firefox" | 
 const DISMISSED_KEY = "gomesin-pwa-dismissed";
 const INSTALLED_KEY = "gomesin-pwa-installed";
 const DISMISS_MS = 24 * 60 * 60 * 1000; // 1 day
-const SHOW_DELAY_MS = 2000;
+const SHOW_DELAY_MS = 1000; // 1 second
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
+
+declare global {
+  interface Window {
+    __deferredInstallPrompt: DeferredPrompt | null;
+  }
+}
 
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -54,10 +60,6 @@ function canShow(): boolean {
 
 function markDismissed() {
   try { localStorage.setItem(DISMISSED_KEY, String(Date.now())); } catch {}
-}
-
-function markInstalled() {
-  try { localStorage.setItem(INSTALLED_KEY, "1"); } catch {}
 }
 
 function isInstalled(): boolean {
@@ -103,8 +105,7 @@ const T: Record<string, Record<string, string>> = {
   iosStep1Icon:  { id: "Share", en: "Share", zh: "\u5206\u4eab" },
   iosStep2:      { id: "di bilah bawah browser", en: "button in the browser bottom bar", zh: "\u6d4f\u89c8\u5668\u5e95\u90e8\u680f\u7684\u6309\u94ae" },
   iosStep3:      { id: 'Lalu pilih "Tambahkan ke Layar Utama"', en: 'Then select "Add to Home Screen"', zh: '\u7136\u540e\u9009\u62e9\u201c\u6dfb\u52a0\u5230\u4e3b\u5c4f\u5e55\u201d' },
-  desktopHint:   { id: "Klik ikon install (\u2295 atau panah ke bawah) di bilah alamat browser Anda, lalu pilih \"Install\"", en: "Click the install icon in your browser address bar, then select \"Install\"", zh: "\u70b9\u51fb\u6d4f\u89c8\u5668\u5730\u5740\u680f\u4e2d\u7684\u5b89\u88c5\u56fe\u6807\uff0c\u7136\u540e\u9009\u62e9\"\u5b89\u88c5\"" },
-  desktopHintShort: { id: "Klik ikon install di bilah alamat browser", en: "Click install icon in address bar", zh: "\u70b9\u51fb\u5730\u5740\u680f\u5b89\u88c5\u56fe\u6807" },
+  desktopHint:   { id: "Klik ikon install (\u2295) di bilah alamat browser, lalu pilih \"Install\"", en: "Click the install icon in your browser address bar, then select \"Install\"", zh: "\u70b9\u51fb\u6d4f\u89c8\u5668\u5730\u5740\u680f\u4e2d\u7684\u5b89\u88c5\u56fe\u6807\uff0c\u7136\u540e\u9009\u62e9\"\u5b89\u88c5\"" },
   gotIt:        { id: "Mengerti", en: "Got it", zh: "\u660e\u767d\u4e86" },
 };
 
@@ -119,47 +120,46 @@ function tr(key: string, lang: string): string {
 export function PwaInstallPrompt() {
   const [showPopup, setShowPopup] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [hasNativePrompt, setHasNativePrompt] = useState(false);
   const { lang } = useLang();
-  const deferredRef = useRef<BeforeInstallPromptEvent | null>(null);
-  const autoFiredRef = useRef(false);
+  const mountedRef = useRef(false);
 
   const platform: Platform = typeof window !== "undefined" ? detectPlatform() : "desktop";
   const browser: Browser = typeof window !== "undefined" ? detectBrowser() : "chrome";
   const chromium = isChromium(browser);
 
-  /* ------ Main logic: always show popup after delay ------ */
+  /* ------ Show popup after 1 second ------ */
   useEffect(() => {
     if (isStandalone() || isInstalled() || !canShow()) return;
 
-    // Capture beforeinstallprompt for Chromium (enables native install dialog)
-    if (chromium) {
-      const handler = (e: Event) => {
-        e.preventDefault();
-        deferredRef.current = e as BeforeInstallPromptEvent;
-      };
-      window.addEventListener("beforeinstallprompt", handler);
-    }
-
-    // Show popup after delay for ALL browsers/platforms
-    const timer = setTimeout(() => {
-      if (!isStandalone() && canShow()) {
-        autoFiredRef.current = true;
-        setShowPopup(true);
+    // Check if early-captured prompt exists
+    const checkPrompt = () => {
+      if (window.__deferredInstallPrompt) {
+        setHasNativePrompt(true);
       }
+    };
+
+    // Check immediately + poll a few times (SW activates async)
+    checkPrompt();
+    const poll1 = setTimeout(checkPrompt, 500);
+    const poll2 = setTimeout(checkPrompt, 1000);
+
+    // Show popup after delay
+    const timer = setTimeout(() => {
+      checkPrompt();
+      mountedRef.current = true;
+      setShowPopup(true);
     }, SHOW_DELAY_MS);
 
-    return () => {
-      if (chromium) window.removeEventListener("beforeinstallprompt", () => {});
-      clearTimeout(timer);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { clearTimeout(poll1); clearTimeout(poll2); clearTimeout(timer); };
+  }, []);
 
-  /* ------ listen for appinstalled ------ */
+  /* ------ Listen for appinstalled ------ */
   useEffect(() => {
     const handler = () => {
-      deferredRef.current = null;
+ window.__deferredInstallPrompt = null;
+      setHasNativePrompt(false);
       setShowPopup(false);
-      markInstalled();
     };
     window.addEventListener("appinstalled", handler);
     return () => window.removeEventListener("appinstalled", handler);
@@ -167,22 +167,30 @@ export function PwaInstallPrompt() {
 
   /* ------ handle install button tap ------ */
   const handleInstall = useCallback(async () => {
-    // If we have the native install prompt, trigger it
-    if (deferredRef.current) {
+    // Use early-captured prompt (most reliable)
+    const prompt = window.__deferredInstallPrompt;
+
+    if (prompt) {
       setInstalling(true);
       try {
-        await deferredRef.current.prompt();
-        const { outcome } = await deferredRef.current.userChoice;
-        if (outcome === "accepted") markInstalled();
-        else markDismissed();
-        deferredRef.current = null;
-      } catch {}
+        await prompt.prompt();
+        const { outcome } = await prompt.userChoice;
+        if (outcome === "accepted") {
+          try { localStorage.setItem(INSTALLED_KEY, "1"); } catch {}
+        } else {
+          markDismissed();
+        }
+        window.__deferredInstallPrompt = null;
+        setHasNativePrompt(false);
+      } catch {
+        // User cancelled or error
+      }
       setInstalling(false);
       setShowPopup(false);
       return;
     }
 
-    // iOS Safari: open share sheet (includes "Add to Home Screen")
+    // iOS Safari: open share sheet
     if (platform === "ios" && navigator.share) {
       try {
         await navigator.share({
@@ -198,8 +206,7 @@ export function PwaInstallPrompt() {
       return;
     }
 
-    // Desktop/Android Chromium without deferred prompt (Edge, etc.):
-    // Just close popup — user needs to use browser's address bar install icon
+    // Desktop/Android without native prompt: just dismiss, instructions already shown
     setShowPopup(false);
     markDismissed();
   }, [platform]);
@@ -213,12 +220,8 @@ export function PwaInstallPrompt() {
   /* ------ don't render if standalone, installed, or hidden ------ */
   if (isStandalone() || isInstalled() || !showPopup) return null;
 
-  /* ------ Whether we can trigger native install directly ------ */
-  const hasNativeInstall = !!deferredRef.current;
-
-  /* ------ Platform-specific instruction content ------ */
+  /* ------ Instructions ------ */
   const renderInstructions = () => {
-    // iOS: share sheet instructions
     if (platform === "ios") {
       return (
         <div className="mt-4 rounded-xl bg-muted/50 p-3">
@@ -234,9 +237,8 @@ export function PwaInstallPrompt() {
       );
     }
 
-    // Desktop/Android Chromium (Chrome, Edge, etc.) WITHOUT native prompt:
-    // Show instructions to use browser address bar
-    if (chromium && !hasNativeInstall) {
+    // Chromium desktop/mobile without native install prompt (Edge, Chrome with dismissed prompt, etc.)
+    if (chromium && !hasNativePrompt) {
       return (
         <div className="mt-4 rounded-xl bg-primary/5 border border-primary/10 p-3">
           <div className="flex items-start gap-2.5">
@@ -249,7 +251,7 @@ export function PwaInstallPrompt() {
       );
     }
 
-    // Non-Chromium desktop (Firefox, Safari desktop)
+    // Non-Chromium desktop
     if (platform === "desktop" && !chromium) {
       return (
         <div className="mt-4 rounded-xl bg-muted/50 p-3">
@@ -268,8 +270,7 @@ export function PwaInstallPrompt() {
     platform === "android" ? <Smartphone className="size-5" /> :
     <Monitor className="size-5" />;
 
-  // Button label changes based on whether we have native install
-  const installBtnLabel = hasNativeInstall
+  const installBtnLabel = hasNativePrompt
     ? tr("install", lang)
     : (platform === "ios" ? tr("install", lang) : tr("gotIt", lang));
 
@@ -284,9 +285,8 @@ export function PwaInstallPrompt() {
       {/* Popup Card */}
       <div className="relative w-full max-w-sm animate-in zoom-in-95 fade-in duration-300 slide-in-from-bottom-4">
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-          {/* Top gradient header with icon */}
+          {/* Top gradient header */}
           <div className="relative bg-gradient-to-br from-primary to-orange-600 px-6 pb-8 pt-6 text-center">
-            {/* Close button */}
             <button
               onClick={handleDismiss}
               className="absolute right-3 top-3 grid size-7 place-items-center rounded-full bg-white/20 text-white hover:bg-white/30 transition"
@@ -295,7 +295,6 @@ export function PwaInstallPrompt() {
               <X className="size-4" />
             </button>
 
-            {/* App icon */}
             <div className="mx-auto mb-3 grid size-20 place-items-center rounded-2xl bg-white shadow-lg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/pwa-icon-192.png" alt="Gomesin" className="size-16 rounded-xl" />
