@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendOtpEmail } from "@/lib/email";
+import { db } from "@/lib/db";
 
 /* ------------------------------------------------------------------ */
 /*  In-memory OTP store (works on serverless / Vercel)                */
@@ -25,27 +27,35 @@ function generateCode(): string {
 }
 
 function normalizePhone(phone: string): string {
-  // Strip all non-digit chars
   let p = phone.replace(/[^0-9]/g, "");
-  // If starts with 0, replace with 62
   if (p.startsWith("0")) p = "62" + p.slice(1);
-  // If starts with +62, strip the +
   if (p.startsWith("+")) p = p.slice(1);
   return p;
 }
 
+/** Cari email user berdasarkan nomor WhatsApp */
+async function findEmailByPhone(phone: string): Promise<string | null> {
+  try {
+    const user = await db.user.findFirst({ where: { phone } });
+    return user?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  POST /api/auth/otp                                                 */
-/*  Body: { phone, action: "send" | "verify", code? }                */
+/*  Body: { phone, action, code?, email? }                            */
 /* ------------------------------------------------------------------ */
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { phone: rawPhone, action, code } = body as {
+    const { phone: rawPhone, action, code, email: bodyEmail } = body as {
       phone: string;
       action: "send" | "verify";
       code?: string;
+      email?: string;
     };
 
     if (!rawPhone || !action) {
@@ -71,29 +81,49 @@ export async function POST(req: NextRequest) {
 
       console.log(`[OTP] Phone: ${phone}, Code: ${otpCode}`);
 
-      // ---- Kirim OTP via WhatsApp (Fonnte) ----
-      const waSent = await sendWhatsAppMessage(
+      // ---- 1. Kirim OTP via WhatsApp (Fonnte) ----
+      const waResult = await sendWhatsAppMessage(
         phone,
         `GoMesin - Kode Verifikasi. Kode OTP Anda: ${otpCode}. Jangan berikan kode ini. Kode berlaku 1 menit.`,
       );
 
-      if (waSent.success) {
-        // OTP berhasil dikirim via WhatsApp
+      const waOk = waResult.success;
+      if (!waOk) {
+        console.warn(`[OTP] WhatsApp send failed for ${phone}: ${waResult.error}`);
+      }
+
+      // ---- 2. Kirim OTP via Email (Resend) ----
+      // Email bisa dari body (register) atau dari database (login)
+      const email = bodyEmail || (await findEmailByPhone(phone));
+      let emailOk = false;
+      if (email) {
+        const emailResult = await sendOtpEmail(email, otpCode);
+        emailOk = emailResult.success;
+        if (!emailOk) {
+          console.warn(`[OTP] Email send failed for ${email}: ${emailResult.error}`);
+        }
+      }
+
+      // ---- Response ----
+      if (waOk || emailOk) {
+        const channels: string[] = [];
+        if (waOk) channels.push("WhatsApp");
+        if (emailOk) channels.push("Email");
         return NextResponse.json({
           success: true,
-          message: "OTP terkirim ke WhatsApp",
-          sentViaWhatsApp: true,
+          message: `OTP terkirim via ${channels.join(" & ")}`,
+          sentViaWhatsApp: waOk,
+          sentViaEmail: emailOk,
         });
       }
 
-      // Fallback: Fonnte tidak tersedia (API key belum diset / error)
-      // Return _devCode agar frontend bisa menampilkan kodenya
-      console.warn(`[OTP] WhatsApp send failed for ${phone}: ${waSent.error}`);
+      // Fallback: keduanya gagal, tampilkan kode di frontend
       return NextResponse.json({
         success: true,
         message: "OTP terkirim (mode dev)",
         _devCode: otpCode,
         sentViaWhatsApp: false,
+        sentViaEmail: false,
       });
     }
 
@@ -116,7 +146,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Kode OTP salah" }, { status: 400 });
       }
 
-      // Mark as verified
       entry.verified = true;
       return NextResponse.json({ success: true, message: "OTP terverifikasi" });
     }

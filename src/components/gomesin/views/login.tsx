@@ -59,7 +59,7 @@ function useOtp() {
     }
   }, []);
 
-  const sendOtp = useCallback(async (phone: string, tr: (k: any) => any) => {
+  const sendOtp = useCallback(async (phone: string, tr: (k: any) => any, email?: string) => {
     if (phone.replace(/\D/g, "").length < 10) {
       toast.error(tr("errPhoneRequired"));
       return;
@@ -69,7 +69,7 @@ function useOtp() {
       const res = await fetch("/api/auth/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, action: "send" }),
+        body: JSON.stringify({ phone, action: "send", email: email || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -147,11 +147,12 @@ function useOtp() {
 /* ------------------------------------------------------------------ */
 
 function WaOtpField({
-  phone, setPhone, otp, tr,
+  phone, setPhone, otp, tr, email,
 }: {
   phone: string; setPhone: (v: string) => void;
   otp: ReturnType<typeof useOtp>;
   tr: (k: any) => any;
+  email?: string;
 }) {
   const { otpState, otpCode, setOtpCode, cooldown, sendOtp, verifyOtp } = otp;
   const digits = phone.replace(/\D/g, "");
@@ -161,11 +162,11 @@ function WaOtpField({
   useEffect(() => {
     if (digits.length >= 10 && digits.length > prevDigitsRef.current.length && otpState === "idle") {
       prevDigitsRef.current = digits;
-      sendOtp(phone, tr);
+      sendOtp(phone, tr, email);
     } else {
       prevDigitsRef.current = digits;
     }
-  }, [digits, otpState, phone, sendOtp, tr]);
+  }, [digits, otpState, phone, sendOtp, tr, email]);
 
   // Auto-verify when 6 digits entered
   useEffect(() => {
@@ -199,7 +200,7 @@ function WaOtpField({
             variant="outline"
             size="sm"
             disabled={digits.length < 10 || otpState === "sending" || cooldown > 0}
-            onClick={() => sendOtp(phone, tr)}
+            onClick={() => sendOtp(phone, tr, email)}
             className="shrink-0 gap-1.5 px-3"
           >
             {otpState === "sending" ? (
@@ -682,7 +683,7 @@ function FormSection({
             </div>
           </div>
 
-          <WaOtpField phone={rPhone} setPhone={setRPhone} otp={registerOtp} tr={tr} />
+          <WaOtpField phone={rPhone} setPhone={setRPhone} otp={registerOtp} tr={tr} email={rEmail} />
 
           {/* Province BEFORE City */}
           <div className="space-y-1.5">
