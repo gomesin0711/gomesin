@@ -12,7 +12,7 @@ type OtpEntry = {
 };
 
 const otpStore = new Map<string, OtpEntry>();
-const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const OTP_TTL_MS = 1 * 60 * 1000; // 1 menit
 const OTP_LENGTH = 6;
 
 function generateCode(): string {
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       // ---- Kirim OTP via WhatsApp (Fonnte) ----
       const waSent = await sendWhatsAppMessage(
         phone,
-        `*_GoMesin_* – Kode Verifikasi\n\nKode OTP Anda: *${otpCode}*\n\nJangan berikan kode ini kepada siapa pun. Kode berlaku 5 menit.`,
+        `GoMesin - Kode Verifikasi. Kode OTP Anda: ${otpCode}. Jangan berikan kode ini. Kode berlaku 1 menit.`,
       );
 
       if (waSent.success) {
