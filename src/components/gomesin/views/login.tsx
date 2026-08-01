@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import {
   Loader2,
   ShieldCheck,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { PROVINCES, PROVINCE_CITIES } from "@/lib/types";
 import {
@@ -51,6 +52,31 @@ export function LoginView() {
 
   const [lEmail, setLEmail] = useState("");
   const [lPass, setLPass] = useState("");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "exists" | "notfound">("idle");
+  const checkTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounced email check
+  const checkEmail = useCallback(async (email: string) => {
+    if (!email.includes("@") || !email.includes(".")) {
+      setEmailStatus("idle");
+      return;
+    }
+    setEmailStatus("checking");
+    try {
+      const res = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      setEmailStatus(data.exists ? "exists" : "notfound");
+    } catch {
+      setEmailStatus("idle");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (checkTimerRef.current) clearTimeout(checkTimerRef.current);
+    if (!lEmail.trim()) { setEmailStatus("idle"); return; }
+    checkTimerRef.current = setTimeout(() => checkEmail(lEmail.trim()), 500);
+    return () => { if (checkTimerRef.current) clearTimeout(checkTimerRef.current); };
+  }, [lEmail, checkEmail]);
 
   const [rName, setRName] = useState("");
   const [rEmail, setREmail] = useState("");
@@ -66,6 +92,10 @@ export function LoginView() {
     e.preventDefault();
     if (!lEmail.trim() || !lPass) {
       toast.error(tr("errEmailPass"));
+      return;
+    }
+    if (emailStatus === "notfound") {
+      toast.error("Email tidak terdaftar");
       return;
     }
     setLoading(true);
@@ -186,6 +216,7 @@ export function LoginView() {
             loading={loading}
             lEmail={lEmail} setLEmail={setLEmail}
             lPass={lPass} setLPass={setLPass}
+            emailStatus={emailStatus}
             rName={rName} setRName={setRName}
             rEmail={rEmail} setREmail={setREmail}
             rPhone={rPhone} setRPhone={setRPhone}
@@ -266,6 +297,7 @@ export function LoginView() {
               loading={loading}
               lEmail={lEmail} setLEmail={setLEmail}
               lPass={lPass} setLPass={setLPass}
+              emailStatus={emailStatus}
               rName={rName} setRName={setRName}
               rEmail={rEmail} setREmail={setREmail}
               rPhone={rPhone} setRPhone={setRPhone}
@@ -291,7 +323,7 @@ export function LoginView() {
 /* ===== Reusable form section (used in both mobile & desktop) ===== */
 function FormSection({
   tab, setTab, showPass, setShowPass, loading,
-  lEmail, setLEmail, lPass, setLPass,
+  lEmail, setLEmail, lPass, setLPass, emailStatus,
   rName, setRName, rEmail, setREmail, rPhone, setRPhone,
   rCity, setRCity, rProvince, setRProvince,
   rPass, setRPass, rPass2, setRPass2, agree, setAgree,
@@ -302,6 +334,7 @@ function FormSection({
   loading: boolean;
   lEmail: string; setLEmail: (v: string) => void;
   lPass: string; setLPass: (v: string) => void;
+  emailStatus: "idle" | "checking" | "exists" | "notfound";
   rName: string; setRName: (v: string) => void;
   rEmail: string; setREmail: (v: string) => void;
   rPhone: string; setRPhone: (v: string) => void;
@@ -327,8 +360,20 @@ function FormSection({
             <Label htmlFor="l-email">{tr("email")}</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input id="l-email" type="email" autoComplete="email" value={lEmail} onChange={(e) => setLEmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
+              <Input id="l-email" type="email" autoComplete="email" value={lEmail} onChange={(e) => setLEmail(e.target.value)} placeholder="nama@email.com" className={cn("pl-9", emailStatus === "notfound" ? "border-destructive" : emailStatus === "exists" ? "border-green-500" : "")} />
+              {emailStatus === "checking" && (
+                <Loader2 className="absolute right-3 top-1/2 size-4 animate-spin text-muted-foreground" />
+              )}
+              {emailStatus === "exists" && (
+                <CheckCircle2 className="absolute right-3 top-1/2 size-4 text-green-500" />
+              )}
+              {emailStatus === "notfound" && (
+                <AlertCircle className="absolute right-3 top-1/2 size-4 text-destructive" />
+              )}
             </div>
+            {emailStatus === "notfound" && (
+              <p className="text-xs text-destructive">Email tidak terdaftar</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="l-pass">{tr("password")}</Label>
@@ -348,7 +393,7 @@ function FormSection({
               {tr("forgotPassword")}
             </button>
           </div>
-          <Button type="submit" disabled={loading} className="w-full gap-2 bg-primary font-semibold" size="lg">
+          <Button type="submit" disabled={loading || emailStatus === "notfound" || emailStatus === "checking"} className="w-full gap-2 bg-primary font-semibold" size="lg">
             {loading ? <Loader2 className="size-4 animate-spin" /> : null}
             {loading ? tr("processing") : tr("tabLogin")}
           </Button>
