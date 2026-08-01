@@ -407,3 +407,32 @@ Stage Summary:
 - Login: WhatsApp + OTP required (no email+password)
 - Register: WhatsApp + OTP required before submit
 - OTP auto-sends when phone has 10+ digits, 60s cooldown
+---
+Task ID: 1
+Agent: main
+Task: Revert 3 last commands on login page (undo TANPA KOMISI, email/whatsapp dropdown, email login) + delete tar file
+
+Work Log:
+- Read current login.tsx which had email+password login (not the WhatsApp OTP version from before)
+- Confirmed i18n keys for ID and EN languages already had OTP keys from previous session
+- Added missing OTP i18n keys to ZH (Chinese) language section
+- Rewrote login.tsx completely with WhatsApp-OTP-only login:
+  - Login tab: WhatsApp number + OTP send/verify flow only (no email/password)
+  - Register tab: Name, Email, WhatsApp(OTP), Province(before City), City, Password, Confirm Password
+  - Post-login → goToProfile()
+  - Post-register → goToProfile()
+  - Separate useOtp() hook for login and register tabs
+  - Auto-send OTP at 10+ digits, auto-verify at 6 digits
+  - 60s cooldown timer for resend
+  - Dev mode shows OTP code via toast
+- Updated /api/auth/login/route.ts to support phone-based login (finds user by phone after OTP verified)
+- Imported isPhoneVerified from OTP route for server-side OTP verification
+- Tar file was not found on disk (already removed or never uploaded)
+
+Stage Summary:
+- login.tsx reverted to WhatsApp-OTP-only version (no TANPA KOMISI, no email/whatsapp dropdown, no email+password login)
+- Province before City in register form
+- Both login and register navigate to profile on success
+- Login API now supports { phone } in addition to { email, password }
+- i18n: all 3 languages (id, en, zh) have OTP-related keys
+- Dev server compiled successfully with no new errors

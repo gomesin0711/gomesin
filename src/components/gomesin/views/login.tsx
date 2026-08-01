@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,8 @@ import {
   Loader2,
   ShieldCheck,
   CheckCircle2,
+  Send,
+  RefreshCw,
 } from "lucide-react";
 import { PROVINCES, PROVINCE_CITIES } from "@/lib/types";
 import {
@@ -38,6 +40,218 @@ import { cn } from "@/lib/utils";
 import { useLang, translations as i18nTranslations, formatT } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
 
+/* ------------------------------------------------------------------ */
+/*  OTP Hook – shared by login & register tabs                        */
+/* ------------------------------------------------------------------ */
+
+type OtpState = "idle" | "sending" | "sent" | "verifying" | "verified";
+
+function useOtp() {
+  const [otpState, setOtpState] = useState<OtpState>("idle");
+  const [otpCode, setOtpCode] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval>>();
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = undefined;
+    }
+  }, []);
+
+  const sendOtp = useCallback(async (phone: string, tr: (k: any) => any) => {
+    if (phone.replace(/\D/g, "").length < 10) {
+      toast.error(tr("errPhoneRequired"));
+      return;
+    }
+    setOtpState("sending");
+    try {
+      const res = await fetch("/api/auth/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, action: "send" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Gagal mengirim OTP");
+        setOtpState("idle");
+        return;
+      }
+      // Dev: show OTP code
+      if (data._devCode) {
+        toast.info(`[DEV] OTP: ${data._devCode}`);
+      }
+      setOtpState("sent");
+      setOtpCode("");
+      setCooldown(60);
+      toast.success(tr("otpSent"));
+    } catch {
+      toast.error(tr("errConnection"));
+      setOtpState("idle");
+    }
+  }, []);
+
+  const verifyOtp = useCallback(async (phone: string, tr: (k: any) => any) => {
+    if (otpCode.length !== 6) {
+      toast.error(tr("errOtpRequired"));
+      return;
+    }
+    setOtpState("verifying");
+    try {
+      const res = await fetch("/api/auth/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, action: "verify", code: otpCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Gagal verifikasi OTP");
+        setOtpState("sent");
+        return;
+      }
+      setOtpState("verified");
+      toast.success(tr("otpVerified"));
+    } catch {
+      toast.error(tr("errConnection"));
+      setOtpState("sent");
+    }
+  }, [otpCode]);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown <= 0) { clearTimer(); return; }
+    timerRef.current = setInterval(() => {
+      setCooldown((p) => {
+        if (p <= 1) { clearTimer(); return 0; }
+        return p - 1;
+      });
+    }, 1000);
+    return clearTimer;
+  }, [cooldown, clearTimer]);
+
+  const reset = useCallback(() => {
+    setOtpState("idle");
+    setOtpCode("");
+    setCooldown(0);
+    clearTimer();
+  }, [clearTimer]);
+
+  return { otpState, setOtpState, otpCode, setOtpCode, cooldown, sendOtp, verifyOtp, reset };
+}
+
+/* ------------------------------------------------------------------ */
+/*  WhatsApp OTP Input Field                                          */
+/* ------------------------------------------------------------------ */
+
+function WaOtpField({
+  phone, setPhone, otp, tr,
+}: {
+  phone: string; setPhone: (v: string) => void;
+  otp: ReturnType<typeof useOtp>;
+  tr: (k: any) => any;
+}) {
+  const { otpState, otpCode, setOtpCode, cooldown, sendOtp, verifyOtp } = otp;
+  const digits = phone.replace(/\D/g, "");
+  const prevDigitsRef = useRef("");
+
+  // Auto-send OTP when digits reach 10+
+  useEffect(() => {
+    if (digits.length >= 10 && digits.length > prevDigitsRef.current.length && otpState === "idle") {
+      prevDigitsRef.current = digits;
+      sendOtp(phone, tr);
+    } else {
+      prevDigitsRef.current = digits;
+    }
+  }, [digits, otpState, phone, sendOtp, tr]);
+
+  // Auto-verify when 6 digits entered
+  useEffect(() => {
+    if (otpCode.length === 6 && (otpState === "sent" || otpState === "verifying")) {
+      verifyOtp(phone, tr);
+    }
+  }, [otpCode, otpState, phone, verifyOtp, tr]);
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label htmlFor="wa-phone">{tr("whatsapp")}</Label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="wa-phone"
+              type="tel"
+              inputMode="numeric"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value.replace(/[^0-9+\- ]/g, ""));
+                if (otpState === "verified") otp.reset();
+              }}
+              placeholder={tr("whatsappPlaceholder")}
+              className="pl-9"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={digits.length < 10 || otpState === "sending" || cooldown > 0}
+            onClick={() => sendOtp(phone, tr)}
+            className="shrink-0 gap-1.5 px-3"
+          >
+            {otpState === "sending" ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : cooldown > 0 ? (
+              <>{cooldown}s</>
+            ) : otpState === "sent" || otpState === "verified" ? (
+              <RefreshCw className="size-3.5" />
+            ) : (
+              <Send className="size-3.5" />
+            )}
+            {cooldown > 0
+              ? tr("resendOtp")
+              : otpState === "sent" || otpState === "verified"
+                ? tr("resendOtp")
+                : tr("sendOtp")}
+          </Button>
+        </div>
+      </div>
+
+      {(otpState === "sent" || otpState === "verifying" || otpState === "verified") && (
+        <div className="space-y-1.5 animate-fade-up">
+          <Label htmlFor="otp-code">{tr("enterOtp")}</Label>
+          <div className="relative">
+            <Input
+              id="otp-code"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+              placeholder="000000"
+              className={cn(
+                "pl-9 tracking-[0.3em] text-center font-mono text-lg",
+                otpState === "verified" && "border-green-500 bg-green-50 dark:bg-green-950/30"
+              )}
+              disabled={otpState === "verifying"}
+            />
+            {otpState === "verifying" && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-primary" />
+            )}
+            {otpState === "verified" && (
+              <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-green-500" />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main LoginView Component                                          */
+/* ------------------------------------------------------------------ */
+
 export function LoginView() {
   const goBack = useStore((s) => s.goBack);
 
@@ -49,9 +263,11 @@ export function LoginView() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const [lEmail, setLEmail] = useState("");
-  const [lPass, setLPass] = useState("");
+  // Login state
+  const [lPhone, setLPhone] = useState("");
+  const loginOtp = useOtp();
 
+  // Register state
   const [rName, setRName] = useState("");
   const [rEmail, setREmail] = useState("");
   const [rPhone, setRPhone] = useState("");
@@ -61,11 +277,22 @@ export function LoginView() {
   const [rPass2, setRPass2] = useState("");
   const [agree, setAgree] = useState(false);
   const [tab, setTab] = useState<"login" | "register">("login");
+  const registerOtp = useOtp();
+
+  // Reset OTP when switching tabs
+  useEffect(() => {
+    loginOtp.reset();
+    registerOtp.reset();
+  }, [tab, loginOtp.reset, registerOtp.reset]);
 
   const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!lEmail.trim() || !lPass) {
-      toast.error(tr("errEmailPass"));
+    if (lPhone.replace(/\D/g, "").length < 10) {
+      toast.error(tr("errPhoneRequired"));
+      return;
+    }
+    if (loginOtp.otpState !== "verified") {
+      toast.error(tr("errPhoneNotVerified"));
       return;
     }
     setLoading(true);
@@ -73,7 +300,7 @@ export function LoginView() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: lEmail, password: lPass }),
+        body: JSON.stringify({ phone: lPhone }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -81,13 +308,13 @@ export function LoginView() {
         return;
       }
       const setUser = useStore.getState().setUser;
-      const goHome = useStore.getState().goHome;
+      const goToProfile = useStore.getState().goToProfile;
       const goToAdmin = useStore.getState().goToAdmin;
       setUser(data.user);
       setSuccess(true);
       toast.success(formatT(tr("welcomeBack"), { name: data.user.name }));
       const isAdmin = data.user.role === "admin" || data.user.role === "superadmin";
-      setTimeout(() => isAdmin ? goToAdmin() : goHome(), 900);
+      setTimeout(() => isAdmin ? goToAdmin() : goToProfile(), 900);
     } catch {
       toast.error(tr("errConnection"));
     } finally {
@@ -99,6 +326,14 @@ export function LoginView() {
     e.preventDefault();
     if (!rName.trim() || !rEmail.trim() || !rPass) {
       toast.error(tr("errRequired"));
+      return;
+    }
+    if (rPhone.replace(/\D/g, "").length < 10) {
+      toast.error(tr("errPhoneRequired"));
+      return;
+    }
+    if (registerOtp.otpState !== "verified") {
+      toast.error(tr("errPhoneNotVerified"));
       return;
     }
     if (rPass.length < 6) {
@@ -132,13 +367,13 @@ export function LoginView() {
         return;
       }
       const setUser = useStore.getState().setUser;
-      const goToPost = useStore.getState().goToPost;
+      const goToProfile = useStore.getState().goToProfile;
       const goToAdmin = useStore.getState().goToAdmin;
       setUser(data.user);
       setSuccess(true);
       toast.success(tr("registerSuccess"));
       const isAdmin = data.user.role === "admin" || data.user.role === "superadmin";
-      setTimeout(() => isAdmin ? goToAdmin() : goToPost(), 1100);
+      setTimeout(() => isAdmin ? goToAdmin() : goToProfile(), 1100);
     } catch {
       toast.error(tr("errConnection"));
     } finally {
@@ -184,11 +419,12 @@ export function LoginView() {
             tab={tab} setTab={setTab}
             showPass={showPass} setShowPass={setShowPass}
             loading={loading}
-            lEmail={lEmail} setLEmail={setLEmail}
-            lPass={lPass} setLPass={setLPass}
+            lPhone={lPhone} setLPhone={setLPhone}
+            loginOtp={loginOtp}
             rName={rName} setRName={setRName}
             rEmail={rEmail} setREmail={setREmail}
             rPhone={rPhone} setRPhone={setRPhone}
+            registerOtp={registerOtp}
             rCity={rCity} setRCity={setRCity}
             rProvince={rProvince} setRProvince={setRProvince}
             rPass={rPass} setRPass={setRPass}
@@ -264,11 +500,12 @@ export function LoginView() {
               tab={tab} setTab={setTab}
               showPass={showPass} setShowPass={setShowPass}
               loading={loading}
-              lEmail={lEmail} setLEmail={setLEmail}
-              lPass={lPass} setLPass={setLPass}
+              lPhone={lPhone} setLPhone={setLPhone}
+              loginOtp={loginOtp}
               rName={rName} setRName={setRName}
               rEmail={rEmail} setREmail={setREmail}
               rPhone={rPhone} setRPhone={setRPhone}
+              registerOtp={registerOtp}
               rCity={rCity} setRCity={setRCity}
               rProvince={rProvince} setRProvince={setRProvince}
               rPass={rPass} setRPass={setRPass}
@@ -291,8 +528,8 @@ export function LoginView() {
 /* ===== Reusable form section (used in both mobile & desktop) ===== */
 function FormSection({
   tab, setTab, showPass, setShowPass, loading,
-  lEmail, setLEmail, lPass, setLPass,
-  rName, setRName, rEmail, setREmail, rPhone, setRPhone,
+  lPhone, setLPhone, loginOtp,
+  rName, setRName, rEmail, setREmail, rPhone, setRPhone, registerOtp,
   rCity, setRCity, rProvince, setRProvince,
   rPass, setRPass, rPass2, setRPass2, agree, setAgree,
   doLogin, doRegister, tr,
@@ -300,11 +537,12 @@ function FormSection({
   tab: string; setTab: (v: "login" | "register") => void;
   showPass: boolean; setShowPass: (v: boolean | ((p: boolean) => boolean)) => void;
   loading: boolean;
-  lEmail: string; setLEmail: (v: string) => void;
-  lPass: string; setLPass: (v: string) => void;
+  lPhone: string; setLPhone: (v: string) => void;
+  loginOtp: ReturnType<typeof useOtp>;
   rName: string; setRName: (v: string) => void;
   rEmail: string; setREmail: (v: string) => void;
   rPhone: string; setRPhone: (v: string) => void;
+  registerOtp: ReturnType<typeof useOtp>;
   rCity: string; setRCity: (v: string) => void;
   rProvince: string; setRProvince: (v: string) => void;
   rPass: string; setRPass: (v: string) => void;
@@ -321,37 +559,21 @@ function FormSection({
         <TabsTrigger value="register">{tr("tabRegister")}</TabsTrigger>
       </TabsList>
 
+      {/* ========== LOGIN TAB ========== */}
       <TabsContent value="login">
         <form onSubmit={doLogin} className="space-y-4 rounded-xl border border-border bg-card p-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="l-email">{tr("email")}</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input id="l-email" type="email" autoComplete="email" value={lEmail} onChange={(e) => setLEmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="l-pass">{tr("password")}</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input id="l-pass" type={showPass ? "text" : "password"} autoComplete="current-password" value={lPass} onChange={(e) => setLPass(e.target.value)} placeholder="••••••••" className="px-9" />
-              <button type="button" onClick={() => setShowPass((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={showPass ? tr("hidePass") : tr("showPass")}>
-                {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <label className="flex items-center gap-1.5 text-muted-foreground">
-              <input type="checkbox" className="accent-primary" /> {tr("rememberMe")}
-            </label>
-            <button type="button" onClick={() => toast.info(tr("forgotPasswordSoon"))} className="font-medium text-primary hover:underline">
-              {tr("forgotPassword")}
-            </button>
-          </div>
-          <Button type="submit" disabled={loading} className="w-full gap-2 bg-primary font-semibold" size="lg">
+          <WaOtpField phone={lPhone} setPhone={setLPhone} otp={loginOtp} tr={tr} />
+
+          <Button
+            type="submit"
+            disabled={loading || loginOtp.otpState !== "verified"}
+            className="w-full gap-2 bg-primary font-semibold"
+            size="lg"
+          >
             {loading ? <Loader2 className="size-4 animate-spin" /> : null}
             {loading ? tr("processing") : tr("tabLogin")}
           </Button>
+
           <p className="text-center text-xs text-muted-foreground">
             {tr("noAccount")}{" "}
             <button type="button" onClick={() => setTab("register")} className="font-semibold text-primary hover:underline">
@@ -361,6 +583,7 @@ function FormSection({
         </form>
       </TabsContent>
 
+      {/* ========== REGISTER TAB ========== */}
       <TabsContent value="register">
         <form onSubmit={doRegister} className="space-y-4 rounded-xl border border-border bg-card p-5">
           <div className="space-y-1.5">
@@ -370,6 +593,7 @@ function FormSection({
               <Input id="r-name" value={rName} onChange={(e) => setRName(e.target.value)} placeholder={tr("fullNamePlaceholder")} className="pl-9" />
             </div>
           </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="r-email">{`${tr("email")} *`}</Label>
             <div className="relative">
@@ -377,28 +601,10 @@ function FormSection({
               <Input id="r-email" type="email" autoComplete="email" value={rEmail} onChange={(e) => setREmail(e.target.value)} placeholder="nama@email.com" className="pl-9" />
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="r-phone">{tr("whatsapp")}</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="r-phone" value={rPhone} onChange={(e) => setRPhone(e.target.value)} placeholder={tr("whatsappPlaceholder")} className="pl-9" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{tr("cityLabel")}</Label>
-              <Select value={rCity} onValueChange={(v) => { setRCity(v); }} disabled={!rProvince}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={rProvince ? tr("selectCity") : tr("selectProvinceFirst")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(PROVINCE_CITIES[rProvince] || []).map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+
+          <WaOtpField phone={rPhone} setPhone={setRPhone} otp={registerOtp} tr={tr} />
+
+          {/* Province BEFORE City */}
           <div className="space-y-1.5">
             <Label>{tr("province")}</Label>
             <Select value={rProvince} onValueChange={(v) => { setRProvince(v); setRCity(""); }}>
@@ -410,6 +616,21 @@ function FormSection({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-1.5">
+            <Label>{tr("cityLabel")}</Label>
+            <Select value={rCity} onValueChange={(v) => { setRCity(v); }} disabled={!rProvince}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={rProvince ? tr("selectCity") : tr("selectProvinceFirst")} />
+              </SelectTrigger>
+              <SelectContent>
+                {(PROVINCE_CITIES[rProvince] || []).map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="r-pass">{`${tr("password")} *`}</Label>
             <div className="relative">
@@ -420,6 +641,7 @@ function FormSection({
               </button>
             </div>
           </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="r-pass2">{`${tr("passwordConfirm")} *`}</Label>
             <div className="relative">
@@ -430,14 +652,17 @@ function FormSection({
               <p className="text-xs text-destructive">{tr("passwordMismatch")}</p>
             )}
           </div>
+
           <label className="flex items-start gap-2 text-xs text-muted-foreground">
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 accent-primary" />
             <span>{tr("agreeTerms")}</span>
           </label>
+
           <Button type="submit" disabled={loading} className="w-full gap-2 bg-primary font-semibold" size="lg">
             {loading ? <Loader2 className="size-4 animate-spin" /> : null}
             {loading ? tr("processing") : tr("registerBtn")}
           </Button>
+
           <p className="text-center text-xs text-muted-foreground">
             {tr("haveAccount")}{" "}
             <button type="button" onClick={() => setTab("login")} className="font-semibold text-primary hover:underline">
