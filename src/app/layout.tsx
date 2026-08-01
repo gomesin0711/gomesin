@@ -67,6 +67,19 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              // Capture beforeinstallprompt IMMEDIATELY before React hydrates
+              window.__deferredInstallPrompt = null;
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                window.__deferredInstallPrompt = e;
+                console.log('[PWA] beforeinstallprompt captured early');
+              });
+              window.addEventListener('appinstalled', function() {
+                window.__deferredInstallPrompt = null;
+                try { localStorage.setItem('gomesin-pwa-installed', '1'); } catch(ex) {}
+                console.log('[PWA] app installed');
+              });
+              // Register SW
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
