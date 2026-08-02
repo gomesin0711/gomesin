@@ -482,3 +482,20 @@ Stage Summary:
 - SW registers immediately for fastest `beforeinstallprompt` event
 - Popup appears 1 second after SW is ready (not fixed delay from page load)
 
+
+---
+Task ID: ios-chrome-pwa-fix
+Agent: main
+Task: Fix PWA install not working on iOS Chrome
+
+Work Log:
+- Analyzed root cause: iOS Chrome (CriOS in UA) was detected as desktop
+- Rewrote platform detection: ios -> ios_safari | ios_chrome
+- Added iOS Chrome UI: amber warning, copy link button, Safari instructions
+- Added i18n translations for iOS Chrome in id, en, zh
+- Verified: zero new lint errors, zero JS errors, correct UA detection
+
+Stage Summary:
+- iOS Chrome/Firefox show clear use Safari instructions with copy link
+- iOS Safari still shows Share > Add to Home Screen
+- Android/Desktop unchanged
