@@ -1,0 +1,2002 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from "react";
+     4→import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+     5→import { useStore } from "@/lib/store";
+     6→import { Button } from "@/components/ui/button";
+     7→import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+     8→import {
+     9→  User,
+    10→  Heart,
+    11→  Tag,
+    12→  Plus,
+    13→  Bell,
+    14→  Settings,
+    15→  HelpCircle,
+    16→  LogOut,
+    17→  ChevronRight,
+    18→  MessageSquare,
+    19→  MessageCircle,
+    20→  Wallet,
+    21→  ShieldCheck,
+    22→  Shield,
+    23→  X,
+    24→  CheckCircle2,
+    25→  Clock,
+    26→  CreditCard,
+    27→  BellRing,
+    28→  Lock,
+    29→  KeyRound,
+    30→  Smartphone,
+    31→  Mail,
+    32→  Eye,
+    33→  EyeOff,
+    34→  SlidersHorizontal,
+    35→  LifeBuoy,
+    36→  Send,
+    37→  Loader2,
+    38→  ChevronLeft,
+    39→  BadgeCheck,
+    40→  AlertTriangle,
+    41→  Monitor,
+    42→  MapPin,
+    43→  Phone,
+    44→  BookOpen,
+    45→  PlayCircle,
+    46→  Search,
+    47→  ExternalLink,
+    48→  Ban,
+    49→  Trash2,
+    50→  Eraser,
+    51→  Save,
+    52→  Smile,
+    53→  Paperclip,
+    54→  Image as ImageIcon,
+    55→  Upload,
+    56→  X as XIcon,
+    57→  Sticker,
+    58→  Camera,
+    59→  Menu,
+    60→  LayoutGrid,
+    61→  LayoutDashboard,
+    62→  List,
+    63→  Home,
+    64→  Volume2,
+    65→  Globe,
+    66→} from "lucide-react";
+    67→import { toast } from "sonner";
+    68→import { cn } from "@/lib/utils";
+    69→import {
+    70→  AlertDialog,
+    71→  AlertDialogAction,
+    72→  AlertDialogCancel,
+    73→  AlertDialogContent,
+    74→  AlertDialogDescription,
+    75→  AlertDialogFooter,
+    76→  AlertDialogHeader,
+    77→  AlertDialogTitle,
+    78→} from "@/components/ui/alert-dialog";
+    79→import { useLang } from "@/lib/i18n";
+    80→import { timeAgo, formatRupiah, formatRupiahFull } from "@/lib/types";
+    81→import { mergeListings } from "@/lib/client-store";
+    82→import { translations as i18nTranslations } from "@/lib/i18n";
+    83→import { useMounted } from "@/lib/use-mounted";
+    84→import { Input } from "@/components/ui/input";
+    85→import { Label } from "@/components/ui/label";
+    86→import { Switch } from "@/components/ui/switch";
+    87→import { Progress } from "@/components/ui/progress";
+    88→import { useChatSocket, type ChatMessage } from "@/lib/use-chat-socket";
+    89→import { playNotificationSound, isChatSoundEnabled, setChatSoundEnabled } from "@/lib/notification-sound";
+    90→import { DashboardView } from "./dashboard";
+    91→import { FavoritesView } from "./favorites";
+    92→import EmojiPicker, { EmojiStyle, Theme } from "emoji-picker-react";
+    93→
+    94→type PanelType =
+    95→  | "pesan"
+    96→  | "pesanan"
+    97→  | "saldo"
+    98→  | "notifikasi"
+    99→  | "keamanan"
+   100→  | "pengaturan"
+   101→  | "bantuan"
+   102→  | "iklan-saya"
+   103→  | "favorit-saya"
+   104→  | null;
+   105→
+   106→// Estimate byte size of a base64 data URL (approx — 4 chars = 3 bytes, minus header).
+   107→function dataUrlBytes(dataUrl: string): number {
+   108→  const comma = dataUrl.indexOf(",");
+   109→  if (comma < 0) return 0;
+   110→  const b64 = dataUrl.slice(comma + 1);
+   111→  // base64: 4 chars ≈ 3 bytes
+   112→  return Math.floor((b64.length * 3) / 4);
+   113→}
+   114→
+   115→export function ProfileView() {
+   116→  const goToFavorites = useStore((s) => s.goToFavorites);
+   117→  const goToListings = useStore((s) => s.goToListings);
+   118→  const goHome = useStore((s) => s.goHome);
+   119→  const goToPost = useStore((s) => s.goToPost);
+   120→  const goToLogin = useStore((s) => s.goToLogin);
+   121→  const goToDashboard = useStore((s) => s.goToDashboard);
+   122→  const goToAdmin = useStore((s) => s.goToAdmin);
+   123→  const goToEdit = useStore((s) => s.goToEdit);
+   124→  const user = useStore((s) => s.user);
+   125→  const setUser = useStore((s) => s.setUser);
+   126→  const logout = useStore((s) => s.logout);
+   127→  const favCount = useStore((s) => s.favorites.length);
+   128→  const storeProfilePanel = useStore((s) => s.profilePanel);
+   129→  const clearProfilePanel = useStore((s) => s.clearProfilePanel);
+   130→
+   131→  // Fetch user's listing count (merge server + client-side for Vercel persistence)
+   132→  const { data: myListingsData } = useQuery({
+   133→    queryKey: ["my-listing-count", user?.id],
+   134→    queryFn: async () => {
+   135→      try {
+   136→        const res = await fetch(`/api/my-listings?userId=${user!.id}`);
+   137→        if (res.ok) {
+   138→          const data = await res.json();
+   139→          // Merge with client-side stored listings
+   140→          const merged = mergeListings(data.listings || [], user!.id);
+   141→          return { ...data, listings: merged };
+   142→        }
+   143→      } catch {
+   144→        // Server unavailable — use client-side only
+   145→      }
+   146→      // Fallback: only client-side listings
+   147→      const { getClientListingsByUserId } = await import("@/lib/client-store");
+   148→      const localListings = getClientListingsByUserId(user!.id);
+   149→      return { listings: localListings, total: localListings.length };
+   150→    },
+   151→    enabled: !!user?.id,
+   152→    staleTime: 0,
+   153→  });
+   154→  const myAdsCount = myListingsData?.listings?.length ?? 0;
+   155→  const myListings: any[] = myListingsData?.listings ?? [];
+   156→
+   157→  // Fetch favorited listings (fetch all, filter by id client-side)
+   158→  const favIds = useStore((s) => s.favorites);
+   159→  const { data: favListingsData } = useQuery({
+   160→    queryKey: ["fav-listings", favIds.join(",")],
+   161→    queryFn: async () => {
+   162→      if (favIds.length === 0) return { listings: [] };
+   163→      const res = await fetch(`/api/listings?limit=200`);
+   164→      if (!res.ok) throw new Error("fail");
+   165→      const data = await res.json();
+   166→      return { listings: (data.listings || []).filter((l: any) => favIds.includes(l.id)) };
+   167→    },
+   168→    enabled: favIds.length > 0,
+   169→    staleTime: 0,
+   170→  });
+   171→  const favListings: any[] = favListingsData?.listings ?? [];
+   172→
+   173→  // Fetch paket prices (for Riwayat Pembayaran — show ad package price per listing)
+   174→  const { data: paketData } = useQuery({
+   175→    queryKey: ["paket-prices"],
+   176→    queryFn: async () => {
+   177→      const res = await fetch(`/api/admin/paket`);
+   178→      if (!res.ok) throw new Error("fail");
+   179→      return res.json();
+   180→    },
+   181→    staleTime: 60000,
+   182→  });
+   183→  const paketMap: Record<string, { name: string; price: number }> = (() => {
+   184→    const m: Record<string, { name: string; price: number }> = {};
+   185→    for (const p of paketData?.pakets || []) m[p.key] = { name: p.name, price: p.price };
+   186→    return m;
+   187→  })();
+   188→  const formatAdFee = (pkg: string) => {
+   189→    const price = paketMap[pkg]?.price ?? 0;
+   190→    return price > 0 ? `Rp ${price.toLocaleString("id-ID")}` : "Gratis";
+   191→  };
+   192→  const pkgDisplayName = (pkg: string) => paketMap[pkg]?.name || (pkg === "spotlight" ? "Titanium" : pkg === "highlight" ? "Platinum" : pkg === "sundul" ? "Colek" : "Gold");
+   193→
+   194→  const { t, lang, setLang } = useLang();
+   195→  const mounted = useMounted();
+   196→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+   197→
+   198→  const [panel, setPanel] = useState<PanelType>(storeProfilePanel);
+   199→  const chatScrollRef = useRef<HTMLDivElement>(null);
+   200→
+   201→  const queryClient = useQueryClient();
+   202→  const { sendMessage, markRead, subscribe } = useChatSocket();
+   203→
+   204→  // Delete ad — mirrors DashboardView logic.
+   205→  const deleteMutation = useMutation({
+   206→    mutationFn: async (slug: string) => {
+   207→      const res = await fetch(`/api/listings/${slug}`, { method: "DELETE" });
+   208→      const data = await res.json();
+   209→      if (!res.ok) throw new Error(data.error || "Gagal menghapus iklan");
+   210→      return data;
+   211→    },
+   212→    onSuccess: () => {
+   213→      toast.success("Iklan berhasil dihapus");
+   214→      setDeleteSlug(null);
+   215→      queryClient.invalidateQueries({ queryKey: ["my-listings"] });
+   216→      queryClient.invalidateQueries({ queryKey: ["dashboard-listings"] });
+   217→      queryClient.invalidateQueries({ queryKey: ["listings"] });
+   218→    },
+   219→    onError: (e: any) => {
+   220→      toast.error(e.message || "Gagal menghapus iklan");
+   221→    },
+   222→  });
+   223→  const confirmDelete = () => {
+   224→    if (deleteSlug) deleteMutation.mutate(deleteSlug);
+   225→  };
+   226→
+   227→  // Fetch user's messages (conversations) — NO polling, socket invalidates on change.
+   228→  const { data: messagesData, refetch: refetchMessages } = useQuery({
+   229→    queryKey: ["messages", user?.id],
+   230→    queryFn: async () => {
+   231→      const res = await fetch(`/api/messages?userId=${user!.id}`);
+   232→      if (!res.ok) throw new Error("fail");
+   233→      return res.json();
+   234→    },
+   235→    enabled: !!user?.id,
+   236→    staleTime: Infinity, // Socket invalidates on new message / read receipt.
+   237→  });
+   238→  const conversations: any[] = messagesData?.conversations ?? [];
+   239→  const unreadCount = conversations.reduce((a: number, c: any) => a + (c.unread || 0), 0);
+   240→  const [activeChatId, setActiveChatId] = useState<number | null>(null);
+   241→  const [chatMessages, setChatMessages] = useState<{ [key: number]: { role: "user" | "assistant"; content: string; image?: string; animation?: string }[] }>({});
+   242→  const [chatInput, setChatInput] = useState("");
+   243→  const [chatSending, setChatSending] = useState(false);
+   244→  const [showEmoji, setShowEmoji] = useState(false);
+   245→  const [showGifs, setShowGifs] = useState(false);
+   246→  const [pendingImage, setPendingImage] = useState<string | null>(null);
+   247→  const fileInputRef = useRef<HTMLInputElement>(null);
+   248→  const cameraInputRef = useRef<HTMLInputElement>(null);
+   249→  const addPaymentRef = useRef<HTMLDivElement>(null);
+   250→  const [msgMenu, setMsgMenu] = useState<{ visible: boolean; x: number; y: number; msgIndex: number | null }>({ visible: false, x: 0, y: 0, msgIndex: null });
+   251→  const [lightbox, setLightbox] = useState<string | null>(null);
+   252→  const [drawerOpen, setDrawerOpen] = useState(false);
+   253→  const [payFilter, setPayFilter] = useState<"all" | "paid" | "pending">("all");
+   254→  const [payViewMode, setPayViewMode] = useState<"grid" | "line">("grid");
+   255→  const [myAdsView, setMyAdsView] = useState<"grid" | "line">("grid");
+   256→  const [deleteSlug, setDeleteSlug] = useState<string | null>(null);
+   257→  const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; msgIndex: number | null }>({ timer: null, msgIndex: null });
+   258→  const [gifQuery, setGifQuery] = useState("");
+   259→  const [gifResults, setGifResults] = useState<{ id: string; emoji: string; label: string; animation: string }[]>([]);
+   260→  const [gifLoading, setGifLoading] = useState(false);
+   261→  const [convMenu, setConvMenu] = useState<{ visible: boolean; x: number; y: number; convId: string | null }>({ visible: false, x: 0, y: 0, convId: null });
+   262→  // edit profile state
+   263→  const [editMode, setEditMode] = useState(false);
+   264→  const [editName, setEditName] = useState("");
+   265→  const [editPhone, setEditPhone] = useState("");
+   266→  const [editCity, setEditCity] = useState("");
+   267→  const [editCompany, setEditCompany] = useState("");
+   268→  const [editAddress, setEditAddress] = useState("");
+   269→  const [bannerUploading, setBannerUploading] = useState(false);
+   270→  const [logoUploading, setLogoUploading] = useState(false);
+   271→  const [pendingBanner, setPendingBanner] = useState<string | null>(null);
+   272→  const [pendingLogo, setPendingLogo] = useState<string | null>(null);
+   273→  const [savingProfile, setSavingProfile] = useState(false);
+   274→  // settings state
+   275→  const [chatSoundOn, setChatSoundOn] = useState(true);
+   276→  useEffect(() => { setChatSoundOn(isChatSoundEnabled()); }, []);
+   277→  // security state
+   278→  const [showPasswordForm, setShowPasswordForm] = useState(false);
+   279→  const [currentPass, setCurrentPass] = useState("");
+   280→  const [newPass, setNewPass] = useState("");
+   281→  const [confirmPass, setConfirmPass] = useState("");
+   282→  const [savingPass, setSavingPass] = useState(false);
+   283→  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
+   284→  const [loginAlerts, setLoginAlerts] = useState(true);
+   285→  const [showLoginHistory, setShowLoginHistory] = useState(false);
+   286→  // help state
+   287→  const [faqSearch, setFaqSearch] = useState("");
+   288→  const [openFaq, setOpenFaq] = useState<number | null>(0);
+   289→  const [showSupportChat, setShowSupportChat] = useState(false);
+   290→  const [supportMessages, setSupportMessages] = useState<{ role: "user" | "support"; content: string }[]>([
+   291→    { role: "support", content: tr("profSupportGreeting") },
+   292→  ]);
+   293→  const [supportInput, setSupportInput] = useState("");
+   294→  const [activeGuide, setActiveGuide] = useState<number | null>(null);
+   295→  // wallet state
+   296→  const [showAddPayment, setShowAddPayment] = useState(false);
+   297→  const [paymentList, setPaymentList] = useState<any[]>([]);
+   298→  const [newPaymentType, setNewPaymentType] = useState("bank");
+   299→  const [newPaymentName, setNewPaymentName] = useState("");
+   300→  const [newPaymentNumber, setNewPaymentNumber] = useState("");
+   301→  const [balance] = useState(0);
+   302→  const [transactions] = useState<any[]>([]);
+   303→
+   304→  // sync: when store profilePanel changes (e.g. from bottom nav Chat button), open it
+   305→  const [prevStorePanel, setPrevStorePanel] = useState(storeProfilePanel);
+   306→  if (storeProfilePanel !== prevStorePanel) {
+   307→    setPrevStorePanel(storeProfilePanel);
+   308→    setPanel(storeProfilePanel as PanelType);
+   309→  }
+   310→
+   311→  const closePanel = () => {
+   312→    setPanel(null);
+   313→    setActiveChatId(null);
+   314→    clearProfilePanel();
+   315→  };
+   316→
+   317→  // sample data for panels — per-user (empty for new users)
+   318→  const orders: any[] = [];
+   319→  const wallets: any[] = [];
+   320→  const notifications: any[] = [
+   321→    { id: 1, icon: MessageSquare, title: "Pesan baru", desc: "Anda memiliki pesan baru dari pembeli.", time: "Baru saja", color: "text-blue-500", unread: true },
+   322→    { id: 2, icon: Tag, title: "Iklan disetujui", desc: "Iklan 'TEST DOWNLOAD BUKTI' telah diverifikasi admin.", time: "2 jam lalu", color: "text-orange-500", unread: true },
+   323→    { id: 3, icon: Heart, title: "Iklan difavoritkan", desc: "Iklan Anda ditambahkan ke favorit oleh pengguna.", time: "5 jam lalu", color: "text-rose-500", unread: false },
+   324→    { id: 4, icon: Clock, title: "Iklan akan kedaluwarsa", desc: "Iklan 'tes' akan kedaluwarsa dalam 3 hari.", time: "1 hari lalu", color: "text-amber-500", unread: false },
+   325→    { id: 5, icon: CheckCircle2, title: "Pembayaran diterima", desc: "Pembayaran Rp 99.000 untuk paket Titanium telah diterima.", time: "2 hari lalu", color: "text-orange-500", unread: false },
+   326→  ];
+   327→
+   328→  const faqs = [
+   329→    { q: tr("profFaqQ1"), a: tr("profFaqA1") },
+   330→    { q: tr("profFaqQ2"), a: "Ya. Pasang iklan di Gomesin memilih paket mulai dari Gold. Paket Premium tersedia untuk menonjolkan iklan Anda." },
+   331→    { q: tr("profFaqQ3"), a: "Buka detail iklan, klik 'Chat Penjual' untuk chat AI, atau 'WhatsApp' untuk chat langsung via WA." },
+   332→    { q: tr("profFaqQ4"), a: "Selalu survei mesin langsung sebelum membayar. Gunakan rekening pribadi penjual dan hindari transfer ke pihak ketiga." },
+   333→    { q: tr("profFaqQ5"), a: "Masuk ke Dashboard Iklan Saya, pilih iklan yang ingin dihapus, lalu klik tombol hapus." },
+   334→  ];
+   335→
+   336→  const initials = user
+   337→    ? user.name
+   338→        .split(" ")
+   339→        .slice(0, 2)
+   340→        .map((w) => w[0])
+   341→        .join("")
+   342→        .toUpperCase()
+   343→    : "GU";
+   344→
+   345→  const requireLogin = (action: () => void) => () => {
+   346→    if (!user) {
+   347→      toast.info(tr("profLoginRequired2"), {
+   348→        action: { label: tr("chatLoginAction"), onClick: goToLogin },
+   349→      });
+   350→      return;
+   351→    }
+   352→    action();
+   353→  };
+   354→
+   355→  const openChat = (convId: string) => {
+   356→    const conv = conversations.find((c: any) => c.id === convId);
+   357→    setActiveChatId(convId as any);
+   358→    syncChatMessages(convId);
+   359→    if (user && conv?.partnerId) {
+   360→      fetch("/api/messages", {
+   361→        method: "PATCH",
+   362→        headers: { "Content-Type": "application/json" },
+   363→        body: JSON.stringify({ userId: user.id, partnerId: conv.partnerId }),
+   364→      }).then(() => refetchMessages());
+   365→    }
+   366→  };
+   367→
+   368→  // ===== Conversation context menu actions =====
+   369→  const handleConvContextMenu = (e: React.MouseEvent, convId: string) => {
+   370→    e.preventDefault();
+   371→    e.stopPropagation();
+   372→    setConvMenu({ visible: true, x: e.clientX, y: e.clientY, convId });
+   373→  };
+   374→
+   375→  const handleBlockUser = useCallback(() => {
+   376→    const conv = conversations.find((c: any) => c.id === convMenu.convId);
+   377→    if (conv) toast.success(`${conv.name} diblokir`);
+   378→    setConvMenu({ visible: false, x: 0, y: 0, convId: null });
+   379→  }, [convMenu.convId, conversations]);
+   380→
+   381→  const handleClearChat = useCallback(async () => {
+   382→    const conv = conversations.find((c: any) => c.id === convMenu.convId);
+   383→    if (!conv || !user) { setConvMenu({ visible: false, x: 0, y: 0, convId: null }); return; }
+   384→    try {
+   385→      await fetch("/api/messages", {
+   386→        method: "DELETE",
+   387→        headers: { "Content-Type": "application/json" },
+   388→        body: JSON.stringify({ userId: user.id, partnerId: conv.partnerId, listingTitle: conv.listingTitle }),
+   389→      });
+   390→      setChatMessages(prev => { const n = { ...prev }; delete n[convMenu.convId as any]; return n; });
+   391→      queryClient.invalidateQueries({ queryKey: ["messages"] });
+   392→      toast.success("Chat dibersihkan");
+   393→    } catch { toast.error("Gagal membersihkan chat"); }
+   394→    setConvMenu({ visible: false, x: 0, y: 0, convId: null });
+   395→  }, [convMenu.convId, conversations, user, queryClient]);
+   396→
+   397→  const handleDeleteChat = useCallback(async () => {
+   398→    const conv = conversations.find((c: any) => c.id === convMenu.convId);
+   399→    if (!conv || !user) { setConvMenu({ visible: false, x: 0, y: 0, convId: null }); return; }
+   400→    try {
+   401→      await fetch("/api/messages", {
+   402→        method: "DELETE",
+   403→        headers: { "Content-Type": "application/json" },
+   404→        body: JSON.stringify({ userId: user.id, partnerId: conv.partnerId, listingTitle: conv.listingTitle }),
+   405→      });
+   406→      setChatMessages(prev => { const n = { ...prev }; delete n[convMenu.convId as any]; return n; });
+   407→      if (activeChatId === convMenu.convId) setActiveChatId(null);
+   408→      queryClient.invalidateQueries({ queryKey: ["messages"] });
+   409→      toast.success("Chat dihapus");
+   410→    } catch { toast.error("Gagal menghapus chat"); }
+   411→    setConvMenu({ visible: false, x: 0, y: 0, convId: null });
+   412→  }, [convMenu.convId, conversations, user, queryClient, activeChatId]);
+   413→
+   414→  // Close menu on outside click
+   415→  useEffect(() => {
+   416→    if (!convMenu.visible) return;
+   417→    const close = () => setConvMenu({ visible: false, x: 0, y: 0, convId: null });
+   418→    window.addEventListener("click", close);
+   419→    window.addEventListener("contextmenu", close);
+   420→    return () => { window.removeEventListener("click", close); window.removeEventListener("contextmenu", close); };
+   421→  }, [convMenu.visible]);
+   422→
+   423→  // Sync chat messages from conversations data — populate local state from DB snapshot.
+   424→  const syncChatMessages = (convId: string) => {
+   425→    const conv = conversations.find((c: any) => c.id === convId);
+   426→    if (!conv) return;
+   427→    const dbCount = conv.messages?.length || 0;
+   428→    const localCount = chatMessages[convId as any]?.length || 0;
+   429→    // Only initialize from DB if local is empty (first open).
+   430→    if (localCount === 0 && dbCount > 0) {
+   431→      const history = [...conv.messages].reverse().map((m: any) => ({
+   432→        role: m.sent ? ("user" as const) : ("assistant" as const),
+   433→        content: m.content,
+   434→        image: m.image || undefined,
+   435→      }));
+   436→      setChatMessages((prev) => ({ ...prev, [convId as any]: history }));
+   437→    } else if (dbCount === 0 && localCount === 0) {
+   438→      setChatMessages((prev) => ({ ...prev, [convId as any]: [] }));
+   439→    }
+   440→  };
+   441→
+   442→  // Realtime: subscribe to incoming / echo messages via socket.
+   443→  useEffect(() => {
+   444→    if (!user) return;
+   445→    const off = subscribe<ChatMessage>("message:new", (msg) => {
+   446→      // Find the conversation this message belongs to (by partnerId + listingTitle).
+   447→      const isMine = msg.senderId === user.id;
+   448→      const partnerId = isMine ? msg.receiverId : msg.senderId;
+   449→      const conv = conversations.find(
+   450→        (c: any) => c.partnerId === partnerId && (c.listingTitle || null) === (msg.listingTitle || null)
+   451→      );
+   452→      // Refresh conversation list so last message preview + unread count update.
+   453→      queryClient.invalidateQueries({ queryKey: ["messages"] });
+   454→
+   455→      // (Notification sound handled in Header.tsx — global, works in all views)
+   456→
+   457→      // Toast notification for incoming messages (not from self) so user is alerted
+   458→      // even when not on the chat panel.
+   459→      if (!isMine) {
+   460→        // Play "Go mesin!" ringtone (like WhatsApp) for incoming chat — instant.
+   461→        playNotificationSound();
+   462→        const preview = msg.content?.trim()
+   463→          ? msg.content.length > 60 ? msg.content.slice(0, 60) + "..." : msg.content
+   464→          : msg.image ? "📷 Mengirim gambar" : "Pesan baru";
+   465→        toast.info(`Pesan baru${conv?.name ? ` dari ${conv.name}` : ""}`, {
+   466→          description: preview,
+   467→          duration: 4000,
+   468→          action: conv ? { label: "Buka", onClick: () => { setPanel("pesan"); openChat(conv.id as any); } } : undefined,
+   469→        });
+   470→      }
+   471→
+   472→      // If this conversation is currently open in the chat view, append the message.
+   473→      if (conv && activeChatId !== null && String(activeChatId) === String(conv.id)) {
+   474→        setChatMessages((prev) => {
+   475→          const existing = prev[conv.id as any] || [];
+   476→          // Dedupe by content+role (avoid optimistic + echo double-add).
+   477→          const last = existing[existing.length - 1];
+   478→          if (
+   479→            last &&
+   480→            last.role === (isMine ? "user" : "assistant") &&
+   481→            last.content === msg.content
+   482→          ) {
+   483→            return prev;
+   484→          }
+   485→          return {
+   486→            ...prev,
+   487→            [conv.id as any]: [...existing, { role: isMine ? "user" : "assistant", content: msg.content, image: msg.image || undefined }],
+   488→          };
+   489→        });
+   490→        // Auto-mark incoming as read since the chat is open.
+   491→        if (!isMine) {
+   492→          markRead(user.id, partnerId);
+   493→        }
+   494→      }
+   495→    });
+   496→    return off;
+   497→  }, [user, activeChatId, conversations, subscribe, markRead, queryClient]);
+   498→
+   499→  // Realtime: subscribe to read receipts — refresh unread counts.
+   500→  useEffect(() => {
+   501→    if (!user) return;
+   502→    const off = subscribe<{ partnerId: string }>("message:read-update", () => {
+   503→      queryClient.invalidateQueries({ queryKey: ["messages"] });
+   504→    });
+   505→    return off;
+   506→  }, [user, subscribe, queryClient]);
+   507→
+   508→  // Auto-scroll to bottom when chat messages change
+   509→  useEffect(() => {
+   510→    if (activeChatId !== null && panel === "pesan") {
+   511→      setTimeout(() => {
+   512→        chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
+   513→      }, 100);
+   514→    }
+   515→  }, [chatMessages, activeChatId, panel]);
+   516→
+   517→  // (body scroll lock removed — Pesan panel now renders inline, not as a fixed overlay)
+   518→
+   519→  const sendChat = async () => {
+   520→    const content = chatInput.trim();
+   521→    const image = pendingImage;
+   522→    if ((!content && !image) || chatSending || activeChatId === null || !user) return;
+   523→    const conv = conversations.find((c: any) => c.id === activeChatId);
+   524→    if (!conv) return;
+   525→
+   526→    setChatInput("");
+   527→    setPendingImage(null);
+   528→    setShowEmoji(false);
+   529→    // Optimistic: show immediately.
+   530→    const history = chatMessages[activeChatId as any] || [];
+   531→    const next = [...history, { role: "user" as const, content: content || (image ? "📷 Gambar" : ""), image: image || undefined }];
+   532→    setChatMessages((prev) => ({ ...prev, [activeChatId as any]: next }));
+   533→    setChatSending(true);
+   534→
+   535→    try {
+   536→      // Send via socket — server saves to DB AND broadcasts to receiver instantly.
+   537→      const ack = await sendMessage({
+   538→        senderId: user.id,
+   539→        receiverId: conv.partnerId,
+   540→        content: content || (image ? "📷 Gambar" : ""),
+   541→        image: image || null,
+   542→        listingTitle: conv.listingTitle,
+   543→      });
+   544→      if (!ack?.ok) {
+   545→        // Fallback to REST.
+   546→        await fetch("/api/messages", {
+   547→          method: "POST",
+   548→          headers: { "Content-Type": "application/json" },
+   549→          body: JSON.stringify({
+   550→            senderId: user.id,
+   551→            receiverId: conv.partnerId,
+   552→            content: content || (image ? "📷 Gambar" : ""),
+   553→            image: image || null,
+   554→            listingTitle: conv.listingTitle,
+   555→          }),
+   556→        });
+   557→      }
+   558→      queryClient.invalidateQueries({ queryKey: ["messages"] });
+   559→    } catch {
+   560→      toast.error(tr("chatSendFailed"));
+   561→    } finally {
+   562→      setChatSending(false);
+   563→    }
+   564→  };
+   565→
+   566→  // Handle image file selection → convert to base64 data URL
+   567→  // Compress image to max 200KB PNG via canvas. Returns base64 data URL.
+   568→  const compressImage = (file: File): Promise<string> => {
+   569→    return new Promise((resolve, reject) => {
+   570→      const reader = new FileReader();
+   571→      reader.onload = () => {
+   572→        const img = new window.Image();
+   573→        img.onload = () => {
+   574→          const MAX_BYTES = 200 * 1024; // 200KB
+   575→          // Start with original dimensions (capped to max 1280px on longest side)
+   576→          const maxDim = 1280;
+   577→          let { width, height } = img;
+   578→          if (width > maxDim || height > maxDim) {
+   579→            const scale = maxDim / Math.max(width, height);
+   580→            width = Math.round(width * scale);
+   581→            height = Math.round(height * scale);
+   582→          }
+   583→          // Try decreasing quality (PNG is lossless, so we reduce dimensions to hit <200KB)
+   584→          const tryCompress = (w: number, h: number): string | null => {
+   585→            const canvas = document.createElement("canvas");
+   586→            canvas.width = w;
+   587→            canvas.height = h;
+   588→            const ctx = canvas.getContext("2d");
+   589→            if (!ctx) return null;
+   590→            ctx.drawImage(img, 0, 0, w, h);
+   591→            const dataUrl = canvas.toDataURL("image/png");
+   592→            return dataUrl;
+   593→          };
+   594→          let result = tryCompress(width, height);
+   595→          // If still > 200KB, progressively reduce dimensions
+   596→          let curW = width;
+   597→          let curH = height;
+   598→          while (result && dataUrlBytes(result) > MAX_BYTES && curW > 100) {
+   599→            curW = Math.round(curW * 0.8);
+   600→            curH = Math.round(curH * 0.8);
+   601→            result = tryCompress(curW, curH);
+   602→          }
+   603→          resolve(result || "");
+   604→        };
+   605→        img.onerror = reject;
+   606→        img.src = reader.result as string;
+   607→      };
+   608→      reader.onerror = reject;
+   609→      reader.readAsDataURL(file);
+   610→    });
+   611→  };
+   612→
+   613→  // Compress image for banner/logo — uses JPEG with dynamic quality to hit <200KB.
+   614→  // For PNG with transparency (logos), keeps PNG but reduces dimensions.
+   615→  const compressBannerImage = (file: File, useJpeg = true): Promise<string> => {
+   616→    return new Promise((resolve, reject) => {
+   617→      const reader = new FileReader();
+   618→      reader.onload = () => {
+   619→        const img = new window.Image();
+   620→        img.onload = () => {
+   621→          const MAX_BYTES = 200 * 1024; // 200KB
+   622→          const maxDim = 1280;
+   623→          let { width, height } = img;
+   624→          if (width > maxDim || height > maxDim) {
+   625→            const scale = maxDim / Math.max(width, height);
+   626→            width = Math.round(width * scale);
+   627→            height = Math.round(height * scale);
+   628→          }
+   629→          const canvas = document.createElement("canvas");
+   630→          canvas.width = width;
+   631→          canvas.height = height;
+   632→          const ctx = canvas.getContext("2d");
+   633→          if (!ctx) { reject(new Error("Canvas not supported")); return; }
+   634→          ctx.drawImage(img, 0, 0, width, height);
+   635→          if (useJpeg) {
+   636→            // JPEG with dynamic quality reduction
+   637→            let quality = 0.9;
+   638→            let result = canvas.toDataURL("image/jpeg", quality);
+   639→            while (dataUrlBytes(result) > MAX_BYTES && quality > 0.1) {
+   640→              quality -= 0.1;
+   641→              result = canvas.toDataURL("image/jpeg", quality);
+   642→            }
+   643→            // If still > 200KB, reduce dimensions
+   644→            let curW = width, curH = height;
+   645→            while (dataUrlBytes(result) > MAX_BYTES && curW > 100) {
+   646→              curW = Math.round(curW * 0.8);
+   647→              curH = Math.round(curH * 0.8);
+   648→              canvas.width = curW;
+   649→              canvas.height = curH;
+   650→              ctx.drawImage(img, 0, 0, curW, curH);
+   651→              result = canvas.toDataURL("image/jpeg", quality);
+   652→            }
+   653→            resolve(result);
+   654→          } else {
+   655→            // PNG (for logos with transparency)
+   656→            let result = canvas.toDataURL("image/png");
+   657→            let curW = width, curH = height;
+   658→            while (dataUrlBytes(result) > MAX_BYTES && curW > 100) {
+   659→              curW = Math.round(curW * 0.8);
+   660→              curH = Math.round(curH * 0.8);
+   661→              canvas.width = curW;
+   662→              canvas.height = curH;
+   663→              ctx.drawImage(img, 0, 0, curW, curH);
+   664→              result = canvas.toDataURL("image/png");
+   665→            }
+   666→            resolve(result);
+   667→          }
+   668→        };
+   669→        img.onerror = reject;
+   670→        img.src = reader.result as string;
+   671→      };
+   672→      reader.onerror = reject;
+   673→      reader.readAsDataURL(file);
+   674→    });
+   675→  };
+   676→
+   677→  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   678→    const file = e.target.files?.[0];
+   679→    if (!file) return;
+   680→    if (!file.type.startsWith("image/")) {
+   681→      toast.error("File harus berupa gambar");
+   682→      return;
+   683→    }
+   684→    try {
+   685→      const compressed = await compressImage(file);
+   686→      if (!compressed) {
+   687→        toast.error("Gagal memproses gambar");
+   688→        return;
+   689→      }
+   690→      setPendingImage(compressed);
+   691→    } catch {
+   692→      toast.error("Gagal memuat gambar");
+   693→    }
+   694→    // reset input so same file can be re-selected
+   695→    e.target.value = "";
+   696→  };
+   697→
+   698→  // Fetch stickers from /api/gifs — trending by default, search if query
+   699→  const fetchGifs = useCallback(async (q: string) => {
+   700→    setGifLoading(true);
+   701→    try {
+   702→      const url = q ? `/api/gifs?q=${encodeURIComponent(q)}` : "/api/gifs";
+   703→      const res = await fetch(url);
+   704→      if (!res.ok) throw new Error("fail");
+   705→      const data = await res.json();
+   706→      setGifResults(data.stickers || []);
+   707→    } catch {
+   708→      setGifResults([]);
+   709→    } finally {
+   710→      setGifLoading(false);
+   711→    }
+   712→  }, []);
+   713→
+   714→  // Load trending GIFs when GIF picker opens (only once per open)
+   715→  const gifFetchRef = useRef(false);
+   716→  useEffect(() => {
+   717→    if (showGifs && !gifFetchRef.current && gifResults.length === 0) {
+   718→      fetchGifs("");
+   719→      gifFetchRef.current = true;
+   720→    }
+   721→    if (!showGifs) {
+   722→      gifFetchRef.current = false;
+   723→    }
+   724→  }, [showGifs, fetchGifs, gifResults.length]);
+   725→
+   726→  // Debounced GIF search
+   727→  useEffect(() => {
+   728→    if (!showGifs) return;
+   729→    const t = setTimeout(() => {
+   730→      fetchGifs(gifQuery);
+   731→    }, 400);
+   732→    return () => clearTimeout(t);
+   733→  }, [gifQuery, showGifs, fetchGifs]);
+   734→
+   735→  // Send a sticker (animated emoji) as a big animated message
+   736→  const sendGif = async (sticker: { emoji: string; animation: string }) => {
+   737→    if (chatSending || activeChatId === null || !user) return;
+   738→    const conv = conversations.find((c: any) => c.id === activeChatId);
+   739→    if (!conv) return;
+   740→    setShowGifs(false);
+   741→    const history = chatMessages[activeChatId as any] || [];
+   742→    const next = [...history, { role: "user" as const, content: sticker.emoji, animation: sticker.animation }];
+   743→    setChatMessages((prev) => ({ ...prev, [activeChatId as any]: next }));
+   744→    setChatSending(true);
+   745→    try {
+   746→      const ack = await sendMessage({
+   747→        senderId: user.id,
+   748→        receiverId: conv.partnerId,
+   749→        content: sticker.emoji,
+   750→        listingTitle: conv.listingTitle,
+   751→      });
+   752→      if (!ack?.ok) {
+   753→        await fetch("/api/messages", {
+   754→          method: "POST",
+   755→          headers: { "Content-Type": "application/json" },
+   756→          body: JSON.stringify({
+   757→            senderId: user.id,
+   758→            receiverId: conv.partnerId,
+   759→            content: sticker.emoji,
+   760→            listingTitle: conv.listingTitle,
+   761→          }),
+   762→        });
+   763→      }
+   764→      queryClient.invalidateQueries({ queryKey: ["messages"] });
+   765→    } catch {
+   766→      toast.error(tr("chatSendFailed"));
+   767→    } finally {
+   768→      setChatSending(false);
+   769→    }
+   770→  };
+   771→
+   772→  // Long-press handlers for message delete
+   773→  const handleMsgLongPressStart = (e: React.MouseEvent | React.TouchEvent, index: number) => {
+   774→    const x = "touches" in e ? e.touches[0].clientX : e.clientX;
+   775→    const y = "touches" in e ? e.touches[0].clientY : e.clientY;
+   776→    longPressRef.current.timer = setTimeout(() => {
+   777→      setMsgMenu({ visible: true, x, y, msgIndex: index });
+   778→    }, 500);
+   779→    longPressRef.current.msgIndex = index;
+   780→  };
+   781→  const handleMsgLongPressEnd = () => {
+   782→    if (longPressRef.current.timer) {
+   783→      clearTimeout(longPressRef.current.timer);
+   784→      longPressRef.current.timer = null;
+   785→    }
+   786→  };
+   787→  const deleteMessage = () => {
+   788→    if (msgMenu.msgIndex === null || activeChatId === null) {
+   789→      setMsgMenu({ visible: false, x: 0, y: 0, msgIndex: null });
+   790→      return;
+   791→    }
+   792→    const history = chatMessages[activeChatId as any] || [];
+   793→    const next = history.filter((_, i) => i !== msgMenu.msgIndex);
+   794→    setChatMessages((prev) => ({ ...prev, [activeChatId as any]: next }));
+   795→    setMsgMenu({ visible: false, x: 0, y: 0, msgIndex: null });
+   796→    toast.success("Pesan dihapus");
+   797→  };
+   798→
+   799→  const panelTitle: { [K in Exclude<PanelType, null>]: string } = {
+   800→    pesan: tr("messages"),
+   801→    pesanan: tr("orders"),
+   802→    saldo: tr("wallet"),
+   803→    notifikasi: tr("notifications"),
+   804→    keamanan: tr("security"),
+   805→    pengaturan: tr("settings"),
+   806→    bantuan: tr("help"),
+   807→    "iklan-saya": tr("profMyAds"),
+   808→    "favorit-saya": tr("myFavorites"),
+   809→  };
+   810→
+   811→  return (
+   812→    <div className="animate-fade-up flex">
+   813→      {/* ===== PERMANENT SIDEBAR MENU (desktop only — mobile uses drawer) ===== */}
+   814→      <aside className="sticky top-0 z-30 hidden h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-card md:flex">
+   815→        {/* sidebar header */}
+   816→        <div className="flex items-center gap-3 border-b border-border p-4">
+   817→          <Avatar className="size-10 border-2 border-primary/20 overflow-hidden">
+   818→            {user?.logoImage ? (
+   819→              <img src={user.logoImage} alt={user.name || ""} className="size-full object-cover" onError={(e)=>{(e.target as HTMLImageElement).style.display='none';}} />
+   820→            ) : (
+   821→              <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
+   822→                {initials}
+   823→              </AvatarFallback>
+   824→            )}
+   825→          </Avatar>
+   826→          <div className="min-w-0 flex-1">
+   827→            <p className="truncate text-sm font-bold">{user?.name || "Pengguna"}</p>
+   828→            <p className="truncate text-xs text-muted-foreground">{user?.email || "Belum login"}</p>
+   829→          </div>
+   830→        </div>
+   831→        {user?.role === "admin" && (
+   832→          <div className="px-4 pt-2">
+   833→            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+   834→              <ShieldCheck className="size-3" /> Admin
+   835→            </span>
+   836→          </div>
+   837→        )}
+   838→        {/* Menu items */}
+   839→        <nav className="p-2">
+   840→          {/* Section: Iklan & Transaksi */}
+   841→          <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">Iklan & Transaksi</p>
+   842→          {[
+   843→            ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), action: goToAdmin, navigate: true, key: "admin" }] : []),
+   844→            { icon: Tag, label: tr("profMyAds"), action: () => setPanel("iklan-saya"), navigate: false, key: "iklan-saya" },
+   845→            { icon: Heart, label: tr("myFavorites"), action: () => setPanel("favorit-saya"), navigate: false, key: "favorit-saya" },
+   846→            { icon: MessageSquare, label: tr("messages"), action: () => setPanel("pesan"), navigate: false, key: "pesan" },
+   847→            { icon: Wallet, label: tr("wallet"), action: () => setPanel("saldo"), navigate: false, key: "saldo" },
+   848→          ].map((m, i) => {
+   849→            const isActive = panel === m.key;
+   850→            return (
+   851→              <button
+   852→                key={i}
+   853→                onClick={m.action}
+   854→                className={cn(
+   855→                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
+   856→                  isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+   857→                )}
+   858→              >
+   859→                <m.icon className="size-4 shrink-0" />
+   860→                <span className="truncate">{m.label}</span>
+   861→                {m.key === "pesan" && unreadCount > 0 && (
+   862→                  <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{unreadCount}</span>
+   863→                )}
+   864→              </button>
+   865→            );
+   866→          })}
+   867→
+   868→          {/* Section: Akun & Keamanan */}
+   869→          <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">Akun & Keamanan</p>
+   870→          {[
+   871→            { icon: Bell, label: tr("notifications"), action: () => setPanel("notifikasi"), key: "notifikasi" },
+   872→            { icon: Lock, label: tr("security"), action: () => setPanel("keamanan"), key: "keamanan" },
+   873→            { icon: Settings, label: tr("settings"), action: () => setPanel("pengaturan"), key: "pengaturan" },
+   874→          ].map((m, i) => {
+   875→            const isActive = panel === m.key;
+   876→            return (
+   877→              <button
+   878→                key={i}
+   879→                onClick={m.action}
+   880→                className={cn(
+   881→                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
+   882→                  isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+   883→                )}
+   884→              >
+   885→                <m.icon className="size-4 shrink-0" />
+   886→                <span className="truncate">{m.label}</span>
+   887→              </button>
+   888→            );
+   889→          })}
+   890→
+   891→          {/* Section: Bantuan */}
+   892→          <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">Bantuan</p>
+   893→          <button
+   894→            onClick={() => setPanel("bantuan")}
+   895→            className={cn(
+   896→              "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition",
+   897→              panel === "bantuan" ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+   898→            )}
+   899→          >
+   900→            <HelpCircle className="size-4 shrink-0" />
+   901→            <span className="truncate">{tr("help")}</span>
+   902→          </button>
+   903→          <button
+   904→            onClick={() => { if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
+   905→            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-destructive transition hover:bg-destructive/5"
+   906→          >
+   907→            <LogOut className="size-4 shrink-0" />
+   908→            <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
+   909→          </button>
+   910→        </nav>
+   911→      </aside>
+   912→
+   913→      {/* ===== MOBILE DRAWER (only on mobile — desktop uses permanent sidebar) ===== */}
+   914→      {drawerOpen && (
+   915→        <div className="fixed inset-0 z-[90] flex md:hidden">
+   916→          <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} />
+   917→          <aside className="relative z-10 flex h-full w-72 max-w-[85vw] flex-col overflow-y-auto bg-card shadow-2xl">
+   918→            <div className="flex items-center justify-between border-b border-border p-4">
+   919→              <div className="flex items-center gap-3">
+   920→                <Avatar className="size-10 border-2 border-primary/20 overflow-hidden">
+   921→                  {user?.logoImage ? (
+   922→                    <img src={user.logoImage} alt={user.name || ""} className="size-full object-cover" onError={(e)=>{(e.target as HTMLImageElement).style.display='none';}} />
+   923→                  ) : (
+   924→                    <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
+   925→                      {initials}
+   926→                    </AvatarFallback>
+   927→                  )}
+   928→                </Avatar>
+   929→                <div className="min-w-0 flex-1">
+   930→                  <p className="truncate text-sm font-bold">{user?.name || "Pengguna"}</p>
+   931→                  <p className="truncate text-xs text-muted-foreground">{user?.email || "Belum login"}</p>
+   932→                </div>
+   933→              </div>
+   934→              <button onClick={() => setDrawerOpen(false)} className="grid size-8 place-items-center rounded-full hover:bg-accent">
+   935→                <X className="size-4" />
+   936→              </button>
+   937→            </div>
+   938→            {user?.role === "admin" && (
+   939→              <div className="px-4 pt-2">
+   940→                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+   941→                  <ShieldCheck className="size-3" /> Admin
+   942→                </span>
+   943→              </div>
+   944→            )}
+   945→            <nav className="px-1.5 py-1">
+   946→              <p className="px-2.5 pb-0.5 pt-1.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/50">Iklan & Transaksi</p>
+   947→              {[
+   948→                ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), action: () => { goToAdmin(); setDrawerOpen(false); }, navigate: true, key: "admin" }] : []),
+   949→                { icon: LayoutDashboard, label: "Dashboard", action: () => { goToDashboard(); setPanel(null); setDrawerOpen(false); }, navigate: true, key: "dashboard" },
+   950→                { icon: Tag, label: tr("profMyAds"), action: () => { setPanel("iklan-saya"); setDrawerOpen(false); }, navigate: false, key: "iklan-saya" },
+   951→                { icon: Heart, label: tr("myFavorites"), action: () => { setPanel("favorit-saya"); setDrawerOpen(false); }, navigate: false, key: "favorit-saya" },
+   952→                { icon: MessageSquare, label: tr("messages"), action: () => { setPanel("pesan"); setDrawerOpen(false); }, navigate: false, key: "pesan" },
+   953→                { icon: Wallet, label: tr("wallet"), action: () => { setPanel("saldo"); setDrawerOpen(false); }, navigate: false, key: "saldo" },
+   954→              ].map((m, i) => {
+   955→                const isActive = panel === m.key;
+   956→                return (
+   957→                  <button
+   958→                    key={i}
+   959→                    onClick={m.action}
+   960→                    className={cn(
+   961→                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
+   962→                      isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+   963→                    )}
+   964→                  >
+   965→                    <m.icon className="size-3.5 shrink-0" />
+   966→                    <span className="truncate">{m.label}</span>
+   967→                    {m.key === "pesan" && unreadCount > 0 && (
+   968→                      <span className="ml-auto rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">{unreadCount}</span>
+   969→                    )}
+   970→                  </button>
+   971→                );
+   972→              })}
+   973→              <p className="px-2.5 pb-0.5 pt-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/50">Akun & Keamanan</p>
+   974→              {[
+   975→                { icon: Bell, label: tr("notifications"), action: () => { setPanel("notifikasi"); setDrawerOpen(false); }, key: "notifikasi" },
+   976→                { icon: Lock, label: tr("security"), action: () => { setPanel("keamanan"); setDrawerOpen(false); }, key: "keamanan" },
+   977→                { icon: Settings, label: tr("settings"), action: () => { setPanel("pengaturan"); setDrawerOpen(false); }, key: "pengaturan" },
+   978→              ].map((m, i) => {
+   979→                const isActive = panel === m.key;
+   980→                return (
+   981→                  <button
+   982→                    key={i}
+   983→                    onClick={m.action}
+   984→                    className={cn(
+   985→                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
+   986→                      isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+   987→                    )}
+   988→                  >
+   989→                    <m.icon className="size-3.5 shrink-0" />
+   990→                    <span className="truncate">{m.label}</span>
+   991→                  </button>
+   992→                );
+   993→              })}
+   994→              <p className="px-2.5 pb-0.5 pt-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/50">Bantuan</p>
+   995→              <button
+   996→                onClick={() => { setPanel("bantuan"); setDrawerOpen(false); }}
+   997→                className={cn(
+   998→                  "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
+   999→                  panel === "bantuan" ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+  1000→                )}
+  1001→              >
+  1002→                <HelpCircle className="size-3.5 shrink-0" />
+  1003→                <span className="truncate">{tr("help")}</span>
+  1004→              </button>
+  1005→              <button
+  1006→                onClick={() => { setDrawerOpen(false); if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
+  1007→                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-destructive transition hover:bg-destructive/5"
+  1008→              >
+  1009→                <LogOut className="size-3.5 shrink-0" />
+  1010→                <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
+  1011→              </button>
+  1012→            </nav>
+  1013→          </aside>
+  1014→        </div>
+  1015→      )}
+  1016→
+  1017→      {/* ===== MAIN CONTENT (next to permanent sidebar on desktop) ===== */}
+  1018→      <main className={cn("min-w-0 flex-1 px-4 py-4 md:px-6 md:py-6", panel === "pesan" && "max-md:px-0 max-md:pt-2 max-md:pb-0")}>
+  1019→        {/* breadcrumb — hidden on mobile when Pesan (cleaner chat view) */}
+  1020→        <div className={cn("mb-4 flex items-center gap-1 text-xs text-muted-foreground", panel === "pesan" && "max-md:hidden")}>
+  1021→          <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
+  1022→          <ChevronRight className="size-3" />
+  1023→          <span className="text-foreground">{tr("account")}</span>
+  1024→        </div>
+  1025→
+  1026→        {/* Header — greeting + date + motivation + stat cards (HANYA di overview profil, panel === null) */}
+  1027→        {panel === null && (
+  1028→        <div className="mb-5">
+  1029→          {/* Mobile: full-width orange header with semicircle bottom */}
+  1030→          <div className="-mx-4 -mt-4 overflow-hidden md:mx-0 md:mt-0">
+  1031→            {/* Orange gradient header */}
+  1032→            <div className="relative bg-gradient-to-br from-primary to-orange-600 px-5 pb-6 pt-4 text-primary-foreground md:rounded-xl md:border md:border-border md:shadow-md md:px-6 md:pt-6 md:pb-6">
+  1033→              {/* Mobile hamburger — positioned inside orange header */}
+  1034→              <button
+  1035→                onClick={() => setDrawerOpen(true)}
+  1036→                aria-label="Menu"
+  1037→                className="absolute right-4 top-3.5 grid size-10 place-items-center rounded-lg bg-white/15 backdrop-blur-sm transition hover:bg-white/25 md:hidden"
+  1038→              >
+  1039→                <Menu className="size-5" />
+  1040→              </button>
+  1041→              {(() => {
+  1042→                const now = new Date();
+  1043→                const h = now.getHours();
+  1044→                const greeting = h < 11 ? "Selamat Pagi" : h < 15 ? "Selamat Siang" : h < 18 ? "Selamat Sore" : "Selamat Malam";
+  1045→                const dateStr = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  1046→                return (
+  1047→                  <div>
+  1048→                    <p className="text-base font-medium text-primary-foreground/80">{greeting},</p>
+  1049→                    <h1 className="text-3xl font-extrabold sm:text-3xl">Halo, {user?.name?.split(" ")[0] || "Pengguna"}</h1>
+  1050→                    <p className="mt-1 text-sm text-primary-foreground/70 sm:text-base">{dateStr}</p>
+  1051→                  </div>
+  1052→                );
+  1053→              })()}
+  1054→            </div>
+  1055→            {/* Semicircle curve (flipped/concave) — mobile only */}
+  1056→            <div className="-mt-px md:hidden">
+  1057→              <svg viewBox="0 0 400 50" preserveAspectRatio="none" className="block h-10 w-full">
+  1058→                <path d="M0,0 L0,50 Q200,0 400,50 L400,0 Z" fill="#F57C00" />
+  1059→              </svg>
+  1060→            </div>
+  1061→          </div>
+  1062→
+  1063→          {/* Motivasi — di luar kotak oranye, berubah setiap refresh */}
+  1064→          {(() => {
+  1065→            const motivations = [
+  1066→              "Mesin yang terawat adalah aset yang menghasilkan. Rawat, jual, untung!",
+  1067→              "Setiap iklan yang jujur membangun kepercayaan pembeli industri.",
+  1068→              "Harga wajar + foto jelas = iklan cepat laku di Gomesin.",
+  1069→              "Jangan takut bersaing. Mesin berkualitas selalu dicari pembeli.",
+  1070→              "Sukses dimulai dari iklan pertama. Pasang iklan Anda hari ini!",
+  1071→              "Pembeli industri mencari mesin siap pakai. Pastikan mesin Anda ready.",
+  1072→              "Transaksi aman = bisnis berkelanjutan. Selalu survei sebelum bayar.",
+  1073→              "Update foto mesin secara berkala agar iklan selalu terlihat segar.",
+  1074→              "Deskripsi lengkap menarik pembeli serius, bukan cuma penasaran.",
+  1075→              "Konsistensi penjual adalah kunci repeater order di dunia industri.",
+  1076→              "Mesin second berkualitas punya pasar. Tampilkan kelebihannya jujur.",
+  1077→              "Satu chat balasan cepat = satu peluang deal lebih dekat.",
+  1078→            ];
+  1079→            const motivation = mounted ? motivations[Math.floor(Math.random() * motivations.length)] : motivations[0];
+  1080→            return (
+  1081→              <p className="mt-3 text-sm font-bold leading-relaxed text-muted-foreground sm:text-base" suppressHydrationWarning>
+  1082→                💡 <span className="font-bold text-foreground">Motivasi hari ini:</span> {motivation}
+  1083→              </p>
+  1084→            );
+  1085→          })()}
+  1086→
+  1087→          {/* Stat cards — Nilai Aset, Iklan Terjual, Total Iklan, Total Biaya Pasang Iklan */}
+  1088→          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+  1089→            {(() => {
+  1090→              const totalValue = myListings.reduce((a: number, l: any) => a + (Number(l.price) || 0), 0);
+  1091→              const soldCount = myListings.filter((l: any) => l.status === "sold").length;
+  1092→              const totalAdFee = myListings.reduce((sum: number, l: any) => sum + (paketMap[l.packageType]?.price ?? 0), 0);
+  1093→              const stats = [
+  1094→                { label: "Nilai Aset", value: formatRupiahFull(totalValue), icon: Wallet, color: "text-orange-600" },
+  1095→                { label: "Iklan Terjual", value: soldCount.toLocaleString("id-ID"), icon: CheckCircle2, color: "text-blue-500" },
+  1096→                { label: "Total Iklan", value: myAdsCount.toLocaleString("id-ID"), icon: Tag, color: "text-primary" },
+  1097→                { label: "Biaya Pasang Iklan", value: formatRupiahFull(totalAdFee), icon: CreditCard, color: "text-amber-600" },
+  1098→              ];
+  1099→              return stats.map((s) => (
+  1100→                <div key={s.label} className="rounded-lg border border-border bg-card p-3 sm:p-3">
+  1101→                  <div className="flex items-center justify-between">
+  1102→                    <span className="text-[11px] font-medium leading-tight text-muted-foreground sm:text-[11px]">{s.label}</span>
+  1103→                    <s.icon className={cn("size-4 shrink-0 sm:size-4", s.color)} />
+  1104→                  </div>
+  1105→                  <p className="mt-1 text-sm font-bold leading-tight sm:text-base">{s.value}</p>
+  1106→                </div>
+  1107→              ));
+  1108→            })()}
+  1109→          </div>
+  1110→
+  1111→          {/* Contact info card — alamat, email, telepon */}
+  1112→          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+  1113→            <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 sm:p-3">
+  1114→              <Home className="size-5 shrink-0 text-primary" />
+  1115→              <div className="min-w-0">
+  1116→                <p className="text-xs font-medium text-muted-foreground">Alamat</p>
+  1117→                <p className="truncate text-sm font-bold sm:text-base">{user?.city || "-"}</p>
+  1118→              </div>
+  1119→            </div>
+  1120→            <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 sm:p-3">
+  1121→              <Phone className="size-5 shrink-0 text-primary" />
+  1122→              <div className="min-w-0">
+  1123→                <p className="text-xs font-medium text-muted-foreground">Nomor Telepon</p>
+  1124→                <p className="truncate text-sm font-bold sm:text-base">{user?.phone || "-"}</p>
+  1125→              </div>
+  1126→            </div>
+  1127→            <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 sm:p-3">
+  1128→              <Mail className="size-5 shrink-0 text-primary" />
+  1129→              <div className="min-w-0">
+  1130→                <p className="text-xs font-medium text-muted-foreground">Email</p>
+  1131→                <p className="truncate text-sm font-bold sm:text-base">{user?.email || "-"}</p>
+  1132→              </div>
+  1133→            </div>
+  1134→          </div>
+  1135→
+  1136→
+  1137→        </div>
+  1138→        )}
+  1139→
+  1140→        {/* (mobile dropdown menu removed — replaced by hamburger drawer above) */}
+  1141→
+  1142→        {/* Content Area — only render when a panel is open (no empty white box on overview) */}
+  1143→        {panel !== null && (
+  1144→        <div className={cn(
+  1145→          "min-h-[400px]",
+  1146→          (panel === "pesan" || panel === "iklan-saya" || panel === "favorit-saya" || panel === "saldo" || panel === "notifikasi" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan")
+  1147→            ? "rounded-none border-0 p-0 bg-transparent"
+  1148→            : "rounded-xl border border-border bg-card"
+  1149→        )}>
+  1150→          {panel === "iklan-saya" ? (
+  1151→            /* Iklan Saya → render DashboardView inline (beside sidebar, with its own breadcrumb/header) */
+  1152→            <DashboardView />
+  1153→          ) : panel === "favorit-saya" ? (
+  1154→            /* Favorit Saya → render FavoritesView inline (beside sidebar) */
+  1155→            <FavoritesView />
+  1156→          ) : panel !== null ? (
+  1157→            <div className="h-full">
+  1158→              {/* Panel header — hidden on mobile for full-page panels */}
+  1159→              <div className={cn(
+  1160→                "flex items-center justify-between border-b border-border p-3",
+  1161→                (panel === "pesan" || panel === "saldo" || panel === "notifikasi" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan") && "max-md:hidden"
+  1162→              )}>
+  1163→                <h2 className="text-sm font-bold">{panelTitle[panel]}</h2>
+  1164→                <button onClick={closePanel} className="grid size-7 place-items-center rounded-full hover:bg-accent">
+  1165→                  <X className="size-4" />
+  1166→                </button>
+  1167→              </div>
+  1168→              {/* Panel content — WhatsApp split view (pesan) / normal flow (other panels) */}
+  1169→              <div className={cn(
+  1170→                panel === "pesan"
+  1171→                  ? "flex overflow-hidden h-[calc(100vh-12rem)] max-md:h-[calc(100dvh-11rem)]"
+  1172→                  : "block"
+  1173→              )}>
+  1174→
+  1175→                {/* ===== LEFT: Conversation list (full pane on mobile, sidebar on desktop) ===== */}
+  1176→                {panel === "pesan" && (
+  1177→                  <div className={cn(
+  1178→                    "flex-col border-r border-border bg-card w-full",
+  1179→                    activeChatId !== null
+  1180→                      ? "hidden md:flex md:w-[320px] md:shrink-0"
+  1181→                      : "flex md:w-[320px] md:shrink-0"
+  1182→                  )}>
+  1183→                    {/* Search bar */}
+  1184→                    <div className="border-b border-border bg-[#f0f2f5] p-2">
+  1185→                      <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 shadow-sm">
+  1186→                        <Search className="size-4 text-muted-foreground" />
+  1187→                        <input
+  1188→                          type="text"
+  1189→                          placeholder="Cari chat..."
+  1190→                          className="flex-1 bg-transparent text-sm outline-none"
+  1191→                        />
+  1192→                      </div>
+  1193→                    </div>
+  1194→                    {/* Conversation list */}
+  1195→                    <div className="flex-1 overflow-y-auto">
+  1196→                      {conversations.length === 0 ? (
+  1197→                        <div className="flex flex-col items-center justify-center py-16 text-center">
+  1198→                          <MessageSquare className="size-12 text-muted-foreground/30" />
+  1199→                          <p className="mt-3 text-sm font-semibold">Belum ada pesan</p>
+  1200→                          <p className="mt-1 text-xs text-muted-foreground">Pesan dari pembeli akan muncul di sini.</p>
+  1201→                          <Button variant="outline" size="sm" className="mt-3" onClick={() => { setPanel(null); goToListings({}); }}>
+  1202→                            Jelajahi iklan
+  1203→                          </Button>
+  1204→                        </div>
+  1205→                      ) : (
+  1206→                        conversations.map((c: any) => (
+  1207→                          <button
+  1208→                            key={c.id}
+  1209→                            onClick={() => openChat(c.id)}
+  1210→                            onContextMenu={(e) => handleConvContextMenu(e, c.id)}
+  1211→                            className={cn(
+  1212→                              "flex w-full items-center gap-3 px-3 py-2.5 text-left transition border-b border-border/30",
+  1213→                              activeChatId === c.id ? "bg-[#f0f2f5]" : "hover:bg-[#f5f6f6]"
+  1214→                            )}
+  1215→                          >
+  1216→                            <Avatar className="size-12 shrink-0 rounded-full">
+  1217→                              <AvatarFallback className="bg-[#075E54]/10 text-sm font-bold text-[#075E54]">
+  1218→                                {c.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+  1219→                              </AvatarFallback>
+  1220→                            </Avatar>
+  1221→                            <div className="min-w-0 flex-1">
+  1222→                              <div className="flex items-center justify-between gap-2">
+  1223→                                <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
+  1224→                                <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo(c.lastTime, mounted ? lang : "id")}</span>
+  1225→                              </div>
+  1226→                              <div className="flex items-center justify-between gap-2">
+  1227→                                <p className="truncate text-xs text-muted-foreground">{c.lastMessage}</p>
+  1228→                                {c.unread > 0 && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#25D366] text-[9px] font-bold text-white">{c.unread}</span>}
+  1229→                              </div>
+  1230→                              {c.listingTitle && <p className="mt-0.5 truncate text-[10px] text-[#075E54]">{c.listingTitle}</p>}
+  1231→                            </div>
+  1232→                          </button>
+  1233→                        ))
+  1234→                      )}
+  1235→                    </div>
+  1236→                  </div>
+  1237→                )}
+  1238→
+  1239→                {/* ===== Conversation context menu (right-click) ===== */}
+  1240→                {convMenu.visible && (
+  1241→                  <div
+  1242→                    className="fixed z-[100] min-w-[180px] overflow-hidden rounded-lg border border-border bg-card py-1 shadow-xl animate-fade-up"
+  1243→                    style={{ left: Math.min(convMenu.x, window.innerWidth - 200), top: Math.min(convMenu.y, window.innerHeight - 200) }}
+  1244→                    onClick={(e) => e.stopPropagation()}
+  1245→                  >
+  1246→                    <button
+  1247→                      onClick={handleBlockUser}
+  1248→                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition hover:bg-accent"
+  1249→                    >
+  1250→                      <Ban className="size-4" /> Blokir Pengguna
+  1251→                    </button>
+  1252→                    <button
+  1253→                      onClick={handleClearChat}
+  1254→                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground transition hover:bg-accent"
+  1255→                    >
+  1256→                      <Eraser className="size-4" /> Bersihkan Chat
+  1257→                    </button>
+  1258→                    <button
+  1259→                      onClick={handleDeleteChat}
+  1260→                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition hover:bg-accent"
+  1261→                    >
+  1262→                      <Trash2 className="size-4" /> Hapus Chat
+  1263→                    </button>
+  1264→                  </div>
+  1265→                )}
+  1266→
+  1267→                {/* ===== RIGHT: Chat view or placeholder (full pane on mobile when chat open) ===== */}
+  1268→                {panel === "pesan" && (
+  1269→                  <div className={cn(
+  1270→                    "flex-col bg-card w-full",
+  1271→                    // Mobile: full width when a chat is open; hidden when no chat (list is shown)
+  1272→                    // Desktop: flex-1 pane always visible
+  1273→                    activeChatId !== null
+  1274→                      ? "flex md:flex-1"
+  1275→                      : "hidden md:flex md:flex-1"
+  1276→                  )}>
+  1277→                    {activeChatId !== null ? (() => {
+  1278→                      const conv = conversations.find((c: any) => c.id === activeChatId);
+  1279→                      if (!conv) return null;
+  1280→                      const convo = chatMessages[activeChatId as any] || [];
+  1281→                      return (
+  1282→                        <>
+  1283→                          {/* Chat header — light gray, back arrow on mobile only */}
+  1284→                          <div className="flex items-center gap-2 border-b border-border bg-[#f0f2f5] p-2.5">
+  1285→                            <button
+  1286→                              onClick={() => setActiveChatId(null)}
+  1287→                              aria-label="Kembali"
+  1288→                              className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-black/5 md:hidden"
+  1289→                            >
+  1290→                              <ChevronLeft className="size-5" />
+  1291→                            </button>
+  1292→                            <Avatar className="size-9 shrink-0 rounded-full md:size-10">
+  1293→                              <AvatarFallback className="bg-[#075E54]/10 text-xs font-bold text-[#075E54]">
+  1294→                                {conv.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+  1295→                              </AvatarFallback>
+  1296→                            </Avatar>
+  1297→                            <div className="min-w-0 flex-1">
+  1298→                              <div className="flex items-center gap-1">
+  1299→                                <p className="truncate text-sm font-bold text-foreground">{conv.name}</p>
+  1300→                                <BadgeCheck className="size-3.5 shrink-0 text-[#075E54]" />
+  1301→                              </div>
+  1302→                              <p className="text-[10px] text-muted-foreground">online</p>
+  1303→                            </div>
+  1304→                          </div>
+  1305→                          {/* Messages — listing shown as a chat bubble (not a banner) */}
+  1306→                          <div
+  1307→                            ref={chatScrollRef}
+  1308→                            className="flex-1 space-y-1.5 overflow-y-auto p-4"
+  1309→                            style={{
+  1310→                              backgroundColor: "#e5ddd5",
+  1311→                              backgroundImage: "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.03) 1px, transparent 1px)",
+  1312→                              backgroundSize: "20px 20px",
+  1313→                            }}
+  1314→                          >
+  1315→                            <div className="flex justify-center py-1">
+  1316→                              <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">Hari ini</span>
+  1317→                            </div>
+  1318→                            {/* Listing as a chat bubble (left-aligned, from partner) */}
+  1319→                            {conv.listingTitle && (
+  1320→                              <div className="flex justify-start">
+  1321→                                <div className="max-w-[75%] overflow-hidden rounded-lg rounded-tl-sm bg-white shadow-sm">
+  1322→                                  {conv.listingImage ? (
+  1323→                                    <img src={conv.listingImage} alt={conv.listingTitle} className="max-h-44 w-full object-cover" />
+  1324→                                  ) : (
+  1325→                                    <div className="flex h-20 items-center justify-center bg-muted text-muted-foreground">
+  1326→                                      <Tag className="size-6" />
+  1327→                                    </div>
+  1328→                                  )}
+  1329→                                  <div className="p-2">
+  1330→                                    <p className="truncate text-xs font-semibold text-foreground">{conv.listingTitle}</p>
+  1331→                                    {conv.listingPrice != null && (
+  1332→                                      <p className="text-xs font-bold text-[#075E54]">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
+  1333→                                    )}
+  1334→                                    <span className="mt-0.5 block text-right text-[9px] text-muted-foreground/60">
+  1335→                                      {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+  1336→                                    </span>
+  1337→                                  </div>
+  1338→                                </div>
+  1339→                              </div>
+  1340→                            )}
+  1341→                            {/* Chat messages */}
+  1342→                            {convo.map((c, i) => {
+  1343→                              // Detect emoji-only messages (render big, WhatsApp-style)
+  1344→                              const isEmojiOnly = !!c.content && c.content.trim().length > 0 && /^[\s\p{Extended_Pictographic}\u200d\ufe0f]+$/u.test(c.content.trim()) && c.content.trim().length <= 12;
+  1345→                              return (
+  1346→                              <div key={i} className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
+  1347→                                <div
+  1348→                                  onContextMenu={(e) => { e.preventDefault(); setMsgMenu({ visible: true, x: e.clientX, y: e.clientY, msgIndex: i }); }}
+  1349→                                  onTouchStart={(e) => handleMsgLongPressStart(e, i)}
+  1350→                                  onTouchEnd={handleMsgLongPressEnd}
+  1351→                                  onTouchMove={handleMsgLongPressEnd}
+  1352→                                  onMouseDown={(e) => handleMsgLongPressStart(e, i)}
+  1353→                                  onMouseUp={handleMsgLongPressEnd}
+  1354→                                  onMouseLeave={handleMsgLongPressEnd}
+  1355→                                  className={cn(
+  1356→                                    "rounded-lg shadow-sm select-none",
+  1357→                                    isEmojiOnly
+  1358→                                      ? cn(
+  1359→                                          "px-2 py-1 bg-transparent shadow-none",
+  1360→                                          c.role === "user" ? "rounded-tr-sm" : "rounded-tl-sm"
+  1361→                                        )
+  1362→                                      : cn(
+  1363→                                          "max-w-[70%] px-3 py-2 text-sm",
+  1364→                                          c.role === "user"
+  1365→                                            ? "rounded-tr-sm bg-[#dcf8c6] text-foreground"
+  1366→                                            : "rounded-tl-sm bg-white text-foreground"
+  1367→                                        )
+  1368→                                  )}
+  1369→                                >
+  1370→                                  {c.image && (
+  1371→                                    <img
+  1372→                                      src={c.image}
+  1373→                                      alt="Gambar"
+  1374→                                      onClick={() => setLightbox(c.image!)}
+  1375→                                      className="mb-1 max-h-48 cursor-pointer rounded-md object-cover transition hover:opacity-90"
+  1376→                                    />
+  1377→                                  )}
+  1378→                                  {c.content && (
+  1379→                                    <p className={cn(
+  1380→                                      "whitespace-pre-wrap break-words",
+  1381→                                      isEmojiOnly ? "text-3xl leading-tight" : ""
+  1382→                                    )}>
+  1383→                                      {c.animation ? (
+  1384→                                        <span className="sticker-anim inline-block" data-anim={c.animation}>{c.content}</span>
+  1385→                                      ) : c.content}
+  1386→                                    </p>
+  1387→                                  )}
+  1388→                                  <span className={cn(
+  1389→                                    "block text-right text-[9px] text-muted-foreground/60",
+  1390→                                    isEmojiOnly ? "mt-1" : "mt-0.5"
+  1391→                                  )}>
+  1392→                                    {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+  1393→                                    {c.role === "user" && <span className="ml-1 text-blue-500">✓✓</span>}
+  1394→                                  </span>
+  1395→                                </div>
+  1396→                              </div>
+  1397→                              );
+  1398→                            })}
+  1399→                            {chatSending && (
+  1400→                              <div className="flex justify-start">
+  1401→                                <div className="flex items-center gap-1 rounded-lg rounded-tl-sm bg-white px-3 py-2.5 shadow-sm">
+  1402→                                  <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
+  1403→                                  <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
+  1404→                                  <span className="size-2 animate-bounce rounded-full bg-muted-foreground" />
+  1405→                                </div>
+  1406→                              </div>
+  1407→                            )}
+  1408→                          </div>
+  1409→                          {/* Image preview (before sending) */}
+  1410→                          {pendingImage && (
+  1411→                            <div className="flex items-center gap-2 border-t border-border bg-white p-2">
+  1412→                              <img src={pendingImage} alt="Preview" className="size-16 rounded-lg object-cover" />
+  1413→                              <button
+  1414→                                type="button"
+  1415→                                onClick={() => setPendingImage(null)}
+  1416→                                className="grid size-7 place-items-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80"
+  1417→                              >
+  1418→                                <XIcon className="size-4" />
+  1419→                              </button>
+  1420→                              <p className="text-xs text-muted-foreground">Gambar siap dikirim</p>
+  1421→                            </div>
+  1422→                          )}
+  1423→                          {/* Emoji picker popover — full emoji library (large native emoji, search, categories) */}
+  1424→                          {showEmoji && (
+  1425→                            <div className="border-t border-border bg-white">
+  1426→                              <EmojiPicker
+  1427→                                onEmojiClick={(emoji) => { setChatInput((prev) => prev + emoji.emoji); }}
+  1428→                                emojiStyle={EmojiStyle.NATIVE}
+  1429→                                theme={Theme.LIGHT}
+  1430→                                width="100%"
+  1431→                                height={280}
+  1432→                                previewConfig={{ showPreview: false }}
+  1433→                                searchPlaceHolder="Cari emoji..."
+  1434→                                lazyLoadEmojis
+  1435→                                skinTonesDisabled
+  1436→                              />
+  1437→                            </div>
+  1438→                          )}
+  1439→                          {/* GIF / Sticker picker popover — animated emoji stickers */}
+  1440→                          {showGifs && (
+  1441→                            <div className="flex h-[280px] flex-col border-t border-border bg-white">
+  1442→                              <div className="border-b border-border p-2">
+  1443→                                <input
+  1444→                                  type="text"
+  1445→                                  value={gifQuery}
+  1446→                                  onChange={(e) => setGifQuery(e.target.value)}
+  1447→                                  placeholder="Cari sticker (senang, sedih, halo, cinta, terima)..."
+  1448→                                  className="h-8 w-full rounded-lg border border-border bg-muted/30 px-3 text-sm outline-none focus:border-primary"
+  1449→                                />
+  1450→                              </div>
+  1451→                              <div className="flex-1 overflow-y-auto p-2">
+  1452→                                {gifLoading && gifResults.length === 0 ? (
+  1453→                                  <div className="grid place-items-center py-8 text-muted-foreground">
+  1454→                                    <Loader2 className="size-5 animate-spin" />
+  1455→                                    <p className="mt-2 text-xs">Memuat sticker...</p>
+  1456→                                  </div>
+  1457→                                ) : gifResults.length === 0 ? (
+  1458→                                  <div className="grid place-items-center py-8 text-center text-muted-foreground">
+  1459→                                    <Sticker className="size-8 text-muted-foreground/30" />
+  1460→                                    <p className="mt-2 text-xs">Tidak ada sticker ditemukan</p>
+  1461→                                  </div>
+  1462→                                ) : (
+  1463→                                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+  1464→                                    {gifResults.map((g) => (
+  1465→                                      <button
+  1466→                                        key={g.id}
+  1467→                                        type="button"
+  1468→                                        onClick={() => sendGif({ emoji: g.emoji, animation: g.animation })}
+  1469→                                        title={g.label}
+  1470→                                        className="group grid aspect-square place-items-center rounded-lg bg-muted/30 text-3xl transition hover:bg-primary/10 hover:scale-110"
+  1471→                                      >
+  1472→                                        <span className="sticker-anim" data-anim={g.animation}>{g.emoji}</span>
+  1473→                                      </button>
+  1474→                                    ))}
+  1475→                                  </div>
+  1476→                                )}
+  1477→                              </div>
+  1478→                            </div>
+  1479→                          )}
+  1480→                          {/* Hidden file input for image attachment (gallery) */}
+  1481→                          <input
+  1482→                            ref={fileInputRef}
+  1483→                            type="file"
+  1484→                            accept="image/*"
+  1485→                            onChange={handleImageSelect}
+  1486→                            className="hidden"
+  1487→                          />
+  1488→                          {/* Hidden file input for camera capture */}
+  1489→                          <input
+  1490→                            ref={cameraInputRef}
+  1491→                            type="file"
+  1492→                            accept="image/*"
+  1493→                            capture="environment"
+  1494→                            onChange={handleImageSelect}
+  1495→                            className="hidden"
+  1496→                          />
+  1497→                          {/* Input — emoji + text field with paperclip inside + send button */}
+  1498→                          <form
+  1499→                            onSubmit={(e) => { e.preventDefault(); sendChat(); }}
+  1500→                            className="flex items-center gap-1 bg-[#f0f2f5] p-2"
+  1501→                          >
+  1502→                            <button
+  1503→                              type="button"
+  1504→                              onClick={() => setShowEmoji((v) => !v)}
+  1505→                              aria-label="Emoji"
+  1506→                              className={cn(
+  1507→                                "grid size-10 shrink-0 place-items-center rounded-full hover:bg-black/5",
+  1508→                                showEmoji ? "text-[#075E54]" : "text-muted-foreground"
+  1509→                              )}
+  1510→                            >
+  1511→                              <Smile className="size-5" />
+  1512→                            </button>
+  1513→                            {/* Text field with paperclip + camera icons inside (right side) */}
+  1514→                            <div className="relative flex-1">
+  1515→                              <input
+  1516→                                value={chatInput}
+  1517→                                onChange={(e) => setChatInput(e.target.value)}
+  1518→                                placeholder="Tulis pesan..."
+  1519→                                className="h-10 w-full rounded-lg border border-transparent bg-white pr-20 pl-4 text-sm outline-none shadow-sm"
+  1520→                                disabled={chatSending}
+  1521→                              />
+  1522→                              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+  1523→                                <button
+  1524→                                  type="button"
+  1525→                                  onClick={() => fileInputRef.current?.click()}
+  1526→                                  aria-label="Lampirkan gambar"
+  1527→                                  className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+  1528→                                >
+  1529→                                  <Paperclip className="size-4" />
+  1530→                                </button>
+  1531→                                <button
+  1532→                                  type="button"
+  1533→                                  onClick={() => cameraInputRef.current?.click()}
+  1534→                                  aria-label="Buka kamera"
+  1535→                                  className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+  1536→                                >
+  1537→                                  <Camera className="size-4" />
+  1538→                                </button>
+  1539→                              </div>
+  1540→                            </div>
+  1541→                            <Button
+  1542→                              type="submit"
+  1543→                              size="icon"
+  1544→                              className="size-10 shrink-0 rounded-full bg-[#075E54] hover:bg-[#054c42]"
+  1545→                              disabled={chatSending || (!chatInput.trim() && !pendingImage)}
+  1546→                            >
+  1547→                              {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 text-white" />}
+  1548→                            </Button>
+  1549→                          </form>
+  1550→                          {/* Message context menu (long-press / right-click) — delete */}
+  1551→                          {msgMenu.visible && (
+  1552→                            <>
+  1553→                              <div className="fixed inset-0 z-[70]" onClick={() => setMsgMenu({ visible: false, x: 0, y: 0, msgIndex: null })} />
+  1554→                              <div
+  1555→                                className="fixed z-[71] min-w-[160px] overflow-hidden rounded-lg border border-border bg-card py-1 shadow-xl animate-fade-up"
+  1556→                                style={{ left: Math.min(msgMenu.x, window.innerWidth - 180), top: Math.min(msgMenu.y, window.innerHeight - 100) }}
+  1557→                                onClick={(e) => e.stopPropagation()}
+  1558→                              >
+  1559→                                <button
+  1560→                                  onClick={deleteMessage}
+  1561→                                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition hover:bg-accent"
+  1562→                                >
+  1563→                                  <Trash2 className="size-4" /> Hapus Pesan
+  1564→                                </button>
+  1565→                              </div>
+  1566→                            </>
+  1567→                          )}
+  1568→                          {/* Image lightbox — click image to view full size */}
+  1569→                          {lightbox && (
+  1570→                            <div
+  1571→                              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-4"
+  1572→                              onClick={() => setLightbox(null)}
+  1573→                            >
+  1574→                              <button
+  1575→                                aria-label="Tutup"
+  1576→                                className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+  1577→                              >
+  1578→                                <XIcon className="size-6" />
+  1579→                              </button>
+  1580→                              <img
+  1581→                                src={lightbox}
+  1582→                                alt="Gambar besar"
+  1583→                                className="max-h-[90vh] max-w-full rounded-lg object-contain"
+  1584→                                onClick={(e) => e.stopPropagation()}
+  1585→                              />
+  1586→                            </div>
+  1587→                          )}
+  1588→                        </>
+  1589→                      );
+  1590→                    })() : (
+  1591→                      /* Placeholder when no chat selected */
+  1592→                      <div className="flex flex-1 flex-col items-center justify-center bg-[#f0f2f5]">
+  1593→                        <div className="text-center">
+  1594→                          <MessageCircle className="mx-auto size-16 text-muted-foreground/20" />
+  1595→                          <p className="mt-4 text-lg font-light text-muted-foreground">Gomesin Web</p>
+  1596→                          <p className="mt-1 text-xs text-muted-foreground/60">Pilih chat di sebelah kiri untuk mulai pesan</p>
+  1597→                          <p className="mt-1 text-[10px] text-muted-foreground/40">Pesan terenkripsi end-to-end</p>
+  1598→                        </div>
+  1599→                      </div>
+  1600→                    )}
+  1601→                  </div>
+  1602→                )}
+  1603→
+  1604→            {/* PESANAN */}
+  1605→            {panel === "pesanan" && (
+  1606→              <div className="space-y-3">
+  1607→                {orders.map((o) => (
+  1608→                  <div key={o.id} className="rounded-lg border border-border bg-card p-3">
+  1609→                    <div className="flex items-center justify-between gap-2">
+  1610→                      <p className="text-xs font-semibold text-muted-foreground">{o.id}</p>
+  1611→                      <span className={cn(
+  1612→                        "rounded-full px-2 py-0.5 text-[10px] font-bold",
+  1613→                        o.status === tr("profOrderSelesai") ? "bg-orange-100 text-orange-700" :
+  1614→                        o.status === tr("profOrderDiproses") ? "bg-amber-100 text-amber-700" :
+  1615→                        "bg-blue-100 text-blue-700"
+  1616→                      )}>{o.status}</span>
+  1617→                    </div>
+  1618→                    <p className="mt-1 text-sm font-semibold">{o.item}</p>
+  1619→                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+  1620→                      <span className="inline-flex items-center gap-1"><Clock className="size-3" /> {o.date}</span>
+  1621→                      <span className="font-bold text-foreground">{o.total}</span>
+  1622→                    </div>
+  1623→                  </div>
+  1624→                ))}
+  1625→                <Button variant="outline" className="mt-2 w-full" onClick={() => goToListings({})}>
+  1626→                  Lihat iklan lain
+  1627→                </Button>
+  1628→              </div>
+  1629→            )}
+  1630→
+  1631→            {/* RIWAYAT PEMBAYARAN — user-friendly: summary stats + filter tabs + card list */}
+  1632→            {panel === "saldo" && (() => {
+  1633→              const totalAdFee = myListings.reduce((sum: number, l: any) => sum + (paketMap[l.packageType]?.price ?? 0), 0);
+  1634→              const paidCount = myListings.filter((l: any) => l.paymentStatus === "paid").length;
+  1635→              const pendingCount = myListings.filter((l: any) => l.paymentStatus !== "paid").length;
+  1636→              const filtered = payFilter === "paid" ? myListings.filter((l: any) => l.paymentStatus === "paid")
+  1637→                : payFilter === "pending" ? myListings.filter((l: any) => l.paymentStatus !== "paid")
+  1638→                : myListings;
+  1639→              return (
+  1640→                <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-8">
+  1641→                  {/* Summary — 3 stat cards */}
+  1642→                  <div className="grid grid-cols-3 gap-3 md:gap-5">
+  1643→                    <div className="rounded-xl border border-border bg-card p-4 text-center md:p-6">
+  1644→                      <p className="text-xs text-muted-foreground md:text-base">Total Bayar</p>
+  1645→                      <p className="mt-1 text-lg font-extrabold text-primary md:text-3xl">Rp {totalAdFee.toLocaleString("id-ID")}</p>
+  1646→                    </div>
+  1647→                    <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center md:p-6">
+  1648→                      <p className="text-xs text-orange-700 md:text-base">Lunas</p>
+  1649→                      <p className="mt-1 text-lg font-extrabold text-orange-700 md:text-3xl">{paidCount}</p>
+  1650→                    </div>
+  1651→                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center md:p-6">
+  1652→                      <p className="text-xs text-amber-700 md:text-base">Pending</p>
+  1653→                      <p className="mt-1 text-lg font-extrabold text-amber-700 md:text-3xl">{pendingCount}</p>
+  1654→                    </div>
+  1655→                  </div>
+  1656→
+  1657→                  {/* Filter tabs + view toggle */}
+  1658→                  {myAdsCount > 0 && (
+  1659→                    <div className="flex items-center justify-between">
+  1660→                      <div className="flex flex-wrap gap-2">
+  1661→                        {[
+  1662→                          { v: "all", l: `Semua (${myAdsCount})` },
+  1663→                          { v: "paid", l: `Lunas (${paidCount})` },
+  1664→                          { v: "pending", l: `Pending (${pendingCount})` },
+  1665→                        ].map((t) => (
+  1666→                          <button
+  1667→                            key={t.v}
+  1668→                            onClick={() => setPayFilter(t.v as any)}
+  1669→                            className={cn(
+  1670→                              "rounded-full px-3 py-1.5 text-xs font-medium transition md:text-sm",
+  1671→                              payFilter === t.v
+  1672→                                ? "bg-primary text-primary-foreground shadow-sm"
+  1673→                                : "border border-border bg-card text-muted-foreground hover:bg-accent"
+  1674→                            )}
+  1675→                          >
+  1676→                            {t.l}
+  1677→                          </button>
+  1678→                        ))}
+  1679→                      </div>
+  1680→                      <div className="flex items-center gap-2">
+  1681→                        <div className="flex overflow-hidden rounded-lg border border-border">
+  1682→                          <button type="button" onClick={() => setPayViewMode("grid")}
+  1683→                            className={cn("grid size-8 place-items-center transition", payViewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1684→                            aria-label="Grid"><LayoutGrid className="size-4" /></button>
+  1685→                          <button type="button" onClick={() => setPayViewMode("line")}
+  1686→                            className={cn("grid size-8 place-items-center border-l border-border transition", payViewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1687→                            aria-label="Line"><List className="size-4" /></button>
+  1688→                        </div>
+  1689→                      </div>
+  1690→                    </div>
+  1691→                  )}
+  1692→
+  1693→                  {/* Listing cards — grid 2 col mobile, 3 col tablet, 4-5 col desktop */}
+  1694→                  <div>
+  1695→                    {myAdsCount > 0 ? (
+  1696→                      payViewMode === "grid" ? (
+  1697→                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+  1698→                        {filtered.map((l: any) => {
+  1699→                          let imgs: string[] = [];
+  1700→                          try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
+  1701→                          const pkgName = l.packageType === "spotlight" ? "Titanium" : l.packageType === "highlight" ? "Platinum" : l.packageType === "sundul" ? "Colek" : "Gold";
+  1702→                          const pkgColor = l.packageType === "spotlight" ? "bg-amber-100 text-amber-700" : l.packageType === "highlight" ? "bg-orange-100 text-orange-700" : l.packageType === "sundul" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
+  1703→                          const isPaid = l.paymentStatus === "paid";
+  1704→                          return (
+  1705→                            <div key={l.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:shadow-md">
+  1706→                              {/* Image — top, full width */}
+  1707→                              <div className="relative aspect-video w-full overflow-hidden bg-muted">
+  1708→                                {imgs[0] ? (
+  1709→                                  <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
+  1710→                                ) : (
+  1711→                                  <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-10" /></div>
+  1712→                                )}
+  1713→                                <span className={cn(
+  1714→                                  "absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold shadow md:text-xs",
+  1715→                                  pkgColor
+  1716→                                )}>{pkgName}</span>
+  1717→                                <span className={cn(
+  1718→                                  "absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold shadow md:text-xs",
+  1719→                                  isPaid ? "bg-orange-500 text-white" : "bg-amber-500 text-white"
+  1720→                                )}>
+  1721→                                  {isPaid ? <CheckCircle2 className="size-3" /> : <Clock className="size-3" />}
+  1722→                                  {isPaid ? "Lunas" : "Pending"}
+  1723→                                </span>
+  1724→                              </div>
+  1725→                              {/* Info — bottom */}
+  1726→                              <div className="flex flex-col p-3 md:p-4">
+  1727→                                <p className="line-clamp-2 text-sm font-bold leading-tight md:text-base">{l.title}</p>
+  1728→                                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+  1729→                                  <Clock className="size-3" />
+  1730→                                  {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+  1731→                                </p>
+  1732→                                <div className="mt-2 flex items-end justify-between border-t border-border/50 pt-2">
+  1733→                                  <p className="text-[10px] text-muted-foreground md:text-xs">Harga Iklan</p>
+  1734→                                  <p className="text-base font-extrabold text-primary md:text-lg">{formatAdFee(l.packageType)}</p>
+  1735→                                </div>
+  1736→                              </div>
+  1737→                            </div>
+  1738→                          );
+  1739→                        })}
+  1740→                        {filtered.length === 0 && (
+  1741→                          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+  1742→                            <p className="text-sm text-muted-foreground">Tidak ada iklan dengan status ini.</p>
+  1743→                          </div>
+  1744→                        )}
+  1745→                      </div>
+  1746→                      ) : (
+  1747→                      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+  1748→                        <table className="w-full min-w-[480px]">
+  1749→                          <thead>
+  1750→                            <tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+  1751→                              <th className="p-2">Iklan</th>
+  1752→                              <th className="p-2">Paket</th>
+  1753→                              <th className="hidden p-2 sm:table-cell">Tanggal</th>
+  1754→                              <th className="p-2 text-right">Harga Iklan</th>
+  1755→                              <th className="p-2 text-center">Status</th>
+  1756→                            </tr>
+  1757→                          </thead>
+  1758→                          <tbody>
+  1759→                            {filtered.map((l: any) => {
+  1760→                              let imgs: string[] = [];
+  1761→                              try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
+  1762→                              const pkgName = l.packageType === "spotlight" ? "Titanium" : l.packageType === "highlight" ? "Platinum" : l.packageType === "sundul" ? "Colek" : "Gold";
+  1763→                              const pkgColor = l.packageType === "spotlight" ? "bg-amber-100 text-amber-700" : l.packageType === "highlight" ? "bg-orange-100 text-orange-700" : l.packageType === "sundul" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
+  1764→                              const isPaid = l.paymentStatus === "paid";
+  1765→                              return (
+  1766→                                <tr key={l.id} className="border-b border-border transition hover:bg-accent/30">
+  1767→                                  <td className="p-2">
+  1768→                                    <div className="flex items-center gap-2">
+  1769→                                      {imgs[0] ? <img src={imgs[0]} alt="" className="size-10 shrink-0 rounded-lg object-cover" /> : <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted"><Tag className="size-4 text-muted-foreground" /></div>}
+  1770→                                      <p className="line-clamp-1 text-xs font-semibold">{l.title}</p>
+  1771→                                    </div>
+  1772→                                  </td>
+  1773→                                  <td className="p-2"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", pkgColor)}>{pkgName}</span></td>
+  1774→                                  <td className="hidden p-2 text-xs text-muted-foreground sm:table-cell">{new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</td>
+  1775→                                  <td className="p-2 text-right text-xs font-bold text-primary">{formatAdFee(l.packageType)}</td>
+  1776→                                  <td className="p-2 text-center"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>{isPaid ? "Lunas" : "Pending"}</span></td>
+  1777→                                </tr>
+  1778→                              );
+  1779→                            })}
+  1780→                            {filtered.length === 0 && (
+  1781→                              <tr><td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">Tidak ada iklan dengan status ini.</td></tr>
+  1782→                            )}
+  1783→                          </tbody>
+  1784→                        </table>
+  1785→                      </div>
+  1786→                      )
+  1787→                    ) : (
+  1788→                      <div className="rounded-xl border border-dashed border-border p-10 text-center">
+  1789→                        <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted">
+  1790→                          <Tag className="size-7 text-muted-foreground/50" />
+  1791→                        </div>
+  1792→                        <p className="mt-3 text-base font-semibold">Belum ada iklan dipasang</p>
+  1793→                        <p className="mt-1 text-sm text-muted-foreground">Pasang iklan pertama Anda dan riwayat pembayaran akan muncul di sini.</p>
+  1794→                        <Button className="mt-4 gap-1.5" onClick={goToPost}>
+  1795→                          <Plus className="size-4" /> Pasang Iklan
+  1796→                        </Button>
+  1797→                      </div>
+  1798→                    )}
+  1799→                  </div>
+  1800→                </div>
+  1801→              );
+  1802→            })()}
+  1803→
+  1804→            {/* NOTIFIKASI */}
+  1805→            {panel === "notifikasi" && (() => {
+  1806→              const unreadCount = notifications.filter((n) => n.unread).length;
+  1807→              return (
+  1808→                <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-8">
+  1809→                  {/* Header */}
+  1810→                  <div className="flex items-center justify-between">
+  1811→                    <div>
+  1812→                      <p className="text-base font-bold md:text-lg">Notifikasi</p>
+  1813→                      <p className="text-sm text-muted-foreground">{unreadCount} belum dibaca dari {notifications.length} total</p>
+  1814→                    </div>
+  1815→                    {unreadCount > 0 && (
+  1816→                      <Button variant="outline" size="sm" onClick={() => { toast.success("Semua notifikasi ditandai dibaca"); }}>
+  1817→                        Tandai dibaca
+  1818→                      </Button>
+  1819→                    )}
+  1820→                  </div>
+  1821→
+  1822→                  {/* Notification list */}
+  1823→                  {notifications.length > 0 ? (
+  1824→                    <div className="space-y-2">
+  1825→                      {notifications.map((n) => (
+  1826→                        <div key={n.id} className={cn(
+  1827→                          "flex items-start gap-3 rounded-xl border bg-card p-4 transition hover:shadow-sm md:p-5",
+  1828→                          n.unread ? "border-primary/30 bg-primary/5" : "border-border"
+  1829→                        )}>
+  1830→                          <span className={cn("grid size-10 shrink-0 place-items-center rounded-lg bg-muted md:size-12", n.color)}>
+  1831→                            <n.icon className="size-5 md:size-6" />
+  1832→                          </span>
+  1833→                          <div className="min-w-0 flex-1">
+  1834→                            <div className="flex items-center justify-between gap-2">
+  1835→                              <p className="text-sm font-semibold md:text-base">{n.title}</p>
+  1836→                              <span className="shrink-0 text-[10px] text-muted-foreground md:text-xs">{n.time}</span>
+  1837→                            </div>
+  1838→                            <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{n.desc}</p>
+  1839→                          </div>
+  1840→                          {n.unread && (
+  1841→                            <span className="mt-1 size-2.5 shrink-0 rounded-full bg-primary" />
+  1842→                          )}
+  1843→                        </div>
+  1844→                      ))}
+  1845→                    </div>
+  1846→                  ) : (
+  1847→                    <div className="rounded-xl border border-dashed border-border p-10 text-center">
+  1848→                      <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted">
+  1849→                        <Bell className="size-7 text-muted-foreground/50" />
+  1850→                      </div>
+  1851→                      <p className="mt-3 text-base font-semibold">Belum ada notifikasi</p>
+  1852→                      <p className="mt-1 text-sm text-muted-foreground">Notifikasi tentang pesan, iklan, dan pembayaran akan muncul di sini.</p>
+  1853→                    </div>
+  1854→                  )}
+  1855→                </div>
+  1856→              );
+  1857→            })()}
+  1858→
+  1859→            {/* KEAMANAN */}
+  1860→            {panel === "keamanan" && (() => {
+  1861→              // Security score calculation
+  1862→              const checks = [
+  1863→                { label: tr("profEmailVerified"), passed: !!user?.email },
+  1864→                { label: tr("profPhoneVerified"), passed: !!user?.phone },
+  1865→                { label: tr("prof2FA"), passed: twoFAEnabled },
+  1866→                { label: tr("profLoginAlertsOn"), passed: loginAlerts },
+  1867→              ];
+  1868→              const score = Math.round((checks.filter((c) => c.passed).length / checks.length) * 100);
+  1869→              const scoreColor = score >= 75 ? "text-orange-600" : score >= 50 ? "text-amber-600" : "text-red-600";
+  1870→              const scoreBg = score >= 75 ? "[&>div]:bg-orange-500" : score >= 50 ? "[&>div]:bg-amber-500" : "[&>div]:bg-red-500";
+  1871→              const loginHistory = [
+  1872→                { device: "Chrome — Windows", loc: "Jakarta, ID", time: tr("profTimeNow"), current: true, ip: "103.10.x.x" },
+  1873→                { device: "Safari — iPhone", loc: "Jakarta, ID", time: tr("profTime2h"), current: false, ip: "103.10.x.x" },
+  1874→                { device: "Chrome — Android", loc: "Bandung, ID", time: tr("profTimeYesterday"), current: false, ip: "36.71.x.x" },
+  1875→              ];
+  1876→
+  1877→              return (
+  1878→                <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
+  1879→                  {/* Security Score Card */}
+  1880→                  <div className="rounded-xl border border-border bg-gradient-to-br from-primary/5 to-orange-500/5 p-5 md:p-6">
+  1881→                    <div className="flex items-center justify-between">
+  1882→                      <div className="flex items-center gap-3">
+  1883→                        <span className={cn("grid size-12 place-items-center rounded-lg bg-card shadow-sm md:size-14", scoreColor)}>
+  1884→                          <Shield className="size-6 md:size-7" />
+  1885→                        </span>
+  1886→                        <div>
+  1887→                          <p className="text-base font-bold md:text-lg">Skor Keamanan</p>
+  1888→                          <p className="text-sm text-muted-foreground md:text-base">{score >= 75 ? "Akun terlindungi" : score >= 50 ? "Cukup aman" : "Perlu diperkuat"}</p>
+  1889→                        </div>
+  1890→                      </div>
+  1891→                      <span className={cn("text-3xl font-extrabold md:text-4xl", scoreColor)}>{score}%</span>
+  1892→                    </div>
+  1893→                    <Progress value={score} className={cn("mt-4 h-2.5 md:h-3", scoreBg)} />
+  1894→                    <div className="mt-4 grid grid-cols-2 gap-2">
+  1895→                      {checks.map((c, i) => (
+  1896→                        <div key={i} className="flex items-center gap-2 text-sm md:text-base">
+  1897→                          {c.passed ? (
+  1898→                            <CheckCircle2 className="size-4 shrink-0 text-orange-500 md:size-5" />
+  1899→                          ) : (
+  1900→                            <AlertTriangle className="size-4 shrink-0 text-amber-500 md:size-5" />
+  1901→                          )}
+  1902→                          <span className={c.passed ? "text-foreground" : "text-muted-foreground"}>{c.label}</span>
+  1903→                        </div>
+  1904→                      ))}
+  1905→                    </div>
+  1906→                  </div>
+  1907→
+  1908→                  {/* Change Password */}
+  1909→                  <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+  1910→                    <button
+  1911→                      onClick={() => setShowPasswordForm(!showPasswordForm)}
+  1912→                      className="flex w-full items-center gap-3 text-left"
+  1913→                    >
+  1914→                      <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+  1915→                        <KeyRound className="size-5 md:size-6" />
+  1916→                      </span>
+  1917→                      <div className="min-w-0 flex-1">
+  1918→                        <p className="text-base font-semibold md:text-lg">Ubah Kata Sandi</p>
+  1919→                        <p className="truncate text-sm text-muted-foreground md:text-base">Perbarui kata sandi akun Anda</p>
+  1920→                      </div>
+  1921→                      <ChevronRight className={cn("size-5 text-muted-foreground transition md:size-6", showPasswordForm && "rotate-90")} />
+  1922→                    </button>
+  1923→                    {showPasswordForm && (
+  1924→                      <div className="mt-4 space-y-3 border-t border-border pt-4">
+  1925→                        <div className="space-y-1">
+  1926→                          <Label className="text-sm text-muted-foreground md:text-base">Kata Sandi Lama</Label>
+  1927→                          <Input
+  1928→                            type="password"
+  1929→                            value={currentPass}
+  1930→                            onChange={(e) => setCurrentPass(e.target.value)}
+  1931→                            placeholder="••••••••"
+  1932→                            className="h-10 text-sm md:h-11 md:text-base"
+  1933→                          />
+  1934→                        </div>
+  1935→                        <div className="space-y-1">
+  1936→                          <Label className="text-sm text-muted-foreground md:text-base">Kata Sandi Baru</Label>
+  1937→                          <Input
+  1938→                            type="password"
+  1939→                            value={newPass}
+  1940→                            onChange={(e) => setNewPass(e.target.value)}
+  1941→                            placeholder="Min. 6 karakter"
+  1942→                            className="h-10 text-sm md:h-11 md:text-base"
+  1943→                          />
+  1944→                        </div>
+  1945→                        <div className="space-y-1">
+  1946→                          <Label className="text-sm text-muted-foreground md:text-base">Ulangi Kata Sandi Baru</Label>
+  1947→                          <Input
+  1948→                            type="password"
+  1949→                            value={confirmPass}
+  1950→                            onChange={(e) => setConfirmPass(e.target.value)}
+  1951→                            placeholder="Ulangi kata sandi baru"
+  1952→                            className="h-10 text-sm md:h-11 md:text-base"
+  1953→                          />
+  1954→                          {confirmPass && newPass !== confirmPass && (
+  1955→                            <p className="text-sm text-destructive md:text-base">Kata sandi tidak cocok</p>
+  1956→                          )}
+  1957→                        </div>
+  1958→                        <Button
+  1959→                          className="w-full md:h-11"
+  1960→                          disabled={savingPass || !currentPass || !newPass || newPass !== confirmPass}
+  1961→                          onClick={async () => {
+  1962→                            if (!user?.id) return;
+  1963→                            setSavingPass(true);
+  1964→                            try {
+  1965→                              const res = await fetch("/api/auth/password", {
+  1966→                                method: "PATCH",
+  1967→                                headers: { "Content-Type": "application/json" },
+  1968→                                body: JSON.stringify({
+  1969→                                  userId: user.id,
+  1970→                                  currentPassword: currentPass,
+  1971→                                  newPassword: newPass,
+  1972→                                }),
+  1973→                              });
+  1974→                              const data = await res.json();
+  1975→                              if (!res.ok) {
+  1976→                                toast.error(data.error || tr("profPasswordChangeFailed"));
+  1977→                                return;
+  1978→                              }
+  1979→                              toast.success(tr("profPasswordChanged"));
+  1980→                              setShowPasswordForm(false);
+  1981→                              setCurrentPass("");
+  1982→                              setNewPass("");
+  1983→                              setConfirmPass("");
+  1984→                            } catch {
+  1985→                              toast.error(tr("profConnectionFailed"));
+  1986→                            } finally {
+  1987→                              setSavingPass(false);
+  1988→                            }
+  1989→                          }}
+  1990→                        >
+  1991→                          {savingPass ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
+  1992→                          {savingPass ? tr("profSaving") : tr("profChangePassword")}
+  1993→                        </Button>
+  1994→                      </div>
+  1995→                    )}
+  1996→                  </div>
+  1997→
+  1998→                  {/* 2FA Toggle */}
+  1999→                  <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5 md:p-6">
+  2000→                    <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+
+[showing lines 1-2000 of 2919; use offset=2001 with limit to continue reading]

@@ -170,7 +170,7 @@ function DashboardTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fetchJson("/api/admin/stats") });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fetchJson("/api/admin/stats"), refetchInterval: 5000 });
   if (isLoading || !data) return <SkeletonGrid count={4} />;
   const stats = [
     { label: tr("admTotalUsers"), value: data.totals.users, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
@@ -284,7 +284,7 @@ function IklanTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings"), refetchInterval: 5000 });
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -663,7 +663,7 @@ function IklanBaruTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings"), refetchInterval: 5000 });
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -945,7 +945,7 @@ function IklanExpiredTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings"), refetchInterval: 5000 });
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -1228,7 +1228,7 @@ function IklanDitolakTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings"), refetchInterval: 5000 });
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -1730,7 +1730,7 @@ function MerekTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings"), refetchInterval: 5000 });
   const [extraBrands, setExtraBrands] = useState<string[]>([]);
   const [newBrand, setNewBrand] = useState("");
 
@@ -1807,7 +1807,7 @@ function LokasiTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings"), refetchInterval: 5000 });
   const [extraCities, setExtraCities] = useState<string[]>([]);
   const [extraProvinces, setExtraProvinces] = useState<string[]>([]);
   const [newCity, setNewCity] = useState("");
@@ -2162,7 +2162,7 @@ function TransaksiTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings"), refetchInterval: 5000 });
   const [search, setSearch] = useState("");
   const [pkgFilter, setPkgFilter] = useState<"all" | "spotlight" | "highlight" | "sundul" | "colek">("all");
   const [viewMode, setViewMode] = useState<"grid" | "line">("line");
@@ -2411,7 +2411,7 @@ function LaporanTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fetchJson("/api/admin/stats") });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fetchJson("/api/admin/stats"), refetchInterval: 5000 });
   if (isLoading || !data) return <SkeletonGrid count={3} />;
   return (
     <div className="space-y-4">

@@ -150,6 +150,7 @@ export function ProfileView() {
     },
     enabled: !!user?.id,
     staleTime: 0,
+    refetchInterval: 5000,
   });
   const myAdsCount = myListingsData?.listings?.length ?? 0;
   const myListings: any[] = myListingsData?.listings ?? [];

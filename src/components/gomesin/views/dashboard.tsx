@@ -144,6 +144,7 @@ export function DashboardView() {
     queryFn: () => fetchListings(user?.id),
     enabled: !!user?.id,
     staleTime: 0,
+    refetchInterval: 5000,
   });
 
   const deleteMutation = useMutation({
