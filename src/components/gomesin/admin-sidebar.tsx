@@ -128,7 +128,7 @@ export function AdminSidebar({
                     key={item.view}
                     onClick={() => handleNav(item.view)}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-2 py-[15px] text-left text-[17px] transition",
+                      "flex w-full items-center gap-3 rounded-md px-2 py-[14px] text-left text-[17px] transition",
                       active
                         ? "bg-primary font-semibold text-primary-foreground"
                         : "text-foreground/80 hover:bg-accent"
@@ -155,7 +155,7 @@ export function AdminSidebar({
                     key={item.view}
                     onClick={() => handleNav(item.view)}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-2 py-[15px] text-left text-[17px] transition",
+                      "flex w-full items-center gap-3 rounded-md px-2 py-[14px] text-left text-[17px] transition",
                       active
                         ? "bg-primary font-semibold text-primary-foreground"
                         : "text-foreground/80 hover:bg-accent"
