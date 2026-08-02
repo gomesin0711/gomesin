@@ -1,28 +1,28 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
+import { getAdminFallbackInfo } from "@/lib/admin-fallback";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/info
-// Public endpoint — returns the first admin user's id + name.
-// Needed so any logged-in user can route chat messages (e.g. payment proof
-// bukti pembayaran) to the admin via the in-app chat / socket.
-//
-// Only exposes id + name (NO email / phone / password) — safe to share.
 export async function GET() {
+  if (isDbAvailable()) {
+    try {
+      const admin = await db.user.findFirst({
+        where: { role: "admin" },
+        select: { id: true, name: true },
+      });
+      if (!admin) {
+        return NextResponse.json({ error: "Admin tidak ditemukan" }, { status: 404 });
+      }
+      return NextResponse.json({ admin });
+    } catch { /* fall through */ }
+  }
+
+  // Fallback
   try {
-    const admin = await db.user.findFirst({
-      where: { role: "admin" },
-      select: { id: true, name: true },
-    });
-
-    if (!admin) {
-      return NextResponse.json({ error: "Admin tidak ditemukan" }, { status: 404 });
-    }
-
-    return NextResponse.json({ admin });
-  } catch (e: any) {
-    console.error("GET /api/admin/info error", e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const data = await getAdminFallbackInfo();
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

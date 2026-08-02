@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
 import { getPaketMap } from "@/lib/paket";
+import { getAdminFallbackStats } from "@/lib/admin-fallback";
 
 export async function GET() {
-  try {
+  // Try DB first
+  if (isDbAvailable()) {
+    try {
   const now = new Date();
 
   // period boundaries
@@ -11,8 +14,7 @@ export async function GET() {
   startOfToday.setHours(0, 0, 0, 0);
 
   const startOfWeek = new Date(startOfToday);
-  // week starts Monday
-  const dow = (startOfWeek.getDay() + 6) % 7; // 0 = Monday
+  const dow = (startOfWeek.getDay() + 6) % 7;
   startOfWeek.setDate(startOfWeek.getDate() - dow);
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -38,10 +40,6 @@ export async function GET() {
     db.listing.count({ where: { createdAt: { gte: startOfMonth } } }),
   ]);
 
-  // omzet = total biaya pasang iklan (ad posting fees).
-  // Harga diambil dari tabel Paket di DB (key: colek/sundul/highlight/spotlight),
-  // BUKAN hardcoded berdasarkan nama paket lama (premium/bisnis) yang tidak ada
-  // di DB — itu menyebabkan omzet selalu 0.
   const paketMap = await getPaketMap();
   const adFee = (pkg: string) => paketMap[pkg]?.price ?? 0;
 
@@ -57,7 +55,6 @@ export async function GET() {
   const omzetMonth = omzetListingsMonth.reduce((sum, l) => sum + adFee(l.packageType), 0);
   const omzetAll = allListingsForOmzet.reduce((sum, l) => sum + adFee(l.packageType), 0);
 
-  // listings per category (top categories)
   const allCategoryCounts = await db.listing.groupBy({
     by: ["categoryId"],
     _count: true,
@@ -74,7 +71,6 @@ export async function GET() {
     count: c._count,
   }));
 
-  // daily omzet for last 7 days (for chart) — based on ad posting fees
   const last7Days: { date: string; label: string; omzet: number; count: number }[] = [];
   for (let i = 6; i >= 0; i--) {
     const dStart = new Date(startOfToday);
@@ -95,24 +91,21 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    totals: {
-      users: totalUsers,
-      listings: totalListings,
-      admins: totalAdmins,
-      omzetAll,
-    },
+    totals: { users: totalUsers, listings: totalListings, admins: totalAdmins, omzetAll },
     users: { today: usersToday, week: usersWeek, month: usersMonth },
     listings: { today: listingsToday, week: listingsWeek, month: listingsMonth },
-    omzet: {
-      today: omzetToday,
-      week: omzetWeek,
-      month: omzetMonth,
-      all: omzetAll,
-    },
+    omzet: { today: omzetToday, week: omzetWeek, month: omzetMonth, all: omzetAll },
     topCategories,
     last7Days,
   });
+    } catch { /* fall through to fallback */ }
+  }
+
+  // Fallback
+  try {
+    const data = await getAdminFallbackStats();
+    return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
