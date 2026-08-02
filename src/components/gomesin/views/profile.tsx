@@ -945,14 +945,14 @@ export function ProfileView() {
                     key={i}
                     onClick={m.action}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
+                      "flex w-full items-center gap-3 rounded-md px-2 py-[12px] text-left text-[15px] transition",
                       isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
                     )}
                   >
-                    <m.icon className="size-4 shrink-0" />
+                    <m.icon className="size-[18px] shrink-0" />
                     <span className="truncate">{m.label}</span>
                     {m.key === "pesan" && unreadCount > 0 && (
-                      <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{unreadCount}</span>
+                      <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{unreadCount}</span>
                     )}
                   </button>
                 );
@@ -969,11 +969,11 @@ export function ProfileView() {
                     key={i}
                     onClick={m.action}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
+                      "flex w-full items-center gap-3 rounded-md px-2 py-[12px] text-left text-[15px] transition",
                       isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
                     )}
                   >
-                    <m.icon className="size-4 shrink-0" />
+                    <m.icon className="size-[18px] shrink-0" />
                     <span className="truncate">{m.label}</span>
                   </button>
                 );
@@ -982,18 +982,18 @@ export function ProfileView() {
               <button
                 onClick={() => { setPanel("bantuan"); setDrawerOpen(false); }}
                 className={cn(
-                  "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
+                  "flex w-full items-center gap-3 rounded-md px-2 py-[12px] text-left text-[15px] transition",
                   panel === "bantuan" ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
                 )}
               >
-                <HelpCircle className="size-4 shrink-0" />
+                <HelpCircle className="size-[18px] shrink-0" />
                 <span className="truncate">{tr("help")}</span>
               </button>
               <button
                 onClick={() => { setDrawerOpen(false); if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
-                className="flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm text-destructive transition hover:bg-destructive/5"
+                className="flex w-full items-center gap-3 rounded-md px-2 py-[12px] text-left text-[15px] text-destructive transition hover:bg-destructive/5"
               >
-                <LogOut className="size-4 shrink-0" />
+                <LogOut className="size-[18px] shrink-0" />
                 <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
               </button>
             </nav>

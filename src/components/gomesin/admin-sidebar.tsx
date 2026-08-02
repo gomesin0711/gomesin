@@ -170,14 +170,14 @@ export function AdminSidebar({
             <div className="border-t border-border px-1 py-1">
               <button
                 onClick={() => { goHome(); onClose(); }}
-                className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] text-foreground/80 transition hover:bg-accent"
+                className="flex w-full items-center gap-3 rounded-md px-2 py-[12px] text-left text-[15px] text-foreground/80 transition hover:bg-accent"
               >
                 <ArrowLeft className="size-[18px] shrink-0" />
                 <span className="truncate">Beranda</span>
               </button>
               <button
                 onClick={() => { goHome(); onClose(); }}
-                className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] text-destructive transition hover:bg-destructive/5"
+                className="flex w-full items-center gap-3 rounded-md px-2 py-[12px] text-left text-[15px] text-destructive transition hover:bg-destructive/5"
               >
                 <Lock className="size-[18px] shrink-0" />
                 <span className="truncate">{tr("adminExit")}</span>
