@@ -1,6 +1,7 @@
 import seedData from "@/lib/seed-data.json";
 import { getAuthStore, SafeUser } from "@/lib/auth-fallback";
 import { getFallbackPakets } from "@/lib/fallback-data";
+import { getAllFallbackListings } from "@/lib/listing-fallback";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -64,8 +65,17 @@ export async function getAdminFallbackStats() {
   const usersWeek = allUsers.filter((u) => new Date(u.createdAt) >= startOfWeek).length;
   const usersMonth = allUsers.filter((u) => new Date(u.createdAt) >= startOfMonth).length;
 
-  // Listings from seed data
-  const allListings = seedData.listings;
+  // Listings from seed data + file-based store
+  const seedListings = seedData.listings;
+  let fbListings: any[] = [];
+  try {
+    fbListings = await getAllFallbackListings();
+  } catch { /* ignore */ }
+  // Merge: file-based overrides seed (by id), plus any new listings
+  const listingMap = new Map<string, any>();
+  for (const l of seedListings) listingMap.set(l.id, normalizeListing(l));
+  for (const l of fbListings) listingMap.set(l.id, normalizeListing(l));
+  const allListings = Array.from(listingMap.values());
   const listingsToday = allListings.filter((l) => new Date(l.createdAt) >= startOfToday).length;
   const listingsWeek = allListings.filter((l) => new Date(l.createdAt) >= startOfWeek).length;
   const listingsMonth = allListings.filter((l) => new Date(l.createdAt) >= startOfMonth).length;

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { parseListing } from "@/lib/types";
 import { getFallbackPopularListings } from "@/lib/fallback-data";
+import { getAllFallbackListings } from "@/lib/listing-fallback";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -58,6 +59,22 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     console.error("GET /api/listings/popular DB error, falling back to seed data", error);
-    return NextResponse.json(getFallbackPopularListings(limit));
+    const result = getFallbackPopularListings(limit);
+    // Also merge active file-based store listings
+    try {
+      const fbListings = await getAllFallbackListings();
+      const activeFb = fbListings
+        .filter((l) => l.status === "active" && l.paymentStatus === "paid" && !l.violationFlag)
+        .sort((a, b) => (b.views || 0) - (a.views || 0))
+        .slice(0, limit)
+        .map((l) => parseListing(l as any));
+      const seedIds = new Set(result.listings.map((l: any) => l.id));
+      const extra = activeFb.filter((l) => !seedIds.has(l.id));
+      if (extra.length > 0) {
+        result.listings = [...result.listings, ...extra];
+        result.total = result.listings.length;
+      }
+    } catch { /* ignore */ }
+    return NextResponse.json(result);
   }
 }

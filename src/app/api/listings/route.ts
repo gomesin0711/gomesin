@@ -5,7 +5,7 @@ import { parseListing } from "@/lib/types";
 import { getPaketMap } from "@/lib/paket";
 import { saveImagesToLocal } from "@/lib/save-image";
 import { getFallbackListings } from "@/lib/fallback-data";
-import { fallbackCreateListing } from "@/lib/listing-fallback";
+import { fallbackCreateListing, getAllFallbackListings } from "@/lib/listing-fallback";
 import type { ListingFilters } from "@/lib/fallback-data";
 
 export async function GET(req: NextRequest) {
@@ -119,7 +119,30 @@ export async function GET(req: NextRequest) {
       featured: featuredOnly || undefined,
     };
 
-    return NextResponse.json(getFallbackListings(filters));
+    // Get seed data listings
+    const seedResult = getFallbackListings(filters);
+
+    // Also merge active listings from file-based store (user-posted on Vercel)
+    try {
+      const fbListings = await getAllFallbackListings();
+      const activeFb = fbListings.filter(
+        (l) => l.status === "active" && l.paymentStatus === "paid" && !l.violationFlag
+      );
+      // Only add file-based listings not already in seed result (by id)
+      const seedIds = new Set(seedResult.listings.map((l: any) => l.id));
+      const extra = activeFb
+        .filter((l) => !seedIds.has(l.id))
+        .map((l) => parseListing(l as any));
+      if (extra.length > 0) {
+        seedResult.listings = [...extra, ...seedResult.listings];
+        seedResult.total += extra.length;
+        seedResult.totalPages = Math.ceil(seedResult.total / limit);
+      }
+    } catch {
+      // Silently ignore file-based store errors
+    }
+
+    return NextResponse.json(seedResult);
   }
 }
 

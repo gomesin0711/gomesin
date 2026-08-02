@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { parseListing } from "@/lib/types";
 import { getFallbackMostSearchedListings } from "@/lib/fallback-data";
+import { getAllFallbackListings } from "@/lib/listing-fallback";
 
 // GET /api/listings/most-searched?limit=12
 //
@@ -68,6 +69,22 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     console.error("GET /api/listings/most-searched DB error, falling back to seed data", error);
-    return NextResponse.json(getFallbackMostSearchedListings(limit));
+    const result = getFallbackMostSearchedListings(limit);
+    // Also merge active file-based store listings
+    try {
+      const fbListings = await getAllFallbackListings();
+      const activeFb = fbListings
+        .filter((l) => l.status === "active" && l.paymentStatus === "paid" && !l.violationFlag)
+        .sort((a, b) => (b.views || 0) - (a.views || 0))
+        .slice(0, limit)
+        .map((l) => ({ ...parseListing(l as any), chatCount: 0, views: l.views || 0 }));
+      const seedIds = new Set(result.listings.map((l: any) => l.id));
+      const extra = activeFb.filter((l) => !seedIds.has(l.id));
+      if (extra.length > 0) {
+        result.listings = [...result.listings, ...extra];
+        result.total = result.listings.length;
+      }
+    } catch { /* ignore */ }
+    return NextResponse.json(result);
   }
 }

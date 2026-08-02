@@ -47,7 +47,8 @@ const fetchJson = async (url: string) => {
 };
 
 // Safe admin query — returns empty data on error instead of throwing
-function useAdminQuery<T>(key: string[], url: string) {
+// realtime: if true, polls every 500ms for live updates
+function useAdminQuery<T>(key: string[], url: string, realtime?: boolean) {
   return useQuery({
     queryKey: key,
     queryFn: async () => {
@@ -55,12 +56,14 @@ function useAdminQuery<T>(key: string[], url: string) {
     },
     retry: false,
     staleTime: 0,
+    refetchInterval: realtime ? 500 : false,
   });
 }
 
 // Admin listings query with client-side merge (localStorage + server)
-function useAdminListings() {
-  const { data, isLoading, error } = useAdminQuery(["admin-listings"], "/api/admin/listings");
+// realtime: if true, polls every 500ms for live updates
+function useAdminListings(realtime?: boolean) {
+  const { data, isLoading, error } = useAdminQuery(["admin-listings"], "/api/admin/listings", realtime);
   const merged = useMemo(() => {
     const server = (data?.listings || []) as any[];
     return mergeAllListings(server);
@@ -652,7 +655,7 @@ function IklanBaruTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useAdminListings();
+  const { data, isLoading } = useAdminListings(true); // realtime 500ms polling
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -1559,7 +1562,7 @@ function PenggunaTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useAdminQuery(["admin-users"], "/api/admin/users");
+  const { data, isLoading } = useAdminQuery(["admin-users"], "/api/admin/users", true); // realtime 500ms polling
   const [previewUser, setPreviewUser] = useState<any>(null);
   const del = useMutation({
     mutationFn: (id: string) => fetch("/api/admin/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
