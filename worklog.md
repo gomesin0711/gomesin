@@ -524,3 +524,33 @@ Stage Summary:
 - Desktop: permanent sidebar unchanged
 - Zero new lint errors, zero JS errors in browser
 - Verified: profile drawer, admin drawer, tab switching, desktop sidebar all working
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Sync online (Vercel) content with offline (local) — fix 39 unpushed commits
+
+Work Log:
+- Discovered local branch was 39 commits ahead of origin/main (Vercel pulls from GitHub)
+- Remote also had 20 commits not in local (from previous session's Vercel direct deploy)
+- Merged origin/main into local with `git merge origin/main`
+- Resolved 8 merge conflicts:
+  - .zscripts/dev.pid → took theirs (auto-generated)
+  - db/custom.db → took theirs (binary)
+  - src/app/api/admin/listings/route.ts → kept local fallback + added remote try/catch wrapper
+  - src/app/api/admin/paket/route.ts → kept local fallback + added remote try/catch wrapper
+  - src/app/layout.tsx → took remote's beforeinstallprompt handling (with custom events), removed inline SW (moved to ServiceWorkerRegistration component)
+  - src/components/gomesin/views/admin.tsx → took remote version (has useAdminQuery, DB_ERROR_UI, safer fetchJson, simplified layout)
+  - src/components/pwa-install-prompt.tsx → took remote version (complete rewrite with better platform detection)
+  - worklog.md → took theirs
+- Pushed merged code to GitHub origin/main
+- Deployed to Vercel production: https://gomesin.vercel.app (build in 28s, ready in 50s)
+- Verified via Agent Browser: both sites show identical structure, layout, text, footer, brand marquee
+- Only data difference: local SQLite has more listings than Vercel fallback seed data (expected — Vercel can't use SQLite)
+
+Stage Summary:
+- Online and offline now run the EXACT same codebase
+- All 39 unpushed local commits + 20 remote commits merged successfully
+- Key merged features: auth fallback (client-store), listing persistence, admin DB error handling, PWA improvements, brand ticker in header, profile drawer sizing
+- Deployment: https://gomesin.vercel.app — Ready in 50s
+- Listing count differences are data-level (local DB vs seed fallback), not code-level
