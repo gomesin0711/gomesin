@@ -19,7 +19,6 @@ import { LoginView } from "./views/login";
 import { UpgradeView } from "./views/upgrade";
 import { SellerView } from "./views/seller";
 import { AdminView } from "./views/admin";
-import { Menu, ShieldCheck } from "lucide-react";
 
 const ADMIN_VIEWS = ["admin", "admin-sellers", "admin-categories", "admin-listings", "admin-new-listings", "admin-expired-listings", "admin-rejected-listings", "admin-transactions", "admin-reports", "admin-monthly-report", "admin-users", "admin-paket", "admin-merek", "admin-lokasi", "admin-banner", "admin-audit"];
 
@@ -74,27 +73,6 @@ export function AppShell() {
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const showSidebar = isAdminView && isAdmin;
 
-  const adminContent = (
-    <>
-      {view === "admin" && <AdminView />}
-      {view === "admin-sellers" && <AdminView initialTab="penjual" />}
-      {view === "admin-categories" && <AdminView initialTab="kategori" />}
-      {view === "admin-listings" && <AdminView initialTab="iklan" />}
-      {view === "admin-new-listings" && <AdminView initialTab="iklanbaru" />}
-      {view === "admin-expired-listings" && <AdminView initialTab="iklanexpired" />}
-      {view === "admin-rejected-listings" && <AdminView initialTab="iklanditolak" />}
-      {view === "admin-transactions" && <AdminView initialTab="transaksi" />}
-      {view === "admin-reports" && <AdminView initialTab="laporan" />}
-      {view === "admin-monthly-report" && <AdminView initialTab="laporanbulanan" />}
-      {view === "admin-users" && <AdminView initialTab="pengguna" />}
-      {view === "admin-paket" && <AdminView initialTab="paket" />}
-      {view === "admin-merek" && <AdminView initialTab="merek" />}
-      {view === "admin-lokasi" && <AdminView initialTab="lokasi" />}
-      {view === "admin-banner" && <AdminView initialTab="banner" />}
-      {view === "admin-audit" && <AdminView initialTab="audit" />}
-    </>
-  );
-
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -102,20 +80,32 @@ export function AppShell() {
         <div className="flex flex-1">
           <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <main className="min-w-0 flex-1">
-            <div className="sticky top-16 z-20 flex items-center gap-2 border-b border-border bg-card px-4 py-2 md:hidden">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Menu"
-                className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"
-              >
-                <Menu className="size-5" />
-              </button>
-              <div className="flex items-center gap-2 text-sm font-bold">
-                <ShieldCheck className="size-4 text-primary" />
-                {tr("adminMenu")}
-              </div>
+            {/* mobile sidebar toggle */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="sticky top-16 z-20 flex w-full items-center gap-2 border-b border-border bg-card px-4 py-2 text-sm font-medium text-primary md:hidden"
+            >
+              <ShieldCheckIcon className="size-4" />
+              {tr("adminMenu")}
+            </button>
+            <div className="p-0">
+              {view === "admin" && <AdminView />}
+              {view === "admin-sellers" && <AdminView initialTab="penjual" />}
+              {view === "admin-categories" && <AdminView initialTab="kategori" />}
+              {view === "admin-listings" && <AdminView initialTab="iklan" />}
+              {view === "admin-new-listings" && <AdminView initialTab="iklanbaru" />}
+              {view === "admin-expired-listings" && <AdminView initialTab="iklanexpired" />}
+              {view === "admin-rejected-listings" && <AdminView initialTab="iklanditolak" />}
+              {view === "admin-transactions" && <AdminView initialTab="transaksi" />}
+              {view === "admin-reports" && <AdminView initialTab="laporan" />}
+              {view === "admin-monthly-report" && <AdminView initialTab="laporanbulanan" />}
+              {view === "admin-users" && <AdminView initialTab="pengguna" />}
+              {view === "admin-paket" && <AdminView initialTab="paket" />}
+              {view === "admin-merek" && <AdminView initialTab="merek" />}
+              {view === "admin-lokasi" && <AdminView initialTab="lokasi" />}
+              {view === "admin-banner" && <AdminView initialTab="banner" />}
+              {view === "admin-audit" && <AdminView initialTab="audit" />}
             </div>
-            {adminContent}
           </main>
         </div>
       ) : (
@@ -133,8 +123,16 @@ export function AppShell() {
         </main>
       )}
       {![["profile"], ["dashboard"], ["favorites"], ["login"], ["post"], ...ADMIN_VIEWS].flat().includes(view) && <Footer />}
-      <div className="h-[4.25rem] shrink-0 md:hidden" aria-hidden="true" />
+      <div className="h-16 shrink-0 md:hidden" aria-hidden="true" />
       <BottomNav />
     </div>
+  );
+}
+
+function ShieldCheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+    </svg>
   );
 }

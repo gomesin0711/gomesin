@@ -15,7 +15,7 @@ import {
   FileText,
   ShieldCheck,
   X,
-  ArrowLeft,
+  Lock,
   Award,
   MapPin,
   Image as ImageIcon,
@@ -25,7 +25,6 @@ import {
   Clock,
   XCircle,
   Calendar,
-  Lock,
 } from "lucide-react";
 
 const ADMIN_MENU = [
@@ -43,10 +42,10 @@ const ADMIN_MENU = [
 ];
 
 const ADMIN_SUB_MENU = [
-  { view: "admin-merek" as const, labelKey: "adminManageBrands", icon: Award },
-  { view: "admin-lokasi" as const, labelKey: "adminManageLocations", icon: MapPin },
-  { view: "admin-banner" as const, labelKey: "adminBanners", icon: ImageIcon },
-  { view: "admin-audit" as const, labelKey: "adminAuditLog", icon: ScrollText },
+  { tab: "merek", labelKey: "adminManageBrands", icon: Award },
+  { tab: "lokasi", labelKey: "adminManageLocations", icon: MapPin },
+  { tab: "banner", labelKey: "adminBanners", icon: ImageIcon },
+  { tab: "audit", labelKey: "adminAuditLog", icon: ScrollText },
 ];
 
 export function AdminSidebar({
@@ -94,105 +93,42 @@ export function AdminSidebar({
 
   if (!isAdmin) return null;
 
-  const handleNav = (v: string) => {
+  const handleNav = (v: typeof ADMIN_MENU[number]["view"]) => {
     if (v === "admin") goToAdmin();
-    else goToAdminSub(v as any);
+    else goToAdminSub(v);
     onClose();
   };
 
   return (
     <>
-      {/* ===== MOBILE DRAWER (like profile page) ===== */}
+      {/* mobile overlay */}
       {open && (
-        <div className="fixed inset-0 z-[90] flex md:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-          <aside className="relative z-10 flex h-full w-64 max-w-[80vw] flex-col overflow-y-auto bg-card shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-              <div className="flex items-center gap-2.5">
-                <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-                  <ShieldCheck className="size-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold">{tr("adminPanel")}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">{user?.email || ""}</p>
-                </div>
-              </div>
-              <button onClick={onClose} className="grid size-8 place-items-center rounded-full hover:bg-accent">
-                <X className="size-4" />
-              </button>
-            </div>
-            <nav className="flex-1 px-1 py-0.5">
-              <p className="px-2 pb-0.5 pt-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Menu Utama</p>
-              {ADMIN_MENU.map((item) => {
-                const active = view === item.view;
-                const count = counts[item.view];
-                return (
-                  <button
-                    key={item.view}
-                    onClick={() => handleNav(item.view)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-2 py-[11px] text-left text-[15px] transition",
-                      active
-                        ? "bg-primary font-semibold text-primary-foreground"
-                        : "text-foreground/80 hover:bg-accent"
-                    )}
-                  >
-                    <item.icon className="size-[18px] shrink-0" />
-                    <span className="truncate">{tr(item.labelKey)}</span>
-                    {count !== undefined && count > 0 && (
-                      <span className={cn(
-                        "ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-bold",
-                        active ? "bg-white/20 text-primary-foreground" : "bg-primary/10 text-primary"
-                      )}>
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-              <p className="px-2 pb-0.5 pt-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Lainnya</p>
-              {ADMIN_SUB_MENU.map((item) => {
-                const active = view === item.view;
-                return (
-                  <button
-                    key={item.view}
-                    onClick={() => handleNav(item.view)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-2 py-[11px] text-left text-[15px] transition",
-                      active
-                        ? "bg-primary font-semibold text-primary-foreground"
-                        : "text-foreground/80 hover:bg-accent"
-                    )}
-                  >
-                    <item.icon className="size-[18px] shrink-0" />
-                    <span className="truncate">{tr(item.labelKey)}</span>
-                  </button>
-                );
-              })}
-            </nav>
-            <div className="border-t border-border px-1 py-1">
-              <button
-                onClick={() => { goHome(); onClose(); }}
-                className="flex w-full items-center gap-3 rounded-md px-2 py-[11px] text-left text-[15px] text-foreground/80 transition hover:bg-accent"
-              >
-                <ArrowLeft className="size-[18px] shrink-0" />
-                <span className="truncate">Beranda</span>
-              </button>
-              <button
-                onClick={() => { goHome(); onClose(); }}
-                className="flex w-full items-center gap-3 rounded-md px-2 py-[11px] text-left text-[15px] text-destructive transition hover:bg-destructive/5"
-              >
-                <Lock className="size-[18px] shrink-0" />
-                <span className="truncate">{tr("adminExit")}</span>
-              </button>
-            </div>
-          </aside>
-        </div>
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={onClose}
+          aria-hidden
+        />
       )}
 
-      {/* ===== DESKTOP SIDEBAR (permanent) ===== */}
-      <aside className="sticky top-16 z-30 hidden h-[calc(100vh-4rem)] w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-card md:flex">
-        <div className="border-b border-border p-4">
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 flex h-full w-64 flex-col border-r border-border bg-card transition-transform duration-300 md:sticky md:top-16 md:z-30 md:h-[calc(100vh-4rem)] md:translate-x-0",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {/* mobile header */}
+        <div className="flex items-center justify-between border-b border-border p-4 md:hidden">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="size-5 text-primary" />
+            <span className="font-bold">{tr("adminPanel")}</span>
+          </div>
+          <button onClick={onClose} aria-label="Tutup sidebar">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        {/* desktop header */}
+        <div className="hidden border-b border-border p-4 md:block">
           <div className="flex items-center gap-2">
             <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
               <ShieldCheck className="size-4" />
@@ -203,7 +139,9 @@ export function AdminSidebar({
             </div>
           </div>
         </div>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
+
+        {/* menu */}
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {ADMIN_MENU.map((item) => {
             const active = view === item.view;
             const count = counts[item.view];
@@ -212,7 +150,7 @@ export function AdminSidebar({
                 key={item.view}
                 onClick={() => handleNav(item.view)}
                 className={cn(
-                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition",
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
                   active
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -231,32 +169,28 @@ export function AdminSidebar({
               </button>
             );
           })}
-          <div className="my-1.5 border-t border-border" />
-          {ADMIN_SUB_MENU.map((item) => {
-            const active = view === item.view;
-            return (
-              <button
-                key={item.view}
-                onClick={() => handleNav(item.view)}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition",
-                  active
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <item.icon className="size-4 shrink-0" />
-                {tr(item.labelKey)}
-              </button>
-            );
-          })}
+
+          <div className="my-2 border-t border-border" />
+
+          {ADMIN_SUB_MENU.map((item) => (
+            <button
+              key={item.tab}
+              onClick={() => { goToAdminSub(`admin-${item.tab}` as any); onClose(); }}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            >
+              <item.icon className="size-4 shrink-0" />
+              {tr(item.labelKey)}
+            </button>
+          ))}
         </nav>
-        <div className="border-t border-border p-2">
+
+        {/* footer */}
+        <div className="border-t border-border p-3">
           <button
-            onClick={goHome}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            onClick={() => { goHome(); onClose(); }}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
           >
-            <ArrowLeft className="size-4" />
+            <Lock className="size-4 shrink-0" />
             {tr("adminExit")}
           </button>
         </div>
