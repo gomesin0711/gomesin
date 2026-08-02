@@ -901,7 +901,7 @@ export function ProfileView() {
       {drawerOpen && (
         <div className="fixed inset-0 z-[90] flex md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} />
-          <aside className="relative z-10 flex h-full w-64 max-w-[80vw] flex-col overflow-y-auto bg-card shadow-2xl">
+          <aside className="relative z-10 flex h-full w-64 max-w-[80vw] flex-col overflow-y-auto bg-card shadow-2xl ring-2 ring-red-500">
             <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
               <div className="flex items-center gap-2.5">
                 <Avatar className="size-9 border-2 border-primary/20 overflow-hidden">
