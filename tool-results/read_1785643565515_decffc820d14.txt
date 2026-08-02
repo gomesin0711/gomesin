@@ -1,0 +1,2002 @@
+   895→            <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
+   896→          </button>
+   897→        </nav>
+   898→      </aside>
+   899→
+   900→      {/* ===== MOBILE DRAWER (only on mobile — desktop uses permanent sidebar) ===== */}
+   901→      {drawerOpen && (
+   902→        <div className="fixed inset-0 z-[90] flex md:hidden">
+   903→          <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} />
+   904→          <aside className="relative z-10 flex h-full w-64 max-w-[80vw] flex-col overflow-y-auto bg-card shadow-2xl">
+   905→            <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+   906→              <div className="flex items-center gap-2.5">
+   907→                <Avatar className="size-9 border-2 border-primary/20 overflow-hidden">
+   908→                  {user?.logoImage ? (
+   909→                    <img src={user.logoImage} alt={user.name || ""} className="size-full object-cover" onError={(e)=>{(e.target as HTMLImageElement).style.display='none';}} />
+   910→                  ) : (
+   911→                    <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+   912→                      {initials}
+   913→                    </AvatarFallback>
+   914→                  )}
+   915→                </Avatar>
+   916→                <div className="min-w-0 flex-1">
+   917→                  <p className="truncate text-sm font-bold">{user?.name || "Pengguna"}</p>
+   918→                  <p className="truncate text-[11px] text-muted-foreground">{user?.email || "Belum login"}</p>
+   919→                </div>
+   920→              </div>
+   921→              <button onClick={() => setDrawerOpen(false)} className="grid size-8 place-items-center rounded-full hover:bg-accent">
+   922→                <X className="size-4" />
+   923→              </button>
+   924→            </div>
+   925→            {user?.role === "admin" && (
+   926→              <div className="px-3 pt-1.5">
+   927→                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+   928→                  <ShieldCheck className="size-3" /> Admin
+   929→                </span>
+   930→              </div>
+   931→            )}
+   932→            <nav className="px-1 py-0.5">
+   933→              <p className="px-2 pb-0.5 pt-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Iklan & Transaksi</p>
+   934→              {[
+   935→                ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), action: () => { goToAdmin(); setDrawerOpen(false); }, navigate: true, key: "admin" }] : []),
+   936→                { icon: LayoutDashboard, label: "Dashboard", action: () => { goToDashboard(); setPanel(null); setDrawerOpen(false); }, navigate: true, key: "dashboard" },
+   937→                { icon: Tag, label: tr("profMyAds"), action: () => { setPanel("iklan-saya"); setDrawerOpen(false); }, navigate: false, key: "iklan-saya" },
+   938→                { icon: Heart, label: tr("myFavorites"), action: () => { setPanel("favorit-saya"); setDrawerOpen(false); }, navigate: false, key: "favorit-saya" },
+   939→                { icon: MessageSquare, label: tr("messages"), action: () => { setPanel("pesan"); setDrawerOpen(false); }, navigate: false, key: "pesan" },
+   940→                { icon: Wallet, label: tr("wallet"), action: () => { setPanel("saldo"); setDrawerOpen(false); }, navigate: false, key: "saldo" },
+   941→              ].map((m, i) => {
+   942→                const isActive = panel === m.key;
+   943→                return (
+   944→                  <button
+   945→                    key={i}
+   946→                    onClick={m.action}
+   947→                    className={cn(
+   948→                      "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
+   949→                      isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+   950→                    )}
+   951→                  >
+   952→                    <m.icon className="size-4 shrink-0" />
+   953→                    <span className="truncate">{m.label}</span>
+   954→                    {m.key === "pesan" && unreadCount > 0 && (
+   955→                      <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{unreadCount}</span>
+   956→                    )}
+   957→                  </button>
+   958→                );
+   959→              })}
+   960→              <p className="px-2 pb-0.5 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Akun & Keamanan</p>
+   961→              {[
+   962→                { icon: Bell, label: tr("notifications"), action: () => { setPanel("notifikasi"); setDrawerOpen(false); }, key: "notifikasi" },
+   963→                { icon: Lock, label: tr("security"), action: () => { setPanel("keamanan"); setDrawerOpen(false); }, key: "keamanan" },
+   964→                { icon: Settings, label: tr("settings"), action: () => { setPanel("pengaturan"); setDrawerOpen(false); }, key: "pengaturan" },
+   965→              ].map((m, i) => {
+   966→                const isActive = panel === m.key;
+   967→                return (
+   968→                  <button
+   969→                    key={i}
+   970→                    onClick={m.action}
+   971→                    className={cn(
+   972→                      "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
+   973→                      isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+   974→                    )}
+   975→                  >
+   976→                    <m.icon className="size-4 shrink-0" />
+   977→                    <span className="truncate">{m.label}</span>
+   978→                  </button>
+   979→                );
+   980→              })}
+   981→              <p className="px-2 pb-0.5 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Bantuan</p>
+   982→              <button
+   983→                onClick={() => { setPanel("bantuan"); setDrawerOpen(false); }}
+   984→                className={cn(
+   985→                  "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
+   986→                  panel === "bantuan" ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+   987→                )}
+   988→              >
+   989→                <HelpCircle className="size-4 shrink-0" />
+   990→                <span className="truncate">{tr("help")}</span>
+   991→              </button>
+   992→              <button
+   993→                onClick={() => { setDrawerOpen(false); if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
+   994→                className="flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm text-destructive transition hover:bg-destructive/5"
+   995→              >
+   996→                <LogOut className="size-4 shrink-0" />
+   997→                <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
+   998→              </button>
+   999→            </nav>
+  1000→          </aside>
+  1001→        </div>
+  1002→      )}
+  1003→
+  1004→      {/* ===== MAIN CONTENT (next to permanent sidebar on desktop) ===== */}
+  1005→      <main className={cn("min-w-0 flex-1 px-4 py-4 md:px-6 md:py-6", panel === "pesan" && "max-md:px-0 max-md:pt-2 max-md:pb-0")}>
+  1006→        {/* breadcrumb — hidden on mobile when Pesan (cleaner chat view) */}
+  1007→        <div className={cn("mb-4 flex items-center gap-1 text-xs text-muted-foreground", panel === "pesan" && "max-md:hidden")}>
+  1008→          <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
+  1009→          <ChevronRight className="size-3" />
+  1010→          <span className="text-foreground">{tr("account")}</span>
+  1011→        </div>
+  1012→
+  1013→        {/* Header — greeting + date + motivation + stat cards (HANYA di overview profil, panel === null) */}
+  1014→        {panel === null && (
+  1015→        <div className="mb-5">
+  1016→          {/* Mobile: full-width orange header with semicircle bottom */}
+  1017→          <div className="-mx-4 -mt-4 overflow-hidden md:mx-0 md:mt-0">
+  1018→            {/* Orange gradient header */}
+  1019→            <div className="relative bg-gradient-to-br from-primary to-orange-600 px-5 pb-6 pt-4 text-primary-foreground md:rounded-xl md:border md:border-border md:shadow-md md:px-6 md:pt-6 md:pb-6">
+  1020→              {/* Mobile hamburger — positioned inside orange header */}
+  1021→              <button
+  1022→                onClick={() => setDrawerOpen(true)}
+  1023→                aria-label="Menu"
+  1024→                className="absolute right-4 top-3.5 grid size-10 place-items-center rounded-lg bg-white/15 backdrop-blur-sm transition hover:bg-white/25 md:hidden"
+  1025→              >
+  1026→                <Menu className="size-5" />
+  1027→              </button>
+  1028→              {(() => {
+  1029→                const now = new Date();
+  1030→                const h = now.getHours();
+  1031→                const greeting = h < 11 ? "Selamat Pagi" : h < 15 ? "Selamat Siang" : h < 18 ? "Selamat Sore" : "Selamat Malam";
+  1032→                const dateStr = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  1033→                return (
+  1034→                  <div>
+  1035→                    <p className="text-base font-medium text-primary-foreground/80">{greeting},</p>
+  1036→                    <h1 className="text-3xl font-extrabold sm:text-3xl">Halo, {user?.name?.split(" ")[0] || "Pengguna"}</h1>
+  1037→                    <p className="mt-1 text-sm text-primary-foreground/70 sm:text-base">{dateStr}</p>
+  1038→                  </div>
+  1039→                );
+  1040→              })()}
+  1041→            </div>
+  1042→            {/* Semicircle curve (flipped/concave) — mobile only */}
+  1043→            <div className="-mt-px md:hidden">
+  1044→              <svg viewBox="0 0 400 50" preserveAspectRatio="none" className="block h-10 w-full">
+  1045→                <path d="M0,0 L0,50 Q200,0 400,50 L400,0 Z" fill="#F57C00" />
+  1046→              </svg>
+  1047→            </div>
+  1048→          </div>
+  1049→
+  1050→          {/* Motivasi — di luar kotak oranye, berubah setiap refresh */}
+  1051→          {(() => {
+  1052→            const motivations = [
+  1053→              "Mesin yang terawat adalah aset yang menghasilkan. Rawat, jual, untung!",
+  1054→              "Setiap iklan yang jujur membangun kepercayaan pembeli industri.",
+  1055→              "Harga wajar + foto jelas = iklan cepat laku di Gomesin.",
+  1056→              "Jangan takut bersaing. Mesin berkualitas selalu dicari pembeli.",
+  1057→              "Sukses dimulai dari iklan pertama. Pasang iklan Anda hari ini!",
+  1058→              "Pembeli industri mencari mesin siap pakai. Pastikan mesin Anda ready.",
+  1059→              "Transaksi aman = bisnis berkelanjutan. Selalu survei sebelum bayar.",
+  1060→              "Update foto mesin secara berkala agar iklan selalu terlihat segar.",
+  1061→              "Deskripsi lengkap menarik pembeli serius, bukan cuma penasaran.",
+  1062→              "Konsistensi penjual adalah kunci repeater order di dunia industri.",
+  1063→              "Mesin second berkualitas punya pasar. Tampilkan kelebihannya jujur.",
+  1064→              "Satu chat balasan cepat = satu peluang deal lebih dekat.",
+  1065→            ];
+  1066→            const motivation = mounted ? motivations[Math.floor(Math.random() * motivations.length)] : motivations[0];
+  1067→            return (
+  1068→              <p className="mt-3 text-sm font-bold leading-relaxed text-muted-foreground sm:text-base" suppressHydrationWarning>
+  1069→                💡 <span className="font-bold text-foreground">Motivasi hari ini:</span> {motivation}
+  1070→              </p>
+  1071→            );
+  1072→          })()}
+  1073→
+  1074→          {/* Stat cards — Nilai Aset, Iklan Terjual, Total Iklan, Total Biaya Pasang Iklan */}
+  1075→          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+  1076→            {(() => {
+  1077→              const totalValue = myListings.reduce((a: number, l: any) => a + (Number(l.price) || 0), 0);
+  1078→              const soldCount = myListings.filter((l: any) => l.status === "sold").length;
+  1079→              const totalAdFee = myListings.reduce((sum: number, l: any) => sum + (paketMap[l.packageType]?.price ?? 0), 0);
+  1080→              const stats = [
+  1081→                { label: "Nilai Aset", value: formatRupiahFull(totalValue), icon: Wallet, color: "text-orange-600" },
+  1082→                { label: "Iklan Terjual", value: soldCount.toLocaleString("id-ID"), icon: CheckCircle2, color: "text-blue-500" },
+  1083→                { label: "Total Iklan", value: myAdsCount.toLocaleString("id-ID"), icon: Tag, color: "text-primary" },
+  1084→                { label: "Biaya Pasang Iklan", value: formatRupiahFull(totalAdFee), icon: CreditCard, color: "text-amber-600" },
+  1085→              ];
+  1086→              return stats.map((s) => (
+  1087→                <div key={s.label} className="rounded-lg border border-border bg-card p-3 sm:p-3">
+  1088→                  <div className="flex items-center justify-between">
+  1089→                    <span className="text-[11px] font-medium leading-tight text-muted-foreground sm:text-[11px]">{s.label}</span>
+  1090→                    <s.icon className={cn("size-4 shrink-0 sm:size-4", s.color)} />
+  1091→                  </div>
+  1092→                  <p className="mt-1 text-sm font-bold leading-tight sm:text-base">{s.value}</p>
+  1093→                </div>
+  1094→              ));
+  1095→            })()}
+  1096→          </div>
+  1097→
+  1098→          {/* Contact info card — alamat, email, telepon */}
+  1099→          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+  1100→            <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 sm:p-3">
+  1101→              <Home className="size-5 shrink-0 text-primary" />
+  1102→              <div className="min-w-0">
+  1103→                <p className="text-xs font-medium text-muted-foreground">Alamat</p>
+  1104→                <p className="truncate text-sm font-bold sm:text-base">{user?.city || "-"}</p>
+  1105→              </div>
+  1106→            </div>
+  1107→            <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 sm:p-3">
+  1108→              <Phone className="size-5 shrink-0 text-primary" />
+  1109→              <div className="min-w-0">
+  1110→                <p className="text-xs font-medium text-muted-foreground">Nomor Telepon</p>
+  1111→                <p className="truncate text-sm font-bold sm:text-base">{user?.phone || "-"}</p>
+  1112→              </div>
+  1113→            </div>
+  1114→            <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 sm:p-3">
+  1115→              <Mail className="size-5 shrink-0 text-primary" />
+  1116→              <div className="min-w-0">
+  1117→                <p className="text-xs font-medium text-muted-foreground">Email</p>
+  1118→                <p className="truncate text-sm font-bold sm:text-base">{user?.email || "-"}</p>
+  1119→              </div>
+  1120→            </div>
+  1121→          </div>
+  1122→
+  1123→
+  1124→        </div>
+  1125→        )}
+  1126→
+  1127→        {/* (mobile dropdown menu removed — replaced by hamburger drawer above) */}
+  1128→
+  1129→        {/* Content Area — only render when a panel is open (no empty white box on overview) */}
+  1130→        {panel !== null && (
+  1131→        <div className={cn(
+  1132→          "min-h-[400px]",
+  1133→          (panel === "pesan" || panel === "iklan-saya" || panel === "favorit-saya" || panel === "saldo" || panel === "notifikasi" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan")
+  1134→            ? "rounded-none border-0 p-0 bg-transparent"
+  1135→            : "rounded-xl border border-border bg-card"
+  1136→        )}>
+  1137→          {panel === "iklan-saya" ? (
+  1138→            /* Iklan Saya → render DashboardView inline (beside sidebar, with its own breadcrumb/header) */
+  1139→            <DashboardView />
+  1140→          ) : panel === "favorit-saya" ? (
+  1141→            /* Favorit Saya → render FavoritesView inline (beside sidebar) */
+  1142→            <FavoritesView />
+  1143→          ) : panel !== null ? (
+  1144→            <div className="h-full">
+  1145→              {/* Panel header — hidden on mobile for full-page panels */}
+  1146→              <div className={cn(
+  1147→                "flex items-center justify-between border-b border-border p-3",
+  1148→                (panel === "pesan" || panel === "saldo" || panel === "notifikasi" || panel === "keamanan" || panel === "pengaturan" || panel === "bantuan") && "max-md:hidden"
+  1149→              )}>
+  1150→                <h2 className="text-sm font-bold">{panelTitle[panel]}</h2>
+  1151→                <button onClick={closePanel} className="grid size-7 place-items-center rounded-full hover:bg-accent">
+  1152→                  <X className="size-4" />
+  1153→                </button>
+  1154→              </div>
+  1155→              {/* Panel content — WhatsApp split view (pesan) / normal flow (other panels) */}
+  1156→              <div className={cn(
+  1157→                panel === "pesan"
+  1158→                  ? "flex overflow-hidden h-[calc(100vh-12rem)] max-md:h-[calc(100dvh-11rem)]"
+  1159→                  : "block"
+  1160→              )}>
+  1161→
+  1162→                {/* ===== LEFT: Conversation list (full pane on mobile, sidebar on desktop) ===== */}
+  1163→                {panel === "pesan" && (
+  1164→                  <div className={cn(
+  1165→                    "flex-col border-r border-border bg-card w-full",
+  1166→                    activeChatId !== null
+  1167→                      ? "hidden md:flex md:w-[320px] md:shrink-0"
+  1168→                      : "flex md:w-[320px] md:shrink-0"
+  1169→                  )}>
+  1170→                    {/* Search bar */}
+  1171→                    <div className="border-b border-border bg-[#f0f2f5] p-2">
+  1172→                      <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 shadow-sm">
+  1173→                        <Search className="size-4 text-muted-foreground" />
+  1174→                        <input
+  1175→                          type="text"
+  1176→                          placeholder="Cari chat..."
+  1177→                          className="flex-1 bg-transparent text-sm outline-none"
+  1178→                        />
+  1179→                      </div>
+  1180→                    </div>
+  1181→                    {/* Conversation list */}
+  1182→                    <div className="flex-1 overflow-y-auto">
+  1183→                      {conversations.length === 0 ? (
+  1184→                        <div className="flex flex-col items-center justify-center py-16 text-center">
+  1185→                          <MessageSquare className="size-12 text-muted-foreground/30" />
+  1186→                          <p className="mt-3 text-sm font-semibold">Belum ada pesan</p>
+  1187→                          <p className="mt-1 text-xs text-muted-foreground">Pesan dari pembeli akan muncul di sini.</p>
+  1188→                          <Button variant="outline" size="sm" className="mt-3" onClick={() => { setPanel(null); goToListings({}); }}>
+  1189→                            Jelajahi iklan
+  1190→                          </Button>
+  1191→                        </div>
+  1192→                      ) : (
+  1193→                        conversations.map((c: any) => (
+  1194→                          <button
+  1195→                            key={c.id}
+  1196→                            onClick={() => openChat(c.id)}
+  1197→                            onContextMenu={(e) => handleConvContextMenu(e, c.id)}
+  1198→                            className={cn(
+  1199→                              "flex w-full items-center gap-3 px-3 py-2.5 text-left transition border-b border-border/30",
+  1200→                              activeChatId === c.id ? "bg-[#f0f2f5]" : "hover:bg-[#f5f6f6]"
+  1201→                            )}
+  1202→                          >
+  1203→                            <Avatar className="size-12 shrink-0 rounded-full">
+  1204→                              <AvatarFallback className="bg-[#075E54]/10 text-sm font-bold text-[#075E54]">
+  1205→                                {c.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+  1206→                              </AvatarFallback>
+  1207→                            </Avatar>
+  1208→                            <div className="min-w-0 flex-1">
+  1209→                              <div className="flex items-center justify-between gap-2">
+  1210→                                <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
+  1211→                                <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo(c.lastTime, mounted ? lang : "id")}</span>
+  1212→                              </div>
+  1213→                              <div className="flex items-center justify-between gap-2">
+  1214→                                <p className="truncate text-xs text-muted-foreground">{c.lastMessage}</p>
+  1215→                                {c.unread > 0 && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#25D366] text-[9px] font-bold text-white">{c.unread}</span>}
+  1216→                              </div>
+  1217→                              {c.listingTitle && <p className="mt-0.5 truncate text-[10px] text-[#075E54]">{c.listingTitle}</p>}
+  1218→                            </div>
+  1219→                          </button>
+  1220→                        ))
+  1221→                      )}
+  1222→                    </div>
+  1223→                  </div>
+  1224→                )}
+  1225→
+  1226→                {/* ===== Conversation context menu (right-click) ===== */}
+  1227→                {convMenu.visible && (
+  1228→                  <div
+  1229→                    className="fixed z-[100] min-w-[180px] overflow-hidden rounded-lg border border-border bg-card py-1 shadow-xl animate-fade-up"
+  1230→                    style={{ left: Math.min(convMenu.x, window.innerWidth - 200), top: Math.min(convMenu.y, window.innerHeight - 200) }}
+  1231→                    onClick={(e) => e.stopPropagation()}
+  1232→                  >
+  1233→                    <button
+  1234→                      onClick={handleBlockUser}
+  1235→                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition hover:bg-accent"
+  1236→                    >
+  1237→                      <Ban className="size-4" /> Blokir Pengguna
+  1238→                    </button>
+  1239→                    <button
+  1240→                      onClick={handleClearChat}
+  1241→                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground transition hover:bg-accent"
+  1242→                    >
+  1243→                      <Eraser className="size-4" /> Bersihkan Chat
+  1244→                    </button>
+  1245→                    <button
+  1246→                      onClick={handleDeleteChat}
+  1247→                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition hover:bg-accent"
+  1248→                    >
+  1249→                      <Trash2 className="size-4" /> Hapus Chat
+  1250→                    </button>
+  1251→                  </div>
+  1252→                )}
+  1253→
+  1254→                {/* ===== RIGHT: Chat view or placeholder (full pane on mobile when chat open) ===== */}
+  1255→                {panel === "pesan" && (
+  1256→                  <div className={cn(
+  1257→                    "flex-col bg-card w-full",
+  1258→                    // Mobile: full width when a chat is open; hidden when no chat (list is shown)
+  1259→                    // Desktop: flex-1 pane always visible
+  1260→                    activeChatId !== null
+  1261→                      ? "flex md:flex-1"
+  1262→                      : "hidden md:flex md:flex-1"
+  1263→                  )}>
+  1264→                    {activeChatId !== null ? (() => {
+  1265→                      const conv = conversations.find((c: any) => c.id === activeChatId);
+  1266→                      if (!conv) return null;
+  1267→                      const convo = chatMessages[activeChatId as any] || [];
+  1268→                      return (
+  1269→                        <>
+  1270→                          {/* Chat header — light gray, back arrow on mobile only */}
+  1271→                          <div className="flex items-center gap-2 border-b border-border bg-[#f0f2f5] p-2.5">
+  1272→                            <button
+  1273→                              onClick={() => setActiveChatId(null)}
+  1274→                              aria-label="Kembali"
+  1275→                              className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-black/5 md:hidden"
+  1276→                            >
+  1277→                              <ChevronLeft className="size-5" />
+  1278→                            </button>
+  1279→                            <Avatar className="size-9 shrink-0 rounded-full md:size-10">
+  1280→                              <AvatarFallback className="bg-[#075E54]/10 text-xs font-bold text-[#075E54]">
+  1281→                                {conv.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+  1282→                              </AvatarFallback>
+  1283→                            </Avatar>
+  1284→                            <div className="min-w-0 flex-1">
+  1285→                              <div className="flex items-center gap-1">
+  1286→                                <p className="truncate text-sm font-bold text-foreground">{conv.name}</p>
+  1287→                                <BadgeCheck className="size-3.5 shrink-0 text-[#075E54]" />
+  1288→                              </div>
+  1289→                              <p className="text-[10px] text-muted-foreground">online</p>
+  1290→                            </div>
+  1291→                          </div>
+  1292→                          {/* Messages — listing shown as a chat bubble (not a banner) */}
+  1293→                          <div
+  1294→                            ref={chatScrollRef}
+  1295→                            className="flex-1 space-y-1.5 overflow-y-auto p-4"
+  1296→                            style={{
+  1297→                              backgroundColor: "#e5ddd5",
+  1298→                              backgroundImage: "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.03) 1px, transparent 1px)",
+  1299→                              backgroundSize: "20px 20px",
+  1300→                            }}
+  1301→                          >
+  1302→                            <div className="flex justify-center py-1">
+  1303→                              <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">Hari ini</span>
+  1304→                            </div>
+  1305→                            {/* Listing as a chat bubble (left-aligned, from partner) */}
+  1306→                            {conv.listingTitle && (
+  1307→                              <div className="flex justify-start">
+  1308→                                <div className="max-w-[75%] overflow-hidden rounded-lg rounded-tl-sm bg-white shadow-sm">
+  1309→                                  {conv.listingImage ? (
+  1310→                                    <img src={conv.listingImage} alt={conv.listingTitle} className="max-h-44 w-full object-cover" />
+  1311→                                  ) : (
+  1312→                                    <div className="flex h-20 items-center justify-center bg-muted text-muted-foreground">
+  1313→                                      <Tag className="size-6" />
+  1314→                                    </div>
+  1315→                                  )}
+  1316→                                  <div className="p-2">
+  1317→                                    <p className="truncate text-xs font-semibold text-foreground">{conv.listingTitle}</p>
+  1318→                                    {conv.listingPrice != null && (
+  1319→                                      <p className="text-xs font-bold text-[#075E54]">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
+  1320→                                    )}
+  1321→                                    <span className="mt-0.5 block text-right text-[9px] text-muted-foreground/60">
+  1322→                                      {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+  1323→                                    </span>
+  1324→                                  </div>
+  1325→                                </div>
+  1326→                              </div>
+  1327→                            )}
+  1328→                            {/* Chat messages */}
+  1329→                            {convo.map((c, i) => {
+  1330→                              // Detect emoji-only messages (render big, WhatsApp-style)
+  1331→                              const isEmojiOnly = !!c.content && c.content.trim().length > 0 && /^[\s\p{Extended_Pictographic}\u200d\ufe0f]+$/u.test(c.content.trim()) && c.content.trim().length <= 12;
+  1332→                              return (
+  1333→                              <div key={i} className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
+  1334→                                <div
+  1335→                                  onContextMenu={(e) => { e.preventDefault(); setMsgMenu({ visible: true, x: e.clientX, y: e.clientY, msgIndex: i }); }}
+  1336→                                  onTouchStart={(e) => handleMsgLongPressStart(e, i)}
+  1337→                                  onTouchEnd={handleMsgLongPressEnd}
+  1338→                                  onTouchMove={handleMsgLongPressEnd}
+  1339→                                  onMouseDown={(e) => handleMsgLongPressStart(e, i)}
+  1340→                                  onMouseUp={handleMsgLongPressEnd}
+  1341→                                  onMouseLeave={handleMsgLongPressEnd}
+  1342→                                  className={cn(
+  1343→                                    "rounded-lg shadow-sm select-none",
+  1344→                                    isEmojiOnly
+  1345→                                      ? cn(
+  1346→                                          "px-2 py-1 bg-transparent shadow-none",
+  1347→                                          c.role === "user" ? "rounded-tr-sm" : "rounded-tl-sm"
+  1348→                                        )
+  1349→                                      : cn(
+  1350→                                          "max-w-[70%] px-3 py-2 text-sm",
+  1351→                                          c.role === "user"
+  1352→                                            ? "rounded-tr-sm bg-[#dcf8c6] text-foreground"
+  1353→                                            : "rounded-tl-sm bg-white text-foreground"
+  1354→                                        )
+  1355→                                  )}
+  1356→                                >
+  1357→                                  {c.image && (
+  1358→                                    <img
+  1359→                                      src={c.image}
+  1360→                                      alt="Gambar"
+  1361→                                      onClick={() => setLightbox(c.image!)}
+  1362→                                      className="mb-1 max-h-48 cursor-pointer rounded-md object-cover transition hover:opacity-90"
+  1363→                                    />
+  1364→                                  )}
+  1365→                                  {c.content && (
+  1366→                                    <p className={cn(
+  1367→                                      "whitespace-pre-wrap break-words",
+  1368→                                      isEmojiOnly ? "text-3xl leading-tight" : ""
+  1369→                                    )}>
+  1370→                                      {c.animation ? (
+  1371→                                        <span className="sticker-anim inline-block" data-anim={c.animation}>{c.content}</span>
+  1372→                                      ) : c.content}
+  1373→                                    </p>
+  1374→                                  )}
+  1375→                                  <span className={cn(
+  1376→                                    "block text-right text-[9px] text-muted-foreground/60",
+  1377→                                    isEmojiOnly ? "mt-1" : "mt-0.5"
+  1378→                                  )}>
+  1379→                                    {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+  1380→                                    {c.role === "user" && <span className="ml-1 text-blue-500">✓✓</span>}
+  1381→                                  </span>
+  1382→                                </div>
+  1383→                              </div>
+  1384→                              );
+  1385→                            })}
+  1386→                            {chatSending && (
+  1387→                              <div className="flex justify-start">
+  1388→                                <div className="flex items-center gap-1 rounded-lg rounded-tl-sm bg-white px-3 py-2.5 shadow-sm">
+  1389→                                  <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
+  1390→                                  <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
+  1391→                                  <span className="size-2 animate-bounce rounded-full bg-muted-foreground" />
+  1392→                                </div>
+  1393→                              </div>
+  1394→                            )}
+  1395→                          </div>
+  1396→                          {/* Image preview (before sending) */}
+  1397→                          {pendingImage && (
+  1398→                            <div className="flex items-center gap-2 border-t border-border bg-white p-2">
+  1399→                              <img src={pendingImage} alt="Preview" className="size-16 rounded-lg object-cover" />
+  1400→                              <button
+  1401→                                type="button"
+  1402→                                onClick={() => setPendingImage(null)}
+  1403→                                className="grid size-7 place-items-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80"
+  1404→                              >
+  1405→                                <XIcon className="size-4" />
+  1406→                              </button>
+  1407→                              <p className="text-xs text-muted-foreground">Gambar siap dikirim</p>
+  1408→                            </div>
+  1409→                          )}
+  1410→                          {/* Emoji picker popover — full emoji library (large native emoji, search, categories) */}
+  1411→                          {showEmoji && (
+  1412→                            <div className="border-t border-border bg-white">
+  1413→                              <EmojiPicker
+  1414→                                onEmojiClick={(emoji) => { setChatInput((prev) => prev + emoji.emoji); }}
+  1415→                                emojiStyle={EmojiStyle.NATIVE}
+  1416→                                theme={Theme.LIGHT}
+  1417→                                width="100%"
+  1418→                                height={280}
+  1419→                                previewConfig={{ showPreview: false }}
+  1420→                                searchPlaceHolder="Cari emoji..."
+  1421→                                lazyLoadEmojis
+  1422→                                skinTonesDisabled
+  1423→                              />
+  1424→                            </div>
+  1425→                          )}
+  1426→                          {/* GIF / Sticker picker popover — animated emoji stickers */}
+  1427→                          {showGifs && (
+  1428→                            <div className="flex h-[280px] flex-col border-t border-border bg-white">
+  1429→                              <div className="border-b border-border p-2">
+  1430→                                <input
+  1431→                                  type="text"
+  1432→                                  value={gifQuery}
+  1433→                                  onChange={(e) => setGifQuery(e.target.value)}
+  1434→                                  placeholder="Cari sticker (senang, sedih, halo, cinta, terima)..."
+  1435→                                  className="h-8 w-full rounded-lg border border-border bg-muted/30 px-3 text-sm outline-none focus:border-primary"
+  1436→                                />
+  1437→                              </div>
+  1438→                              <div className="flex-1 overflow-y-auto p-2">
+  1439→                                {gifLoading && gifResults.length === 0 ? (
+  1440→                                  <div className="grid place-items-center py-8 text-muted-foreground">
+  1441→                                    <Loader2 className="size-5 animate-spin" />
+  1442→                                    <p className="mt-2 text-xs">Memuat sticker...</p>
+  1443→                                  </div>
+  1444→                                ) : gifResults.length === 0 ? (
+  1445→                                  <div className="grid place-items-center py-8 text-center text-muted-foreground">
+  1446→                                    <Sticker className="size-8 text-muted-foreground/30" />
+  1447→                                    <p className="mt-2 text-xs">Tidak ada sticker ditemukan</p>
+  1448→                                  </div>
+  1449→                                ) : (
+  1450→                                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+  1451→                                    {gifResults.map((g) => (
+  1452→                                      <button
+  1453→                                        key={g.id}
+  1454→                                        type="button"
+  1455→                                        onClick={() => sendGif({ emoji: g.emoji, animation: g.animation })}
+  1456→                                        title={g.label}
+  1457→                                        className="group grid aspect-square place-items-center rounded-lg bg-muted/30 text-3xl transition hover:bg-primary/10 hover:scale-110"
+  1458→                                      >
+  1459→                                        <span className="sticker-anim" data-anim={g.animation}>{g.emoji}</span>
+  1460→                                      </button>
+  1461→                                    ))}
+  1462→                                  </div>
+  1463→                                )}
+  1464→                              </div>
+  1465→                            </div>
+  1466→                          )}
+  1467→                          {/* Hidden file input for image attachment (gallery) */}
+  1468→                          <input
+  1469→                            ref={fileInputRef}
+  1470→                            type="file"
+  1471→                            accept="image/*"
+  1472→                            onChange={handleImageSelect}
+  1473→                            className="hidden"
+  1474→                          />
+  1475→                          {/* Hidden file input for camera capture */}
+  1476→                          <input
+  1477→                            ref={cameraInputRef}
+  1478→                            type="file"
+  1479→                            accept="image/*"
+  1480→                            capture="environment"
+  1481→                            onChange={handleImageSelect}
+  1482→                            className="hidden"
+  1483→                          />
+  1484→                          {/* Input — emoji + text field with paperclip inside + send button */}
+  1485→                          <form
+  1486→                            onSubmit={(e) => { e.preventDefault(); sendChat(); }}
+  1487→                            className="flex items-center gap-1 bg-[#f0f2f5] p-2"
+  1488→                          >
+  1489→                            <button
+  1490→                              type="button"
+  1491→                              onClick={() => setShowEmoji((v) => !v)}
+  1492→                              aria-label="Emoji"
+  1493→                              className={cn(
+  1494→                                "grid size-10 shrink-0 place-items-center rounded-full hover:bg-black/5",
+  1495→                                showEmoji ? "text-[#075E54]" : "text-muted-foreground"
+  1496→                              )}
+  1497→                            >
+  1498→                              <Smile className="size-5" />
+  1499→                            </button>
+  1500→                            {/* Text field with paperclip + camera icons inside (right side) */}
+  1501→                            <div className="relative flex-1">
+  1502→                              <input
+  1503→                                value={chatInput}
+  1504→                                onChange={(e) => setChatInput(e.target.value)}
+  1505→                                placeholder="Tulis pesan..."
+  1506→                                className="h-10 w-full rounded-lg border border-transparent bg-white pr-20 pl-4 text-sm outline-none shadow-sm"
+  1507→                                disabled={chatSending}
+  1508→                              />
+  1509→                              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+  1510→                                <button
+  1511→                                  type="button"
+  1512→                                  onClick={() => fileInputRef.current?.click()}
+  1513→                                  aria-label="Lampirkan gambar"
+  1514→                                  className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+  1515→                                >
+  1516→                                  <Paperclip className="size-4" />
+  1517→                                </button>
+  1518→                                <button
+  1519→                                  type="button"
+  1520→                                  onClick={() => cameraInputRef.current?.click()}
+  1521→                                  aria-label="Buka kamera"
+  1522→                                  className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+  1523→                                >
+  1524→                                  <Camera className="size-4" />
+  1525→                                </button>
+  1526→                              </div>
+  1527→                            </div>
+  1528→                            <Button
+  1529→                              type="submit"
+  1530→                              size="icon"
+  1531→                              className="size-10 shrink-0 rounded-full bg-[#075E54] hover:bg-[#054c42]"
+  1532→                              disabled={chatSending || (!chatInput.trim() && !pendingImage)}
+  1533→                            >
+  1534→                              {chatSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 text-white" />}
+  1535→                            </Button>
+  1536→                          </form>
+  1537→                          {/* Message context menu (long-press / right-click) — delete */}
+  1538→                          {msgMenu.visible && (
+  1539→                            <>
+  1540→                              <div className="fixed inset-0 z-[70]" onClick={() => setMsgMenu({ visible: false, x: 0, y: 0, msgIndex: null })} />
+  1541→                              <div
+  1542→                                className="fixed z-[71] min-w-[160px] overflow-hidden rounded-lg border border-border bg-card py-1 shadow-xl animate-fade-up"
+  1543→                                style={{ left: Math.min(msgMenu.x, window.innerWidth - 180), top: Math.min(msgMenu.y, window.innerHeight - 100) }}
+  1544→                                onClick={(e) => e.stopPropagation()}
+  1545→                              >
+  1546→                                <button
+  1547→                                  onClick={deleteMessage}
+  1548→                                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition hover:bg-accent"
+  1549→                                >
+  1550→                                  <Trash2 className="size-4" /> Hapus Pesan
+  1551→                                </button>
+  1552→                              </div>
+  1553→                            </>
+  1554→                          )}
+  1555→                          {/* Image lightbox — click image to view full size */}
+  1556→                          {lightbox && (
+  1557→                            <div
+  1558→                              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-4"
+  1559→                              onClick={() => setLightbox(null)}
+  1560→                            >
+  1561→                              <button
+  1562→                                aria-label="Tutup"
+  1563→                                className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+  1564→                              >
+  1565→                                <XIcon className="size-6" />
+  1566→                              </button>
+  1567→                              <img
+  1568→                                src={lightbox}
+  1569→                                alt="Gambar besar"
+  1570→                                className="max-h-[90vh] max-w-full rounded-lg object-contain"
+  1571→                                onClick={(e) => e.stopPropagation()}
+  1572→                              />
+  1573→                            </div>
+  1574→                          )}
+  1575→                        </>
+  1576→                      );
+  1577→                    })() : (
+  1578→                      /* Placeholder when no chat selected */
+  1579→                      <div className="flex flex-1 flex-col items-center justify-center bg-[#f0f2f5]">
+  1580→                        <div className="text-center">
+  1581→                          <MessageCircle className="mx-auto size-16 text-muted-foreground/20" />
+  1582→                          <p className="mt-4 text-lg font-light text-muted-foreground">Gomesin Web</p>
+  1583→                          <p className="mt-1 text-xs text-muted-foreground/60">Pilih chat di sebelah kiri untuk mulai pesan</p>
+  1584→                          <p className="mt-1 text-[10px] text-muted-foreground/40">Pesan terenkripsi end-to-end</p>
+  1585→                        </div>
+  1586→                      </div>
+  1587→                    )}
+  1588→                  </div>
+  1589→                )}
+  1590→
+  1591→            {/* PESANAN */}
+  1592→            {panel === "pesanan" && (
+  1593→              <div className="space-y-3">
+  1594→                {orders.map((o) => (
+  1595→                  <div key={o.id} className="rounded-lg border border-border bg-card p-3">
+  1596→                    <div className="flex items-center justify-between gap-2">
+  1597→                      <p className="text-xs font-semibold text-muted-foreground">{o.id}</p>
+  1598→                      <span className={cn(
+  1599→                        "rounded-full px-2 py-0.5 text-[10px] font-bold",
+  1600→                        o.status === tr("profOrderSelesai") ? "bg-orange-100 text-orange-700" :
+  1601→                        o.status === tr("profOrderDiproses") ? "bg-amber-100 text-amber-700" :
+  1602→                        "bg-blue-100 text-blue-700"
+  1603→                      )}>{o.status}</span>
+  1604→                    </div>
+  1605→                    <p className="mt-1 text-sm font-semibold">{o.item}</p>
+  1606→                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+  1607→                      <span className="inline-flex items-center gap-1"><Clock className="size-3" /> {o.date}</span>
+  1608→                      <span className="font-bold text-foreground">{o.total}</span>
+  1609→                    </div>
+  1610→                  </div>
+  1611→                ))}
+  1612→                <Button variant="outline" className="mt-2 w-full" onClick={() => goToListings({})}>
+  1613→                  Lihat iklan lain
+  1614→                </Button>
+  1615→              </div>
+  1616→            )}
+  1617→
+  1618→            {/* RIWAYAT PEMBAYARAN — user-friendly: summary stats + filter tabs + card list */}
+  1619→            {panel === "saldo" && (() => {
+  1620→              const totalAdFee = myListings.reduce((sum: number, l: any) => sum + (paketMap[l.packageType]?.price ?? 0), 0);
+  1621→              const paidCount = myListings.filter((l: any) => l.paymentStatus === "paid").length;
+  1622→              const pendingCount = myListings.filter((l: any) => l.paymentStatus !== "paid").length;
+  1623→              const filtered = payFilter === "paid" ? myListings.filter((l: any) => l.paymentStatus === "paid")
+  1624→                : payFilter === "pending" ? myListings.filter((l: any) => l.paymentStatus !== "paid")
+  1625→                : myListings;
+  1626→              return (
+  1627→                <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-8">
+  1628→                  {/* Summary — 3 stat cards */}
+  1629→                  <div className="grid grid-cols-3 gap-3 md:gap-5">
+  1630→                    <div className="rounded-xl border border-border bg-card p-4 text-center md:p-6">
+  1631→                      <p className="text-xs text-muted-foreground md:text-base">Total Bayar</p>
+  1632→                      <p className="mt-1 text-lg font-extrabold text-primary md:text-3xl">Rp {totalAdFee.toLocaleString("id-ID")}</p>
+  1633→                    </div>
+  1634→                    <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center md:p-6">
+  1635→                      <p className="text-xs text-orange-700 md:text-base">Lunas</p>
+  1636→                      <p className="mt-1 text-lg font-extrabold text-orange-700 md:text-3xl">{paidCount}</p>
+  1637→                    </div>
+  1638→                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center md:p-6">
+  1639→                      <p className="text-xs text-amber-700 md:text-base">Pending</p>
+  1640→                      <p className="mt-1 text-lg font-extrabold text-amber-700 md:text-3xl">{pendingCount}</p>
+  1641→                    </div>
+  1642→                  </div>
+  1643→
+  1644→                  {/* Filter tabs + view toggle */}
+  1645→                  {myAdsCount > 0 && (
+  1646→                    <div className="flex items-center justify-between">
+  1647→                      <div className="flex flex-wrap gap-2">
+  1648→                        {[
+  1649→                          { v: "all", l: `Semua (${myAdsCount})` },
+  1650→                          { v: "paid", l: `Lunas (${paidCount})` },
+  1651→                          { v: "pending", l: `Pending (${pendingCount})` },
+  1652→                        ].map((t) => (
+  1653→                          <button
+  1654→                            key={t.v}
+  1655→                            onClick={() => setPayFilter(t.v as any)}
+  1656→                            className={cn(
+  1657→                              "rounded-full px-3 py-1.5 text-xs font-medium transition md:text-sm",
+  1658→                              payFilter === t.v
+  1659→                                ? "bg-primary text-primary-foreground shadow-sm"
+  1660→                                : "border border-border bg-card text-muted-foreground hover:bg-accent"
+  1661→                            )}
+  1662→                          >
+  1663→                            {t.l}
+  1664→                          </button>
+  1665→                        ))}
+  1666→                      </div>
+  1667→                      <div className="flex items-center gap-2">
+  1668→                        <div className="flex overflow-hidden rounded-lg border border-border">
+  1669→                          <button type="button" onClick={() => setPayViewMode("grid")}
+  1670→                            className={cn("grid size-8 place-items-center transition", payViewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1671→                            aria-label="Grid"><LayoutGrid className="size-4" /></button>
+  1672→                          <button type="button" onClick={() => setPayViewMode("line")}
+  1673→                            className={cn("grid size-8 place-items-center border-l border-border transition", payViewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1674→                            aria-label="Line"><List className="size-4" /></button>
+  1675→                        </div>
+  1676→                      </div>
+  1677→                    </div>
+  1678→                  )}
+  1679→
+  1680→                  {/* Listing cards — grid 2 col mobile, 3 col tablet, 4-5 col desktop */}
+  1681→                  <div>
+  1682→                    {myAdsCount > 0 ? (
+  1683→                      payViewMode === "grid" ? (
+  1684→                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+  1685→                        {filtered.map((l: any) => {
+  1686→                          let imgs: string[] = [];
+  1687→                          try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
+  1688→                          const pkgName = l.packageType === "spotlight" ? "Titanium" : l.packageType === "highlight" ? "Platinum" : l.packageType === "sundul" ? "Colek" : "Gold";
+  1689→                          const pkgColor = l.packageType === "spotlight" ? "bg-amber-100 text-amber-700" : l.packageType === "highlight" ? "bg-orange-100 text-orange-700" : l.packageType === "sundul" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
+  1690→                          const isPaid = l.paymentStatus === "paid";
+  1691→                          return (
+  1692→                            <div key={l.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:shadow-md">
+  1693→                              {/* Image — top, full width */}
+  1694→                              <div className="relative aspect-video w-full overflow-hidden bg-muted">
+  1695→                                {imgs[0] ? (
+  1696→                                  <img src={imgs[0]} alt={l.title} className="size-full object-cover" />
+  1697→                                ) : (
+  1698→                                  <div className="grid size-full place-items-center text-muted-foreground"><Tag className="size-10" /></div>
+  1699→                                )}
+  1700→                                <span className={cn(
+  1701→                                  "absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold shadow md:text-xs",
+  1702→                                  pkgColor
+  1703→                                )}>{pkgName}</span>
+  1704→                                <span className={cn(
+  1705→                                  "absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold shadow md:text-xs",
+  1706→                                  isPaid ? "bg-orange-500 text-white" : "bg-amber-500 text-white"
+  1707→                                )}>
+  1708→                                  {isPaid ? <CheckCircle2 className="size-3" /> : <Clock className="size-3" />}
+  1709→                                  {isPaid ? "Lunas" : "Pending"}
+  1710→                                </span>
+  1711→                              </div>
+  1712→                              {/* Info — bottom */}
+  1713→                              <div className="flex flex-col p-3 md:p-4">
+  1714→                                <p className="line-clamp-2 text-sm font-bold leading-tight md:text-base">{l.title}</p>
+  1715→                                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+  1716→                                  <Clock className="size-3" />
+  1717→                                  {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+  1718→                                </p>
+  1719→                                <div className="mt-2 flex items-end justify-between border-t border-border/50 pt-2">
+  1720→                                  <p className="text-[10px] text-muted-foreground md:text-xs">Harga Iklan</p>
+  1721→                                  <p className="text-base font-extrabold text-primary md:text-lg">{formatAdFee(l.packageType)}</p>
+  1722→                                </div>
+  1723→                              </div>
+  1724→                            </div>
+  1725→                          );
+  1726→                        })}
+  1727→                        {filtered.length === 0 && (
+  1728→                          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+  1729→                            <p className="text-sm text-muted-foreground">Tidak ada iklan dengan status ini.</p>
+  1730→                          </div>
+  1731→                        )}
+  1732→                      </div>
+  1733→                      ) : (
+  1734→                      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+  1735→                        <table className="w-full min-w-[480px]">
+  1736→                          <thead>
+  1737→                            <tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+  1738→                              <th className="p-2">Iklan</th>
+  1739→                              <th className="p-2">Paket</th>
+  1740→                              <th className="hidden p-2 sm:table-cell">Tanggal</th>
+  1741→                              <th className="p-2 text-right">Harga Iklan</th>
+  1742→                              <th className="p-2 text-center">Status</th>
+  1743→                            </tr>
+  1744→                          </thead>
+  1745→                          <tbody>
+  1746→                            {filtered.map((l: any) => {
+  1747→                              let imgs: string[] = [];
+  1748→                              try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}
+  1749→                              const pkgName = l.packageType === "spotlight" ? "Titanium" : l.packageType === "highlight" ? "Platinum" : l.packageType === "sundul" ? "Colek" : "Gold";
+  1750→                              const pkgColor = l.packageType === "spotlight" ? "bg-amber-100 text-amber-700" : l.packageType === "highlight" ? "bg-orange-100 text-orange-700" : l.packageType === "sundul" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
+  1751→                              const isPaid = l.paymentStatus === "paid";
+  1752→                              return (
+  1753→                                <tr key={l.id} className="border-b border-border transition hover:bg-accent/30">
+  1754→                                  <td className="p-2">
+  1755→                                    <div className="flex items-center gap-2">
+  1756→                                      {imgs[0] ? <img src={imgs[0]} alt="" className="size-10 shrink-0 rounded-lg object-cover" /> : <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted"><Tag className="size-4 text-muted-foreground" /></div>}
+  1757→                                      <p className="line-clamp-1 text-xs font-semibold">{l.title}</p>
+  1758→                                    </div>
+  1759→                                  </td>
+  1760→                                  <td className="p-2"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", pkgColor)}>{pkgName}</span></td>
+  1761→                                  <td className="hidden p-2 text-xs text-muted-foreground sm:table-cell">{new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</td>
+  1762→                                  <td className="p-2 text-right text-xs font-bold text-primary">{formatAdFee(l.packageType)}</td>
+  1763→                                  <td className="p-2 text-center"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>{isPaid ? "Lunas" : "Pending"}</span></td>
+  1764→                                </tr>
+  1765→                              );
+  1766→                            })}
+  1767→                            {filtered.length === 0 && (
+  1768→                              <tr><td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">Tidak ada iklan dengan status ini.</td></tr>
+  1769→                            )}
+  1770→                          </tbody>
+  1771→                        </table>
+  1772→                      </div>
+  1773→                      )
+  1774→                    ) : (
+  1775→                      <div className="rounded-xl border border-dashed border-border p-10 text-center">
+  1776→                        <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted">
+  1777→                          <Tag className="size-7 text-muted-foreground/50" />
+  1778→                        </div>
+  1779→                        <p className="mt-3 text-base font-semibold">Belum ada iklan dipasang</p>
+  1780→                        <p className="mt-1 text-sm text-muted-foreground">Pasang iklan pertama Anda dan riwayat pembayaran akan muncul di sini.</p>
+  1781→                        <Button className="mt-4 gap-1.5" onClick={goToPost}>
+  1782→                          <Plus className="size-4" /> Pasang Iklan
+  1783→                        </Button>
+  1784→                      </div>
+  1785→                    )}
+  1786→                  </div>
+  1787→                </div>
+  1788→              );
+  1789→            })()}
+  1790→
+  1791→            {/* NOTIFIKASI */}
+  1792→            {panel === "notifikasi" && (() => {
+  1793→              const unreadCount = notifications.filter((n) => n.unread).length;
+  1794→              return (
+  1795→                <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-8">
+  1796→                  {/* Header */}
+  1797→                  <div className="flex items-center justify-between">
+  1798→                    <div>
+  1799→                      <p className="text-base font-bold md:text-lg">Notifikasi</p>
+  1800→                      <p className="text-sm text-muted-foreground">{unreadCount} belum dibaca dari {notifications.length} total</p>
+  1801→                    </div>
+  1802→                    {unreadCount > 0 && (
+  1803→                      <Button variant="outline" size="sm" onClick={() => { toast.success("Semua notifikasi ditandai dibaca"); }}>
+  1804→                        Tandai dibaca
+  1805→                      </Button>
+  1806→                    )}
+  1807→                  </div>
+  1808→
+  1809→                  {/* Notification list */}
+  1810→                  {notifications.length > 0 ? (
+  1811→                    <div className="space-y-2">
+  1812→                      {notifications.map((n) => (
+  1813→                        <div key={n.id} className={cn(
+  1814→                          "flex items-start gap-3 rounded-xl border bg-card p-4 transition hover:shadow-sm md:p-5",
+  1815→                          n.unread ? "border-primary/30 bg-primary/5" : "border-border"
+  1816→                        )}>
+  1817→                          <span className={cn("grid size-10 shrink-0 place-items-center rounded-lg bg-muted md:size-12", n.color)}>
+  1818→                            <n.icon className="size-5 md:size-6" />
+  1819→                          </span>
+  1820→                          <div className="min-w-0 flex-1">
+  1821→                            <div className="flex items-center justify-between gap-2">
+  1822→                              <p className="text-sm font-semibold md:text-base">{n.title}</p>
+  1823→                              <span className="shrink-0 text-[10px] text-muted-foreground md:text-xs">{n.time}</span>
+  1824→                            </div>
+  1825→                            <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{n.desc}</p>
+  1826→                          </div>
+  1827→                          {n.unread && (
+  1828→                            <span className="mt-1 size-2.5 shrink-0 rounded-full bg-primary" />
+  1829→                          )}
+  1830→                        </div>
+  1831→                      ))}
+  1832→                    </div>
+  1833→                  ) : (
+  1834→                    <div className="rounded-xl border border-dashed border-border p-10 text-center">
+  1835→                      <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted">
+  1836→                        <Bell className="size-7 text-muted-foreground/50" />
+  1837→                      </div>
+  1838→                      <p className="mt-3 text-base font-semibold">Belum ada notifikasi</p>
+  1839→                      <p className="mt-1 text-sm text-muted-foreground">Notifikasi tentang pesan, iklan, dan pembayaran akan muncul di sini.</p>
+  1840→                    </div>
+  1841→                  )}
+  1842→                </div>
+  1843→              );
+  1844→            })()}
+  1845→
+  1846→            {/* KEAMANAN */}
+  1847→            {panel === "keamanan" && (() => {
+  1848→              // Security score calculation
+  1849→              const checks = [
+  1850→                { label: tr("profEmailVerified"), passed: !!user?.email },
+  1851→                { label: tr("profPhoneVerified"), passed: !!user?.phone },
+  1852→                { label: tr("prof2FA"), passed: twoFAEnabled },
+  1853→                { label: tr("profLoginAlertsOn"), passed: loginAlerts },
+  1854→              ];
+  1855→              const score = Math.round((checks.filter((c) => c.passed).length / checks.length) * 100);
+  1856→              const scoreColor = score >= 75 ? "text-orange-600" : score >= 50 ? "text-amber-600" : "text-red-600";
+  1857→              const scoreBg = score >= 75 ? "[&>div]:bg-orange-500" : score >= 50 ? "[&>div]:bg-amber-500" : "[&>div]:bg-red-500";
+  1858→              const loginHistory = [
+  1859→                { device: "Chrome — Windows", loc: "Jakarta, ID", time: tr("profTimeNow"), current: true, ip: "103.10.x.x" },
+  1860→                { device: "Safari — iPhone", loc: "Jakarta, ID", time: tr("profTime2h"), current: false, ip: "103.10.x.x" },
+  1861→                { device: "Chrome — Android", loc: "Bandung, ID", time: tr("profTimeYesterday"), current: false, ip: "36.71.x.x" },
+  1862→              ];
+  1863→
+  1864→              return (
+  1865→                <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
+  1866→                  {/* Security Score Card */}
+  1867→                  <div className="rounded-xl border border-border bg-gradient-to-br from-primary/5 to-orange-500/5 p-5 md:p-6">
+  1868→                    <div className="flex items-center justify-between">
+  1869→                      <div className="flex items-center gap-3">
+  1870→                        <span className={cn("grid size-12 place-items-center rounded-lg bg-card shadow-sm md:size-14", scoreColor)}>
+  1871→                          <Shield className="size-6 md:size-7" />
+  1872→                        </span>
+  1873→                        <div>
+  1874→                          <p className="text-base font-bold md:text-lg">Skor Keamanan</p>
+  1875→                          <p className="text-sm text-muted-foreground md:text-base">{score >= 75 ? "Akun terlindungi" : score >= 50 ? "Cukup aman" : "Perlu diperkuat"}</p>
+  1876→                        </div>
+  1877→                      </div>
+  1878→                      <span className={cn("text-3xl font-extrabold md:text-4xl", scoreColor)}>{score}%</span>
+  1879→                    </div>
+  1880→                    <Progress value={score} className={cn("mt-4 h-2.5 md:h-3", scoreBg)} />
+  1881→                    <div className="mt-4 grid grid-cols-2 gap-2">
+  1882→                      {checks.map((c, i) => (
+  1883→                        <div key={i} className="flex items-center gap-2 text-sm md:text-base">
+  1884→                          {c.passed ? (
+  1885→                            <CheckCircle2 className="size-4 shrink-0 text-orange-500 md:size-5" />
+  1886→                          ) : (
+  1887→                            <AlertTriangle className="size-4 shrink-0 text-amber-500 md:size-5" />
+  1888→                          )}
+  1889→                          <span className={c.passed ? "text-foreground" : "text-muted-foreground"}>{c.label}</span>
+  1890→                        </div>
+  1891→                      ))}
+  1892→                    </div>
+  1893→                  </div>
+  1894→
+  1895→                  {/* Change Password */}
+  1896→                  <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+  1897→                    <button
+  1898→                      onClick={() => setShowPasswordForm(!showPasswordForm)}
+  1899→                      className="flex w-full items-center gap-3 text-left"
+  1900→                    >
+  1901→                      <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+  1902→                        <KeyRound className="size-5 md:size-6" />
+  1903→                      </span>
+  1904→                      <div className="min-w-0 flex-1">
+  1905→                        <p className="text-base font-semibold md:text-lg">Ubah Kata Sandi</p>
+  1906→                        <p className="truncate text-sm text-muted-foreground md:text-base">Perbarui kata sandi akun Anda</p>
+  1907→                      </div>
+  1908→                      <ChevronRight className={cn("size-5 text-muted-foreground transition md:size-6", showPasswordForm && "rotate-90")} />
+  1909→                    </button>
+  1910→                    {showPasswordForm && (
+  1911→                      <div className="mt-4 space-y-3 border-t border-border pt-4">
+  1912→                        <div className="space-y-1">
+  1913→                          <Label className="text-sm text-muted-foreground md:text-base">Kata Sandi Lama</Label>
+  1914→                          <Input
+  1915→                            type="password"
+  1916→                            value={currentPass}
+  1917→                            onChange={(e) => setCurrentPass(e.target.value)}
+  1918→                            placeholder="••••••••"
+  1919→                            className="h-10 text-sm md:h-11 md:text-base"
+  1920→                          />
+  1921→                        </div>
+  1922→                        <div className="space-y-1">
+  1923→                          <Label className="text-sm text-muted-foreground md:text-base">Kata Sandi Baru</Label>
+  1924→                          <Input
+  1925→                            type="password"
+  1926→                            value={newPass}
+  1927→                            onChange={(e) => setNewPass(e.target.value)}
+  1928→                            placeholder="Min. 6 karakter"
+  1929→                            className="h-10 text-sm md:h-11 md:text-base"
+  1930→                          />
+  1931→                        </div>
+  1932→                        <div className="space-y-1">
+  1933→                          <Label className="text-sm text-muted-foreground md:text-base">Ulangi Kata Sandi Baru</Label>
+  1934→                          <Input
+  1935→                            type="password"
+  1936→                            value={confirmPass}
+  1937→                            onChange={(e) => setConfirmPass(e.target.value)}
+  1938→                            placeholder="Ulangi kata sandi baru"
+  1939→                            className="h-10 text-sm md:h-11 md:text-base"
+  1940→                          />
+  1941→                          {confirmPass && newPass !== confirmPass && (
+  1942→                            <p className="text-sm text-destructive md:text-base">Kata sandi tidak cocok</p>
+  1943→                          )}
+  1944→                        </div>
+  1945→                        <Button
+  1946→                          className="w-full md:h-11"
+  1947→                          disabled={savingPass || !currentPass || !newPass || newPass !== confirmPass}
+  1948→                          onClick={async () => {
+  1949→                            if (!user?.id) return;
+  1950→                            setSavingPass(true);
+  1951→                            try {
+  1952→                              const res = await fetch("/api/auth/password", {
+  1953→                                method: "PATCH",
+  1954→                                headers: { "Content-Type": "application/json" },
+  1955→                                body: JSON.stringify({
+  1956→                                  userId: user.id,
+  1957→                                  currentPassword: currentPass,
+  1958→                                  newPassword: newPass,
+  1959→                                }),
+  1960→                              });
+  1961→                              const data = await res.json();
+  1962→                              if (!res.ok) {
+  1963→                                toast.error(data.error || tr("profPasswordChangeFailed"));
+  1964→                                return;
+  1965→                              }
+  1966→                              toast.success(tr("profPasswordChanged"));
+  1967→                              setShowPasswordForm(false);
+  1968→                              setCurrentPass("");
+  1969→                              setNewPass("");
+  1970→                              setConfirmPass("");
+  1971→                            } catch {
+  1972→                              toast.error(tr("profConnectionFailed"));
+  1973→                            } finally {
+  1974→                              setSavingPass(false);
+  1975→                            }
+  1976→                          }}
+  1977→                        >
+  1978→                          {savingPass ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
+  1979→                          {savingPass ? tr("profSaving") : tr("profChangePassword")}
+  1980→                        </Button>
+  1981→                      </div>
+  1982→                    )}
+  1983→                  </div>
+  1984→
+  1985→                  {/* 2FA Toggle */}
+  1986→                  <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5 md:p-6">
+  1987→                    <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+  1988→                      <Smartphone className="size-5 md:size-6" />
+  1989→                    </span>
+  1990→                    <div className="min-w-0 flex-1">
+  1991→                      <p className="text-base font-semibold md:text-lg">Autentikasi Dua Faktor</p>
+  1992→                      <p className="truncate text-sm text-muted-foreground md:text-base">
+  1993→                        {twoFAEnabled ? tr("prof2FAOn") : tr("prof2FAOff")}
+  1994→                      </p>
+  1995→                    </div>
+  1996→                    <Switch
+  1997→                      checked={twoFAEnabled}
+  1998→                      onCheckedChange={(v) => {
+  1999→                        setTwoFAEnabled(v);
+  2000→                        toast.success(v ? "2FA berhasil diaktifkan" : "2FA dinonaktifkan");
+  2001→                      }}
+  2002→                    />
+  2003→                  </div>
+  2004→
+  2005→                  {/* Login Alerts Toggle */}
+  2006→                  <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5 md:p-6">
+  2007→                    <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+  2008→                      <BellRing className="size-5 md:size-6" />
+  2009→                    </span>
+  2010→                    <div className="min-w-0 flex-1">
+  2011→                      <p className="text-base font-semibold md:text-lg">Notifikasi Login</p>
+  2012→                      <p className="truncate text-sm text-muted-foreground md:text-base">
+  2013→                        {loginAlerts ? tr("profAlertsOn") : tr("profAlertsOff")}
+  2014→                      </p>
+  2015→                    </div>
+  2016→                    <Switch
+  2017→                      checked={loginAlerts}
+  2018→                      onCheckedChange={(v) => {
+  2019→                        setLoginAlerts(v);
+  2020→                        toast.success(v ? tr("profLoginAlertsEnabled") : tr("profLoginAlertsDisabled"));
+  2021→                      }}
+  2022→                    />
+  2023→                  </div>
+  2024→
+  2025→                  {/* Email & Phone Verification Status */}
+  2026→                  <div className="grid gap-3 sm:grid-cols-2">
+  2027→                    <div className={cn("flex items-center gap-3 rounded-xl border p-4 md:p-5", user?.email ? "border-orange-200 bg-orange-50" : "border-amber-200 bg-amber-50")}>
+  2028→                      <Mail className={cn("size-5 shrink-0 md:size-6", user?.email ? "text-orange-600" : "text-amber-600")} />
+  2029→                      <div className="min-w-0">
+  2030→                        <p className="text-sm font-semibold md:text-base">Email</p>
+  2031→                        <p className={cn("truncate text-xs md:text-sm", user?.email ? "text-orange-700" : "text-amber-700")}>
+  2032→                          {user?.email ? tr("profVerified") : tr("profNotVerified")}
+  2033→                        </p>
+  2034→                      </div>
+  2035→                      <CheckCircle2 className={cn("ml-auto size-5 shrink-0 md:size-6", user?.email ? "text-orange-600" : "text-amber-600/40")} />
+  2036→                    </div>
+  2037→                    <div className={cn("flex items-center gap-3 rounded-xl border p-4 md:p-5", user?.phone ? "border-orange-200 bg-orange-50" : "border-amber-200 bg-amber-50")}>
+  2038→                      <Smartphone className={cn("size-5 shrink-0 md:size-6", user?.phone ? "text-orange-600" : "text-amber-600")} />
+  2039→                      <div className="min-w-0">
+  2040→                        <p className="text-sm font-semibold md:text-base">Nomor HP</p>
+  2041→                        <p className={cn("truncate text-xs md:text-sm", user?.phone ? "text-orange-700" : "text-amber-700")}>
+  2042→                          {user?.phone ? tr("profVerified") : tr("profNotVerified")}
+  2043→                        </p>
+  2044→                      </div>
+  2045→                      <CheckCircle2 className={cn("ml-auto size-5 shrink-0 md:size-6", user?.phone ? "text-orange-600" : "text-amber-600/40")} />
+  2046→                    </div>
+  2047→                  </div>
+  2048→
+  2049→                  {/* Login History */}
+  2050→                  <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+  2051→                    <button
+  2052→                      onClick={() => setShowLoginHistory(!showLoginHistory)}
+  2053→                      className="flex w-full items-center gap-3 text-left"
+  2054→                    >
+  2055→                      <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary md:size-12">
+  2056→                        <Monitor className="size-5 md:size-6" />
+  2057→                      </span>
+  2058→                      <div className="min-w-0 flex-1">
+  2059→                        <p className="text-base font-semibold md:text-lg">Riwayat Login</p>
+  2060→                        <p className="truncate text-sm text-muted-foreground md:text-base">Lihat aktivitas login akun</p>
+  2061→                      </div>
+  2062→                      <ChevronRight className={cn("size-5 text-muted-foreground transition md:size-6", showLoginHistory && "rotate-90")} />
+  2063→                    </button>
+  2064→                    {showLoginHistory && (
+  2065→                      <div className="mt-4 space-y-2.5 border-t border-border pt-4">
+  2066→                        {loginHistory.map((h, i) => (
+  2067→                          <div key={i} className={cn("flex items-start gap-3 rounded-lg p-3 md:p-4", h.current ? "bg-orange-50" : "bg-secondary/40")}>
+  2068→                            <Monitor className="mt-0.5 size-5 shrink-0 text-muted-foreground md:size-6" />
+  2069→                            <div className="min-w-0 flex-1">
+  2070→                              <div className="flex items-center gap-2">
+  2071→                                <p className="text-sm font-semibold md:text-base">{h.device}</p>
+  2072→                                {h.current && (
+  2073→                                  <span className="rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white md:text-xs">SEKARANG</span>
+  2074→                                )}
+  2075→                              </div>
+  2076→                              <p className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
+  2077→                                <MapPin className="size-3.5" /> {h.loc} · {h.ip}
+  2078→                              </p>
+  2079→                            </div>
+  2080→                            <span className="shrink-0 text-xs text-muted-foreground md:text-sm">{h.time}</span>
+  2081→                          </div>
+  2082→                        ))}
+  2083→                        <Button variant="ghost" className="w-full text-destructive hover:bg-destructive/5" onClick={() => toast.success("Semua sesi lain telah diakhiri")}>
+  2084→                          <LogOut className="size-4" /> Akhiri Semua Sesi Lain
+  2085→                        </Button>
+  2086→                      </div>
+  2087→                    )}
+  2088→                  </div>
+  2089→                </div>
+  2090→              );
+  2091→            })()}
+  2092→
+  2093→            {/* PENGATURAN */}
+  2094→            {panel === "pengaturan" && (
+  2095→              <div className="mx-auto max-w-5xl space-y-3 p-0 md:space-y-5 md:p-8">
+  2096→                {/* Banner & Logo upload */}
+  2097→                <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+  2098→                  <p className="mb-4 text-base font-bold md:text-lg">Banner &amp; Logo Perusahaan</p>
+  2099→                  <p className="mb-4 text-xs text-muted-foreground">Unggah banner dan logo yang akan tampil di halaman penjual iklan Anda dan dashboard iklan.</p>
+  2100→
+  2101→                  {/* Banner preview + upload */}
+  2102→                  <div className="mb-5">
+  2103→                    <Label className="mb-1.5 block text-sm text-muted-foreground">Banner (16:5 / 16:4)</Label>
+  2104→                    <div className="relative aspect-[16/5] w-full overflow-hidden rounded-lg border-2 border-dashed border-border bg-muted">
+  2105→                      {pendingBanner ? (
+  2106→                        <img src={pendingBanner} alt="Banner" className="size-full object-cover" />
+  2107→                      ) : user?.bannerImage ? (
+  2108→                        <img src={user.bannerImage} alt="Banner" className="size-full object-cover" />
+  2109→                      ) : (
+  2110→                        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+  2111→                          <ImageIcon className="mr-1 size-4" /> Belum ada banner
+  2112→                        </div>
+  2113→                      )}
+  2114→                      {pendingBanner && (
+  2115→                        <span className="absolute right-2 top-2 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">Belum disimpan</span>
+  2116→                      )}
+  2117→                    </div>
+  2118→                    <input
+  2119→                      type="file"
+  2120→                      accept="image/*"
+  2121→                      className="hidden"
+  2122→                      id="upload-banner"
+  2123→                      onChange={async (e) => {
+  2124→                        const file = e.target.files?.[0];
+  2125→                        if (!file) return;
+  2126→                        setBannerUploading(true);
+  2127→                        try {
+  2128→                          const compressed = await compressBannerImage(file, true);
+  2129→                          if (!compressed) { toast.error("Gagal kompres banner"); return; }
+  2130→                          setPendingBanner(compressed);
+  2131→                          toast.success("Banner siap disimpan");
+  2132→                        } catch (err: any) { toast.error("Gagal upload banner: " + (err?.message || "")); }
+  2133→                        finally { setBannerUploading(false); }
+  2134→                        e.target.value = "";
+  2135→                      }}
+  2136→                    />
+  2137→                    <div className="mt-2 flex flex-wrap gap-2">
+  2138→                      <Button
+  2139→                        type="button"
+  2140→                        variant="outline"
+  2141→                        size="sm"
+  2142→                        className="gap-1.5"
+  2143→                        disabled={bannerUploading}
+  2144→                        onClick={() => document.getElementById("upload-banner")?.click()}
+  2145→                      >
+  2146→                        {bannerUploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+  2147→                        {bannerUploading ? "Mengunggah..." : user?.bannerImage || pendingBanner ? "Ganti Banner" : "Unggah Banner"}
+  2148→                      </Button>
+  2149→                      {pendingBanner && (
+  2150→                        <Button
+  2151→                          type="button"
+  2152→                          size="sm"
+  2153→                          className="gap-1.5"
+  2154→                          disabled={bannerUploading}
+  2155→                          onClick={async () => {
+  2156→                            if (!user?.id || !pendingBanner) return;
+  2157→                            setBannerUploading(true);
+  2158→                            try {
+  2159→                              const res = await fetch("/api/upload-banner", {
+  2160→                                method: "POST",
+  2161→                                headers: { "Content-Type": "application/json" },
+  2162→                                body: JSON.stringify({ image: pendingBanner }),
+  2163→                              });
+  2164→                              const data = await res.json();
+  2165→                              if (!res.ok || !data.url) { toast.error(data.error || "Gagal upload banner"); return; }
+  2166→                              const pres = await fetch("/api/auth/profile", {
+  2167→                                method: "PATCH",
+  2168→                                headers: { "Content-Type": "application/json" },
+  2169→                                body: JSON.stringify({ userId: user.id, bannerImage: data.url }),
+  2170→                              });
+  2171→                              const pdata = await pres.json();
+  2172→                              if (pres.ok && pdata.user) { setUser(pdata.user); setPendingBanner(null); toast.success("Banner disimpan"); }
+  2173→                              else { toast.error(pdata.error || "Gagal simpan banner"); }
+  2174→                            } catch { toast.error("Gagal simpan banner"); }
+  2175→                            finally { setBannerUploading(false); }
+  2176→                          }}
+  2177→                        >
+  2178→                          {bannerUploading ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+  2179→                          Simpan Banner
+  2180→                        </Button>
+  2181→                      )}
+  2182→                      {(user?.bannerImage || pendingBanner) && (
+  2183→                        <Button
+  2184→                          type="button"
+  2185→                          variant="outline"
+  2186→                          size="sm"
+  2187→                          className="gap-1.5 text-destructive hover:bg-destructive/5"
+  2188→                          disabled={bannerUploading}
+  2189→                          onClick={async () => {
+  2190→                            if (!user?.id) return;
+  2191→                            setBannerUploading(true);
+  2192→                            try {
+  2193→                              const pres = await fetch("/api/auth/profile", {
+  2194→                                method: "PATCH",
+  2195→                                headers: { "Content-Type": "application/json" },
+  2196→                                body: JSON.stringify({ userId: user.id, bannerImage: null }),
+  2197→                              });
+  2198→                              const pdata = await pres.json();
+  2199→                              if (pres.ok && pdata.user) { setUser(pdata.user); setPendingBanner(null); toast.success("Banner dihapus"); }
+  2200→                              else { toast.error("Gagal hapus banner"); }
+  2201→                            } catch { toast.error("Gagal hapus banner"); }
+  2202→                            finally { setBannerUploading(false); }
+  2203→                          }}
+  2204→                        >
+  2205→                          <Trash2 className="size-4" />
+  2206→                          Hapus
+  2207→                        </Button>
+  2208→                      )}
+  2209→                    </div>
+  2210→                  </div>
+  2211→
+  2212→                  {/* Logo preview + upload */}
+  2213→                  <div>
+  2214→                    <Label className="mb-1.5 block text-sm text-muted-foreground">Logo Perusahaan (kotak)</Label>
+  2215→                    <div className="relative size-24 overflow-hidden rounded-lg border-2 border-dashed border-border bg-muted">
+  2216→                      {pendingLogo ? (
+  2217→                        <img src={pendingLogo} alt="Logo" className="size-full object-cover" />
+  2218→                      ) : user?.logoImage ? (
+  2219→                        <img src={user.logoImage} alt="Logo" className="size-full object-cover" />
+  2220→                      ) : (
+  2221→                        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+  2222→                          <ImageIcon className="size-5" />
+  2223→                        </div>
+  2224→                      )}
+  2225→                      {pendingLogo && (
+  2226→                        <span className="absolute right-1 top-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">Belum disimpan</span>
+  2227→                      )}
+  2228→                    </div>
+  2229→                    <input
+  2230→                      type="file"
+  2231→                      accept="image/*"
+  2232→                      className="hidden"
+  2233→                      id="upload-logo"
+  2234→                      onChange={async (e) => {
+  2235→                        const file = e.target.files?.[0];
+  2236→                        if (!file) return;
+  2237→                        setLogoUploading(true);
+  2238→                        try {
+  2239→                          const compressed = await compressBannerImage(file, false);
+  2240→                          if (!compressed) { toast.error("Gagal kompres logo"); return; }
+  2241→                          setPendingLogo(compressed);
+  2242→                          toast.success("Logo siap disimpan");
+  2243→                        } catch (err: any) { toast.error("Gagal upload logo: " + (err?.message || "")); }
+  2244→                        finally { setLogoUploading(false); }
+  2245→                        e.target.value = "";
+  2246→                      }}
+  2247→                    />
+  2248→                    <div className="mt-2 flex flex-wrap gap-2">
+  2249→                      <Button
+  2250→                        type="button"
+  2251→                        variant="outline"
+  2252→                        size="sm"
+  2253→                        className="gap-1.5"
+  2254→                        disabled={logoUploading}
+  2255→                        onClick={() => document.getElementById("upload-logo")?.click()}
+  2256→                      >
+  2257→                        {logoUploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+  2258→                        {logoUploading ? "Mengunggah..." : user?.logoImage || pendingLogo ? "Ganti Logo" : "Unggah Logo"}
+  2259→                      </Button>
+  2260→                      {pendingLogo && (
+  2261→                        <Button
+  2262→                          type="button"
+  2263→                          size="sm"
+  2264→                          className="gap-1.5"
+  2265→                          disabled={logoUploading}
+  2266→                          onClick={async () => {
+  2267→                            if (!user?.id || !pendingLogo) return;
+  2268→                            setLogoUploading(true);
+  2269→                            try {
+  2270→                              const res = await fetch("/api/upload-banner", {
+  2271→                                method: "POST",
+  2272→                                headers: { "Content-Type": "application/json" },
+  2273→                                body: JSON.stringify({ image: pendingLogo }),
+  2274→                              });
+  2275→                              const data = await res.json();
+  2276→                              if (!res.ok || !data.url) { toast.error(data.error || "Gagal upload logo"); return; }
+  2277→                              const pres = await fetch("/api/auth/profile", {
+  2278→                                method: "PATCH",
+  2279→                                headers: { "Content-Type": "application/json" },
+  2280→                                body: JSON.stringify({ userId: user.id, logoImage: data.url }),
+  2281→                              });
+  2282→                              const pdata = await pres.json();
+  2283→                              if (pres.ok && pdata.user) { setUser(pdata.user); setPendingLogo(null); toast.success("Logo disimpan"); }
+  2284→                              else { toast.error(pdata.error || "Gagal simpan logo"); }
+  2285→                            } catch { toast.error("Gagal simpan logo"); }
+  2286→                            finally { setLogoUploading(false); }
+  2287→                          }}
+  2288→                        >
+  2289→                          {logoUploading ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+  2290→                          Simpan Logo
+  2291→                        </Button>
+  2292→                      )}
+  2293→                      {(user?.logoImage || pendingLogo) && (
+  2294→                        <Button
+  2295→                          type="button"
+  2296→                          variant="outline"
+  2297→                          size="sm"
+  2298→                          className="gap-1.5 text-destructive hover:bg-destructive/5"
+  2299→                          disabled={logoUploading}
+  2300→                          onClick={async () => {
+  2301→                            if (!user?.id) return;
+  2302→                            setLogoUploading(true);
+  2303→                            try {
+  2304→                              const pres = await fetch("/api/auth/profile", {
+  2305→                                method: "PATCH",
+  2306→                                headers: { "Content-Type": "application/json" },
+  2307→                                body: JSON.stringify({ userId: user.id, logoImage: null }),
+  2308→                              });
+  2309→                              const pdata = await pres.json();
+  2310→                              if (pres.ok && pdata.user) { setUser(pdata.user); setPendingLogo(null); toast.success("Logo dihapus"); }
+  2311→                              else { toast.error("Gagal hapus logo"); }
+  2312→                            } catch { toast.error("Gagal hapus logo"); }
+  2313→                            finally { setLogoUploading(false); }
+  2314→                          }}
+  2315→                        >
+  2316→                          <Trash2 className="size-4" />
+  2317→                          Hapus
+  2318→                        </Button>
+  2319→                      )}
+  2320→                    </div>
+  2321→                  </div>
+  2322→                </div>
+  2323→
+  2324→                <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+  2325→                  <div className="mb-4 flex items-center justify-between">
+  2326→                    <p className="text-base font-bold md:text-lg">Profil</p>
+  2327→                    {!editMode ? (
+  2328→                      <Button
+  2329→                        variant="outline"
+  2330→                        onClick={() => {
+  2331→                          setEditName(user?.name || "");
+  2332→                          setEditPhone(user?.phone || "");
+  2333→                          setEditCity(user?.city || "");
+  2334→                          setEditCompany(user?.company || "");
+  2335→                          setEditAddress(user?.address || "");
+  2336→                          setEditMode(true);
+  2337→                        }}
+  2338→                      >
+  2339→                        <SlidersHorizontal className="size-4" /> Edit Profil
+  2340→                      </Button>
+  2341→                    ) : (
+  2342→                      <div className="flex gap-2">
+  2343→                        <Button
+  2344→                          variant="ghost"
+  2345→                          onClick={() => setEditMode(false)}
+  2346→                          disabled={savingProfile}
+  2347→                        >
+  2348→                          Batal
+  2349→                        </Button>
+  2350→                        <Button
+  2351→                          disabled={savingProfile}
+  2352→                          onClick={async () => {
+  2353→                            if (!user?.id) return;
+  2354→                            if (!editName.trim()) {
+  2355→                              toast.error(tr("profNameEmpty"));
+  2356→                              return;
+  2357→                            }
+  2358→                            setSavingProfile(true);
+  2359→                            try {
+  2360→                              const res = await fetch("/api/auth/profile", {
+  2361→                                method: "PATCH",
+  2362→                                headers: { "Content-Type": "application/json" },
+  2363→                                body: JSON.stringify({
+  2364→                                  userId: user.id,
+  2365→                                  name: editName,
+  2366→                                  phone: editPhone,
+  2367→                                  city: editCity,
+  2368→                                  company: editCompany,
+  2369→                                  address: editAddress,
+  2370→                                }),
+  2371→                              });
+  2372→                              const data = await res.json();
+  2373→                              if (!res.ok) {
+  2374→                                toast.error(data.error || tr("profUpdateFailed"));
+  2375→                                return;
+  2376→                              }
+  2377→                              setUser(data.user);
+  2378→                              setEditMode(false);
+  2379→                              toast.success(tr("profProfileUpdated"));
+  2380→                            } catch {
+  2381→                              toast.error(tr("profConnectionFailed"));
+  2382→                            } finally {
+  2383→                              setSavingProfile(false);
+  2384→                            }
+  2385→                          }}
+  2386→                        >
+  2387→                          {savingProfile ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+  2388→                          Simpan
+  2389→                        </Button>
+  2390→                      </div>
+  2391→                    )}
+  2392→                  </div>
+  2393→
+  2394→                  {!editMode ? (
+  2395→                    <div className="space-y-3 text-sm md:text-base">
+  2396→                      <div className="flex justify-between border-b border-border/50 pb-2"><span className="text-muted-foreground">Nama</span><span className="font-medium">{user?.name || "-"}</span></div>
+  2397→                      <div className="flex justify-between border-b border-border/50 pb-2"><span className="text-muted-foreground">Email</span><span className="max-w-[60%] truncate text-right font-medium">{user?.email || "-"}</span></div>
+  2398→                      <div className="flex justify-between border-b border-border/50 pb-2"><span className="text-muted-foreground">No. HP</span><span className="font-medium">{user?.phone || "-"}</span></div>
+  2399→                      <div className="flex justify-between border-b border-border/50 pb-2"><span className="text-muted-foreground">Kota</span><span className="font-medium">{user?.city || "-"}</span></div>
+  2400→                      <div className="flex justify-between border-b border-border/50 pb-2"><span className="text-muted-foreground">Nama Perusahaan</span><span className="font-medium">{user?.company || "-"}</span></div>
+  2401→                      <div className="flex justify-between"><span className="text-muted-foreground">Alamat Perusahaan</span><span className="max-w-[60%] truncate text-right font-medium">{user?.address || "-"}</span></div>
+  2402→                    </div>
+  2403→                  ) : (
+  2404→                    <div className="space-y-4">
+  2405→                      <div className="space-y-1.5">
+  2406→                        <Label className="text-sm text-muted-foreground md:text-base">Nama</Label>
+  2407→                        <Input
+  2408→                          value={editName}
+  2409→                          onChange={(e) => setEditName(e.target.value)}
+  2410→                          placeholder="Nama lengkap"
+  2411→                          className="h-10 text-sm md:h-11 md:text-base"
+  2412→                        />
+  2413→                      </div>
+  2414→                      <div className="space-y-1.5">
+  2415→                        <Label className="text-sm text-muted-foreground md:text-base">Email</Label>
+  2416→                        <Input
+  2417→                          value={user?.email || ""}
+  2418→                          disabled
+  2419→                          className="h-10 text-sm text-muted-foreground md:h-11 md:text-base"
+  2420→                        />
+  2421→                        <p className="text-xs text-muted-foreground md:text-sm">Email tidak dapat diubah</p>
+  2422→                      </div>
+  2423→                      <div className="space-y-1.5">
+  2424→                        <Label className="text-sm text-muted-foreground md:text-base">No. HP</Label>
+  2425→                        <Input
+  2426→                          value={editPhone}
+  2427→                          onChange={(e) => setEditPhone(e.target.value)}
+  2428→                          placeholder="0812-xxxx-xxxx"
+  2429→                          className="h-10 text-sm md:h-11 md:text-base"
+  2430→                        />
+  2431→                      </div>
+  2432→                      <div className="space-y-1.5">
+  2433→                        <Label className="text-sm text-muted-foreground md:text-base">Kota</Label>
+  2434→                        <Input
+  2435→                          value={editCity}
+  2436→                          onChange={(e) => setEditCity(e.target.value)}
+  2437→                          placeholder="Kota"
+  2438→                          className="h-10 text-sm md:h-11 md:text-base"
+  2439→                        />
+  2440→                      </div>
+  2441→                      <div className="space-y-1.5">
+  2442→                        <Label className="text-sm text-muted-foreground md:text-base">Nama Perusahaan</Label>
+  2443→                        <Input
+  2444→                          value={editCompany}
+  2445→                          onChange={(e) => setEditCompany(e.target.value)}
+  2446→                          placeholder="PT/CV/Toko (opsional)"
+  2447→                          className="h-10 text-sm md:h-11 md:text-base"
+  2448→                        />
+  2449→                      </div>
+  2450→                      <div className="space-y-1.5">
+  2451→                        <Label className="text-sm text-muted-foreground md:text-base">Alamat Perusahaan</Label>
+  2452→                        <Input
+  2453→                          value={editAddress}
+  2454→                          onChange={(e) => setEditAddress(e.target.value)}
+  2455→                          placeholder="Jl. Contoh No. 123, Kota (opsional)"
+  2456→                          className="h-10 text-sm md:h-11 md:text-base"
+  2457→                        />
+  2458→                      </div>
+  2459→                    </div>
+  2460→                  )}
+  2461→                </div>
+  2462→                {/* Notifikasi & Suara */}
+  2463→                <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+  2464→                  <p className="mb-4 text-base font-bold md:text-lg">Notifikasi &amp; Suara</p>
+  2465→                  <div className="space-y-4">
+  2466→                    <div className="flex items-center justify-between gap-3 text-sm md:text-base">
+  2467→                      <div className="flex items-center gap-2.5">
+  2468→                        <Volume2 className="size-4 text-primary" />
+  2469→                        <div>
+  2470→                          <p className="font-medium">Bunyi Notifikasi Chat</p>
+  2471→                          <p className="text-xs text-muted-foreground">Bunyi "Go mesin!" saat pesan masuk (seperti WhatsApp)</p>
+  2472→                        </div>
+  2473→                      </div>
+  2474→                      <Switch
+  2475→                        checked={chatSoundOn}
+  2476→                        onCheckedChange={(v) => {
+  2477→                          setChatSoundOn(v);
+  2478→                          setChatSoundEnabled(v);
+  2479→                          toast.success(v ? "Bunyi notifikasi chat diaktifkan" : "Bunyi notifikasi chat dimatikan");
+  2480→                          if (v) playNotificationSound();
+  2481→                        }}
+  2482→                      />
+  2483→                    </div>
+  2484→                    <div className="flex items-center justify-between gap-3 text-sm md:text-base">
+  2485→                      <div className="flex items-center gap-2.5">
+  2486→                        <Bell className="size-4 text-primary" />
+  2487→                        <div>
+  2488→                          <p className="font-medium">Notifikasi Pesanan</p>
+  2489→                          <p className="text-xs text-muted-foreground">Pemberitahuan saat ada pesanan baru</p>
+  2490→                        </div>
+  2491→                      </div>
+  2492→                      <Switch defaultChecked />
+  2493→                    </div>
+  2494→                  </div>
+  2495→                </div>
+  2496→
+  2497→                {/* Bahasa */}
+  2498→                <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+  2499→                  <p className="mb-4 text-base font-bold md:text-lg">Bahasa</p>
+  2500→                  <div className="flex flex-wrap gap-2">
+  2501→                    {([
+  2502→                      { code: "id", label: "🇮🇩 Indonesia" },
+  2503→                      { code: "en", label: "🇬🇧 English" },
+  2504→                      { code: "zh", label: "🇨🇳 中文" },
+  2505→                    ] as const).map((l) => (
+  2506→                      <button
+  2507→                        key={l.code}
+  2508→                        onClick={() => setLang(l.code)}
+  2509→                        className={cn(
+  2510→                          "rounded-lg border-2 px-3 py-2 text-sm font-medium transition",
+  2511→                          lang === l.code ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"
+  2512→                        )}
+  2513→                      >
+  2514→                        {l.label}
+  2515→                      </button>
+  2516→                    ))}
+  2517→                  </div>
+  2518→                </div>
+  2519→
+  2520→                {/* Tentang */}
+  2521→                <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+  2522→                  <p className="mb-3 text-base font-bold md:text-lg">Tentang Gomesin</p>
+  2523→                  <div className="space-y-2 text-sm text-muted-foreground">
+  2524→                    <div className="flex justify-between"><span>Versi Aplikasi</span><span className="font-medium text-foreground">1.0.0</span></div>
+  2525→                    <div className="flex justify-between"><span>Email Dukungan</span><span className="font-medium text-foreground">gomesin0711@gmail.com</span></div>
+  2526→                    <div className="flex justify-between"><span>WhatsApp</span><span className="font-medium text-foreground">0858 8808 2208</span></div>
+  2527→                    <div className="flex justify-between"><span>Lokasi</span><span className="font-medium text-foreground">Tangerang, Indonesia</span></div>
+  2528→                  </div>
+  2529→                </div>
+  2530→                <Button variant="destructive" className="w-full md:h-11" onClick={() => {
+  2531→                  if (confirm(tr("profDeleteAccountConfirm"))) {
+  2532→                    toast.info(tr("profDeleteAccountProcessing"));
+  2533→                  }
+  2534→                }}>
+  2535→                  Hapus Akun
+  2536→                </Button>
+  2537→              </div>
+  2538→            )}
+  2539→
+  2540→            {/* BANTUAN */}
+  2541→            {panel === "bantuan" && (() => {
+  2542→              const filteredFaqs = faqs.filter(
+  2543→                (f) =>
+  2544→                  f.q.toLowerCase().includes(faqSearch.toLowerCase()) ||
+  2545→                  f.a.toLowerCase().includes(faqSearch.toLowerCase())
+  2546→              );
+  2547→              const guides = [
+  2548→                {
+  2549→                  icon: BookOpen,
+  2550→                  title: tr("profGuide1Title"),
+  2551→                  desc: tr("profGuide1Desc"),
+  2552→                  content: [
+  2553→                    "1. Klik tombol 'Jual' (hijau) di bagian bawah layar atau tombol 'Pasang Iklan' di halaman akun.",
+  2554→                    "2. Pilih kategori mesin yang sesuai (Mesin Cetak, CNC, Alat Berat, dll).",
+  2555→                    "3. Isi judul iklan yang jelas, contoh: 'Mesin Cetak Offset Heidelberg SM 52 4 Warna'.",
+  2556→                    "4. Tulis deskripsi lengkap: kondisi mesin, tahun produksi, kelengkapan, alasan jual.",
+  2557→                    "5. Masukkan harga yang wajar. Pilih 'Bisa Nego' jika harga masih dapat ditawar.",
+  2558→                    "6. Unggah minimal 1 foto mesin (maks 120KB, otomatis dikompres).",
+  2559→                    "7. Pilih paket: Gratis (365 hari), Premium (Rp 50.000/30 hari), atau Bisnis (Rp 150.000/90 hari).",
+  2560→                    "8. Klik 'Pasang Iklan Sekarang'. Iklan akan masuk antrian verifikasi admin (1-2 jam).",
+  2561→                    "9. Setelah diverifikasi, iklan tayang di beranda dan bisa dilihat pembeli.",
+  2562→                  ],
+  2563→                },
+  2564→                {
+  2565→                  icon: Tag,
+  2566→                  title: tr("profGuide2Title"),
+  2567→                  desc: tr("profGuide2Desc"),
+  2568→                  content: [
+  2569→                    "GRATIS (Rp 0 — 365 hari):",
+  2570→                    "• Pasang iklan tanpa batas",
+  2571→                    "• Maksimal 3 foto per iklan",
+  2572→                    "• Chat penjual via WhatsApp",
+  2573→                    "• Tayang 365 hari",
+  2574→                    "",
+  2575→                    "PREMIUM (Rp 50.000 — 30 hari):",
+  2576→                    "• Semua fitur Gratis",
+  2577→                    "• Maksimal 10 foto per iklan",
+  2578→                    "• Badge 'Featured' di hasil pencarian",
+  2579→                    "• Prioritas tampil di beranda",
+  2580→                    "• Tayang 30 hari",
+  2581→                    "",
+  2582→                    "BISNIS (Rp 150.000 — 90 hari):",
+  2583→                    "• Semua fitur Premium",
+  2584→                    "• Banner promosi di beranda",
+  2585→                    "• Laporan performa iklan",
+  2586→                    "• Prioritas tertinggi",
+  2587→                    "• Tayang 90 hari",
+  2588→                  ],
+  2589→                },
+  2590→                {
+  2591→                  icon: ShieldCheck,
+  2592→                  title: tr("profGuide3Title"),
+  2593→                  desc: tr("profGuide3Desc"),
+  2594→                  content: [
+  2595→                    "1. SURVEI LANGSUNG — Selalu lihat mesin secara langsung sebelum membayar. Jangan hanya percaya foto.",
+  2596→                    "2. CEK DOKUMEN — Pastikan kelengkapan dokumen (faktur, manual book, sertifikat) sesuai iklan.",
+  2597→                    "3. REKENING PRIBADI — Transfer hanya ke rekening pribadi penjual, bukan ke pihak ketiga atau agen.",
+  2598→                    "4. HINDARI DP BESAR — Jangan membayar DP besar sebelum melihat mesin. Bayar lunas saat serah terima.",
+  2599→                    "5. HATI-HATI HARGA MURAH — Jika harga terlalu murah dari pasaran, waspadai penipuan.",
+  2600→                    "6. GUNAKAN CHAT GOMESIN — Hubungi penjual via chat Gomesin atau WhatsApp yang tercatat di sistem.",
+  2601→                    "7. LAPOR PELANGGARAN — Jika menemui penjual curiga, laporkan ke admin via menu 'Keamanan'.",
+  2602→                  ],
+  2603→                },
+  2604→                {
+  2605→                  icon: CreditCard,
+  2606→                  title: tr("profGuide4Title"),
+  2607→                  desc: "BCA, GoPay, QRIS",
+  2608→                  content: [
+  2609→                    tr("profPaymentMethodsDesc"),
+  2610→                    "",
+  2611→                    "1. TRANSFER BCA (Virtual Account):",
+  2612→                    "• Bayar via ATM/mobile banking BCA",
+  2613→                    "• Nomor VA otomatis dibuat saat checkout",
+  2614→                    "• Konfirmasi otomatis (1-5 menit)",
+  2615→                    "",
+  2616→                    "2. GOPAY (E-Wallet):",
+  2617→                    "• Bayar via aplikasi Gojek",
+  2618→                    "• Saldo GoPay harus mencukupi",
+  2619→                    "• Konfirmasi instan",
+  2620→                    "",
+  2621→                    "3. QRIS (Scan QR Code):",
+  2622→                    "• Scan QR pakai e-wallet mana saja (GoPay, OVO, DANA, ShopeePay)",
+  2623→                    "• Bayar sesuai nominal",
+  2624→                    "• Konfirmasi instan",
+  2625→                    "",
+  2626→                    tr("profPaymentNote"),
+  2627→                  ],
+  2628→                },
+  2629→              ];
+  2630→
+  2631→              return (
+  2632→                <div className="space-y-4">
+  2633→                  {/* Support Chat View */}
+  2634→                  {showSupportChat ? (
+  2635→                    <div className="flex flex-col" style={{ minHeight: 320 }}>
+  2636→                      {/* chat header */}
+  2637→                      <div className="flex items-center gap-2 border-b border-border pb-3">
+  2638→                        <button
+  2639→                          onClick={() => setShowSupportChat(false)}
+  2640→                          className="grid size-8 place-items-center rounded-md hover:bg-accent"
+  2641→                          aria-label="Kembali"
+  2642→                        >
+  2643→                          <ChevronLeft className="size-5" />
+  2644→                        </button>
+  2645→                        <Avatar className="size-9">
+  2646→                          <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+  2647→                            <LifeBuoy className="size-4" />
+  2648→                          </AvatarFallback>
+  2649→                        </Avatar>
+  2650→                        <div className="min-w-0 flex-1">
+  2651→                          <div className="flex items-center gap-1">
+  2652→                            <p className="text-sm font-bold">Tim Support Gomesin</p>
+  2653→                            <span className="size-2 rounded-full bg-orange-500" />
+  2654→                          </div>
+  2655→                          <p className="text-[11px] text-muted-foreground">Online · 08.00-20.00 WIB</p>
+  2656→                        </div>
+  2657→                      </div>
+  2658→                      {/* messages */}
+  2659→                      <div className="gomesin-scroll flex-1 space-y-2.5 overflow-y-auto bg-muted/30 p-3" style={{ maxHeight: 260 }}>
+  2660→                        {supportMessages.map((m, i) => (
+  2661→                          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+  2662→                            <div
+  2663→                              className={
+  2664→                                m.role === "user"
+  2665→                                  ? "max-w-[80%] rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground"
+  2666→                                  : "max-w-[80%] rounded-2xl rounded-bl-sm border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm"
+  2667→                              }
+  2668→                            >
+  2669→                              {m.content}
+  2670→                            </div>
+  2671→                          </div>
+  2672→                        ))}
+  2673→                      </div>
+  2674→                      {/* input */}
+  2675→                      <form
+  2676→                        onSubmit={(e) => {
+  2677→                          e.preventDefault();
+  2678→                          if (!supportInput.trim()) return;
+  2679→                          const userMsg = supportInput.trim();
+  2680→                          setSupportMessages((m) => [...m, { role: "user", content: userMsg }]);
+  2681→                          setSupportInput("");
+  2682→                          // Simulated auto-reply
+  2683→                          setTimeout(() => {
+  2684→                            setSupportMessages((m) => [
+  2685→                              ...m,
+  2686→                              { role: "support", content: tr("profSupportReply") },
+  2687→                            ]);
+  2688→                          }, 1200);
+  2689→                        }}
+  2690→                        className="flex items-center gap-2 border-t border-border pt-3"
+  2691→                      >
+  2692→                        <input
+  2693→                          value={supportInput}
+  2694→                          onChange={(e) => setSupportInput(e.target.value)}
+  2695→                          placeholder="Tulis pesan..."
+  2696→                          className="h-10 flex-1 rounded-full border border-border bg-card px-4 text-sm outline-none focus:border-primary"
+  2697→                        />
+  2698→                        <Button
+  2699→                          type="submit"
+  2700→                          size="icon"
+  2701→                          className="size-10 shrink-0 rounded-full bg-primary"
+  2702→                          disabled={!supportInput.trim()}
+  2703→                        >
+  2704→                          <Send className="size-4" />
+  2705→                        </Button>
+  2706→                      </form>
+  2707→                    </div>
+  2708→                  ) : (
+  2709→                    <>
+  2710→                      {/* Hero Support Card */}
+  2711→                      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-orange-600 p-4 text-primary-foreground">
+  2712→                        <div className="absolute -right-8 -top-8 size-28 rounded-full bg-white/10" />
+  2713→                        <div className="absolute -bottom-10 right-12 size-20 rounded-full bg-white/10" />
+  2714→                        <div className="relative">
+  2715→                          <div className="flex items-center gap-2">
+  2716→                            <span className="grid size-10 place-items-center rounded-lg bg-white/20 backdrop-blur">
+  2717→                              <LifeBuoy className="size-5" />
+  2718→                            </span>
+  2719→                            <div>
+  2720→                              <p className="text-base font-bold">Pusat Bantuan Gomesin</p>
+  2721→                              <p className="text-xs text-primary-foreground/80">Tim support siap membantu 7 hari · 08.00-20.00 WIB</p>
+  2722→                            </div>
+  2723→                          </div>
+  2724→                          <div className="mt-3 grid grid-cols-2 gap-2">
+  2725→                            <Button
+  2726→                              size="sm"
+  2727→                              className="bg-white/20 backdrop-blur hover:bg-white/30"
+  2728→                              onClick={() => setShowSupportChat(true)}
+  2729→                            >
+  2730→                              <MessageSquare className="size-4" /> Chat Support
+  2731→                            </Button>
+  2732→                            <a
+  2733→                              href="https://wa.me/6285888082208?text=Halo%20Gomesin%2C%20saya%20butuh%20bantuan"
+  2734→                              target="_blank"
+  2735→                              rel="noopener noreferrer"
+  2736→                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-[#25D366] px-3 text-sm font-semibold text-white hover:bg-[#1ebe5d]"
+  2737→                            >
+  2738→                              <Phone className="size-4" /> WhatsApp
+  2739→                            </a>
+  2740→                          </div>
+  2741→                        </div>
+  2742→                      </div>
+  2743→
+  2744→                      {/* Quick Guides */}
+  2745→                      <div>
+  2746→                        <p className="mb-2 text-sm font-bold">Panduan Cepat</p>
+  2747→                        <div className="grid grid-cols-2 gap-2">
+  2748→                          {guides.map((g, i) => (
+  2749→                            <button
+  2750→                              key={i}
+  2751→                              onClick={() => setActiveGuide(activeGuide === i ? null : i)}
+  2752→                              className={cn(
+  2753→                                "flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition",
+  2754→                                activeGuide === i
+  2755→                                  ? "border-primary bg-primary/5"
+  2756→                                  : "border-border bg-card hover:border-primary hover:bg-accent"
+  2757→                              )}
+  2758→                            >
+  2759→                              <span className={cn("grid size-8 place-items-center rounded-lg", activeGuide === i ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary")}>
+  2760→                                <g.icon className="size-4" />
+  2761→                              </span>
+  2762→                              <p className="text-xs font-bold">{g.title}</p>
+  2763→                              <p className="text-[10px] text-muted-foreground">{g.desc}</p>
+  2764→                            </button>
+  2765→                          ))}
+  2766→                        </div>
+  2767→                        {/* Guide Content — expandable */}
+  2768→                        {activeGuide !== null && guides[activeGuide] && (
+  2769→                          <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-3 animate-fade-up">
+  2770→                            <div className="mb-2 flex items-center gap-2">
+  2771→                              <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
+  2772→                                {(() => { const Icon = guides[activeGuide].icon; return <Icon className="size-3.5" />; })()}
+  2773→                              </span>
+  2774→                              <p className="text-sm font-bold">{guides[activeGuide].title}</p>
+  2775→                              <button
+  2776→                                onClick={() => setActiveGuide(null)}
+  2777→                                className="ml-auto grid size-6 place-items-center rounded text-muted-foreground hover:bg-accent"
+  2778→                                aria-label="Tutup"
+  2779→                              >
+  2780→                                <X className="size-3.5" />
+  2781→                              </button>
+  2782→                            </div>
+  2783→                            <div className="space-y-1">
+  2784→                              {guides[activeGuide].content.map((line, li) => (
+  2785→                                <p key={li} className={cn(
+  2786→                                  "text-xs leading-relaxed",
+  2787→                                  line === "" ? "h-2" : "text-foreground/80",
+  2788→                                  line.endsWith(":") && "font-bold text-foreground"
+  2789→                                )}>
+  2790→                                  {line || "\u00A0"}
+  2791→                                </p>
+  2792→                              ))}
+  2793→                            </div>
+  2794→                          </div>
+  2795→                        )}
+  2796→                      </div>
+  2797→
+  2798→                      {/* FAQ with Search */}
+  2799→                      <div>
+  2800→                        <p className="mb-2 text-sm font-bold">Pertanyaan yang Sering Diajukan</p>
+  2801→                        <div className="relative mb-2">
+  2802→                          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+  2803→                          <input
+  2804→                            value={faqSearch}
+  2805→                            onChange={(e) => setFaqSearch(e.target.value)}
+  2806→                            placeholder={tr("profSearchFaq")}
+  2807→                            className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary"
+  2808→                          />
+  2809→                        </div>
+  2810→                        {filteredFaqs.length === 0 ? (
+  2811→                          <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+  2812→                            Tidak ada FAQ yang cocok. Coba kata kunci lain atau hubungi support.
+  2813→                          </div>
+  2814→                        ) : (
+  2815→                          <div className="space-y-1.5">
+  2816→                            {filteredFaqs.map((f, i) => {
+  2817→                              const actualIndex = faqs.indexOf(f);
+  2818→                              const isOpen = openFaq === actualIndex;
+  2819→                              return (
+  2820→                                <div
+  2821→                                  key={actualIndex}
+  2822→                                  className={cn(
+  2823→                                    "overflow-hidden rounded-lg border bg-card transition",
+  2824→                                    isOpen ? "border-primary" : "border-border"
+  2825→                                  )}
+  2826→                                >
+  2827→                                  <button
+  2828→                                    onClick={() => setOpenFaq(isOpen ? null : actualIndex)}
+  2829→                                    className="flex w-full items-center justify-between gap-2 p-3 text-left"
+  2830→                                  >
+  2831→                                    <span className="text-sm font-semibold">{f.q}</span>
+  2832→                                    <ChevronRight
+  2833→                                      className={cn("size-4 shrink-0 text-muted-foreground transition", isOpen && "rotate-90")}
+  2834→                                    />
+  2835→                                  </button>
+  2836→                                  {isOpen && (
+  2837→                                    <div className="border-t border-border bg-secondary/30 px-3 py-2.5">
+  2838→                                      <p className="text-xs leading-relaxed text-muted-foreground">{f.a}</p>
+  2839→                                    </div>
+  2840→                                  )}
+  2841→                                </div>
+  2842→                              );
+  2843→                            })}
+  2844→                          </div>
+  2845→                        )}
+  2846→                      </div>
+  2847→
+  2848→                      {/* Contact Info */}
+  2849→                      <div className="rounded-xl border border-border bg-card p-4">
+  2850→                        <p className="mb-3 text-sm font-bold">Hubungi Kami</p>
+  2851→                        <div className="space-y-2">
+  2852→                          <a
+  2853→                            href="mailto:gomesin0711@gmail.com"
+  2854→                            className="flex items-center gap-3 rounded-lg border border-border p-2.5 transition hover:bg-accent"
+  2855→                          >
+  2856→                            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+  2857→                              <Mail className="size-4" />
+  2858→                            </span>
+  2859→                            <div className="min-w-0 flex-1">
+  2860→                              <p className="text-xs text-muted-foreground">Email</p>
+  2861→                              <p className="text-sm font-semibold">gomesin0711@gmail.com</p>
+  2862→                            </div>
+  2863→                            <ExternalLink className="size-3.5 text-muted-foreground" />
+  2864→                          </a>
+  2865→                          <a
+  2866→                            href="https://wa.me/6285888082208"
+  2867→                            target="_blank"
+  2868→                            rel="noopener noreferrer"
+  2869→                            className="flex items-center gap-3 rounded-lg border border-border p-2.5 transition hover:bg-accent"
+  2870→                          >
+  2871→                            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-orange-500/10 text-orange-600">
+  2872→                              <Phone className="size-4" />
+  2873→                            </span>
+  2874→                            <div className="min-w-0 flex-1">
+  2875→                              <p className="text-xs text-muted-foreground">WhatsApp</p>
+  2876→                              <p className="text-sm font-semibold">0858-8808-2208</p>
+  2877→                            </div>
+  2878→                            <ExternalLink className="size-3.5 text-muted-foreground" />
+  2879→                          </a>
+  2880→                          <div className="flex items-center gap-3 rounded-lg border border-border p-2.5">
+  2881→                            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+  2882→                              <MapPin className="size-4" />
+  2883→                            </span>
+  2884→                            <div className="min-w-0 flex-1">
+  2885→                              <p className="text-xs text-muted-foreground">Kantor</p>
+  2886→                              <p className="text-sm font-semibold">Tangerang, Indonesia</p>
+  2887→                            </div>
+  2888→                          </div>
+  2889→                        </div>
+  2890→                      </div>
+  2891→                    </>
+  2892→                  )}
+  2893→                </div>
+  2894→              );
+
+[showing lines 895-2894 of 2906; use offset=2895 with limit to continue reading]

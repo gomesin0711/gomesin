@@ -10,6 +10,7 @@ import {
 
 // GET all listings (admin, include inactive/violation/unpaid)
 export async function GET(req: NextRequest) {
+  try {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || "";
 
@@ -52,6 +53,9 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error("Admin listings fallback error:", e);
     return NextResponse.json({ listings: [] });
+  }
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
   }
 }
 

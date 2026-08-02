@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getPaketMap } from "@/lib/paket";
 
 export async function GET() {
+  try {
   const now = new Date();
 
   // period boundaries
@@ -111,4 +112,7 @@ export async function GET() {
     topCategories,
     last7Days,
   });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
+  }
 }

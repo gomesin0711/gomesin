@@ -25,7 +25,6 @@ import {
   Clock,
   XCircle,
   Calendar,
-  MessageCircle,
 } from "lucide-react";
 
 const ADMIN_MENU = [
@@ -42,7 +41,6 @@ const ADMIN_MENU = [
   { view: "admin-paket" as const, labelKey: "adminPackages", icon: Crown },
 ];
 
-// sub menu items (open via tab state in AdminView)
 const ADMIN_SUB_MENU = [
   { tab: "merek", labelKey: "adminManageBrands", icon: Award },
   { tab: "lokasi", labelKey: "adminManageLocations", icon: MapPin },
@@ -69,15 +67,17 @@ export function AdminSidebar({
 
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
-  // Fetch listings untuk hitung jumlah per status
   const { data: listingsData } = useQuery({
     queryKey: ["admin-listings"],
     queryFn: async () => {
       const res = await fetch("/api/admin/listings");
-      if (!res.ok) throw new Error("fail");
-      return res.json();
+      if (!res.ok) return { listings: [] };
+      const text = await res.text();
+      if (!text) return { listings: [] };
+      return JSON.parse(text);
     },
     staleTime: 0,
+    retry: false,
   });
 
   const allListings = listingsData?.listings ?? [];
@@ -170,10 +170,8 @@ export function AdminSidebar({
             );
           })}
 
-          {/* divider */}
           <div className="my-2 border-t border-border" />
 
-          {/* sub menu (navigasi via tab state) */}
           {ADMIN_SUB_MENU.map((item) => (
             <button
               key={item.tab}

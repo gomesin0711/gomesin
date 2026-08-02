@@ -457,24 +457,70 @@ Stage Summary:
 - WhatsApp mode: phone + OTP flow
 - Email mode: email + password flow
 - Smooth animate-fade-up transition between modes
+
 ---
-Task ID: 1
+Task ID: pwa-fix
 Agent: main
-Task: Fix Vercel deployment issues - auth persistence, listing persistence, unique code stability
+Task: Fix PWA auto-install not working on mobile and desktop
 
 Work Log:
-- Created /home/z/my-project/src/lib/client-store.ts - Client-side localStorage persistence for credentials and listings
-- Modified login.tsx - Save credentials on register, client-side login fallback when server fails
-- Modified profile.tsx - Merge server listings with client-side listings for my-listings view
-- Modified dashboard.tsx - Same merge logic for dashboard view
-- Modified post-ad.tsx - Save listing to client store on successful creation
-- Fixed check-email API to use fallback when DB unavailable
-- Fixed listing PATCH/DELETE routes to use fallback when DB unavailable
-- Verified unique code is deterministic (DJB2 hash of userId+year+month, no API calls)
-- Deployed to Vercel production
+- Analyzed root causes: SW registered on `load` event (too late), event listener cleanup bug, no dynamic prompt checking, popup showed before SW active
+- Rewrote layout.tsx inline script: SW registers IMMEDIATELY (not on load), dispatches `pwa-sw-ready` and `pwa-prompt-ready` custom events
+- Completely rewrote pwa-install-prompt.tsx:
+  - Uses `queueMicrotask` to detect pre-hydration state (SW/prompt set before React hydrates)
+  - Polls for `beforeinstallprompt` every 300ms on Chromium (up to 5s timeout)
+  - Shows native install button only when `beforeinstallprompt` event is captured
+  - Shows instructions-only popup for iOS (Share > Add to Home Screen) and Chromium without prompt
+  - Proper cleanup with `cancelled` flag to prevent state updates after unmount
+  - Added `markDismissed()` in catch block for unsupported contexts
+- Verified: SW registers immediately, `beforeinstallprompt` captured, popup shows with "Install Sekarang" button
+- Verified: popup correctly calls `prompt.prompt()` on install button click
 
 Stage Summary:
-- Auth persistence: Users register → credentials saved to localStorage → if server /tmp/ is wiped, login falls back to client-side verification
-- Listing persistence: Listings saved to both server and localStorage → my-listings page merges both sources
-- Unique code: Deterministic client-side generation, stable per user per month, does not change on refresh/page switch/package change
-- Deployed to https://gomesin.vercel.app/
+- PWA install prompt now works correctly on Chromium (Chrome/Edge) with native install dialog
+- iOS shows proper Add to Home Screen instructions
+- SW registers immediately for fastest `beforeinstallprompt` event
+- Popup appears 1 second after SW is ready (not fixed delay from page load)
+
+
+---
+Task ID: ios-chrome-pwa-fix
+Agent: main
+Task: Fix PWA install not working on iOS Chrome
+
+Work Log:
+- Analyzed root cause: iOS Chrome (CriOS in UA) was detected as desktop
+- Rewrote platform detection: ios -> ios_safari | ios_chrome
+- Added iOS Chrome UI: amber warning, copy link button, Safari instructions
+- Added i18n translations for iOS Chrome in id, en, zh
+- Verified: zero new lint errors, zero JS errors, correct UA detection
+
+Stage Summary:
+- iOS Chrome/Firefox show clear use Safari instructions with copy link
+- iOS Safari still shows Share > Add to Home Screen
+- Android/Desktop unchanged
+
+---
+Task ID: mobile-menu-fix
+Agent: main
+Task: Fix mobile hamburger menu on profile and admin pages
+
+Work Log:
+- Analyzed profile.tsx mobile drawer: text-[13px] with px-2.5 py-1.5 gap-2
+- Changed to text-sm with px-2 py-1 gap-2.5 (larger text, slimmer boxes, bigger icons)
+- Reduced drawer width from w-72/85vw to w-64/80vw
+- Reduced header padding and avatar size for slimmer look
+- Section headers from text-[9px] to text-[10px]
+- Discovered admin page had NO mobile navigation - AdminSidebar in admin-sidebar.tsx used slide-from-left pattern
+- Rewrote admin-sidebar.tsx: mobile now uses overlay+drawer pattern (like profile page) instead of fixed slide-from-left
+- Desktop sidebar kept as permanent sticky sidebar
+- Updated app-shell.tsx: mobile toggle changed from text bar to hamburger icon button (grid size-10, bg-primary/10, Menu icon)
+- Removed duplicate local ShieldCheck SVG, imported from lucide-react
+- Fixed SWC parsing error by rewriting app-shell.tsx from scratch
+
+Stage Summary:
+- Profile drawer: larger text (text-sm), slimmer boxes (px-2 py-1), bigger icons (size-4)
+- Admin page: hamburger menu now works on mobile with drawer pattern matching profile page
+- Desktop: permanent sidebar unchanged
+- Zero new lint errors, zero JS errors in browser
+- Verified: profile drawer, admin drawer, tab switching, desktop sidebar all working

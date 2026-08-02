@@ -3,6 +3,7 @@ import { db, isDbAvailable } from "@/lib/db";
 import { getFallbackPakets } from "@/lib/fallback-data";
 
 export async function GET() {
+  try {
   if (isDbAvailable()) {
     try {
       const pakets = await db.paket.findMany({ orderBy: { sortOrder: "asc" } });
@@ -20,6 +21,9 @@ export async function GET() {
     features: typeof p.features === 'string' ? JSON.parse(p.features) : p.features || [],
   }));
   return NextResponse.json({ pakets: fallback });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest) {

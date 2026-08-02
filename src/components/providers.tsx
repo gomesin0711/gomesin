@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { useState } from "react";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
@@ -29,6 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     >
       <QueryClientProvider client={client}>
         {children}
+        <ServiceWorkerRegistration />
         <PwaInstallPrompt />
       </QueryClientProvider>
     </NextThemesProvider>
