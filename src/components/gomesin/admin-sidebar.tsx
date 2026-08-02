@@ -128,17 +128,17 @@ export function AdminSidebar({
                     key={item.view}
                     onClick={() => handleNav(item.view)}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
+                      "flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] transition",
                       active
                         ? "bg-primary font-semibold text-primary-foreground"
                         : "text-foreground/80 hover:bg-accent"
                     )}
                   >
-                    <item.icon className="size-4 shrink-0" />
+                    <item.icon className="size-[18px] shrink-0" />
                     <span className="truncate">{tr(item.labelKey)}</span>
                     {count !== undefined && count > 0 && (
                       <span className={cn(
-                        "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                        "ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-bold",
                         active ? "bg-white/20 text-primary-foreground" : "bg-primary/10 text-primary"
                       )}>
                         {count}
@@ -147,7 +147,7 @@ export function AdminSidebar({
                   </button>
                 );
               })}
-              <p className="px-2 pb-0.5 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Lainnya</p>
+              <p className="px-2 pb-0.5 pt-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Lainnya</p>
               {ADMIN_SUB_MENU.map((item) => {
                 const active = view === item.view;
                 return (
@@ -155,13 +155,13 @@ export function AdminSidebar({
                     key={item.view}
                     onClick={() => handleNav(item.view)}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
+                      "flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] transition",
                       active
                         ? "bg-primary font-semibold text-primary-foreground"
                         : "text-foreground/80 hover:bg-accent"
                     )}
                   >
-                    <item.icon className="size-4 shrink-0" />
+                    <item.icon className="size-[18px] shrink-0" />
                     <span className="truncate">{tr(item.labelKey)}</span>
                   </button>
                 );
@@ -170,16 +170,16 @@ export function AdminSidebar({
             <div className="border-t border-border px-1 py-1">
               <button
                 onClick={() => { goHome(); onClose(); }}
-                className="flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm text-foreground/80 transition hover:bg-accent"
+                className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] text-foreground/80 transition hover:bg-accent"
               >
-                <ArrowLeft className="size-4 shrink-0" />
+                <ArrowLeft className="size-[18px] shrink-0" />
                 <span className="truncate">Beranda</span>
               </button>
               <button
                 onClick={() => { goHome(); onClose(); }}
-                className="flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm text-destructive transition hover:bg-destructive/5"
+                className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] text-destructive transition hover:bg-destructive/5"
               >
-                <Lock className="size-4 shrink-0" />
+                <Lock className="size-[18px] shrink-0" />
                 <span className="truncate">{tr("adminExit")}</span>
               </button>
             </div>
