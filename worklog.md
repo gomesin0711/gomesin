@@ -587,3 +587,32 @@ Stage Summary:
 - Stats: 1 user, 31 listings, omzet Rp 440.000 (from seed data)
 - All admin tabs functional (Dashboard, Iklan Baru, Kategori, Paket, Users, etc.)
 - Write operations (POST/PATCH/DELETE) return 503 on Vercel (expected — no DB)
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix admin Iklan Baru not showing listings + online≠offline content
+
+Work Log:
+- Root cause: Admin listings API on Vercel only read from /tmp/listings-data.json (empty on cold start), not seed data
+- Root cause 2: Admin tabs didn't merge client-side localStorage listings
+- Added to client-store.ts:
+  - mergeAllListings(serverListings) — merges ALL client-side listings with server data (for admin)
+  - updateClientListingStatus(id, status, paymentStatus?) — updates client-side listing on admin action
+  - removeClientListingById(id) — removes client-side listing on admin delete
+- Updated /api/admin/listings/route.ts GET: now merges seed data + file-based store (file-based overrides seed)
+- Created useAdminListings() hook in admin.tsx that wraps useAdminQuery + mergeAllListings
+- Replaced 7 useAdminQuery calls with useAdminListings() in all listing tabs
+- Updated all admin mutation onSuccess callbacks to also update client-side store:
+  - IklanTab: delete, setStatus, setViolation, markSold
+- IklanBaruTab: approve, reject
+- IklanExpiredTab: delete
+- IklanDitolakTab: restore, delete
+- Verified on Vercel: Iklan Aktif shows 31 seed listings, Iklan Baru shows pending listings from localStorage
+- Deployed to https://gomesin.vercel.app (build 30s, ready 53s)
+
+Stage Summary:
+- Admin panel now shows ALL listings: seed data + file-based store + client localStorage
+- Iklan Baru correctly shows pending listings from user-posted ads
+- Admin approve/reject/delete actions update both server AND client-side data
+- Online and offline now use identical code with same data merging strategy
