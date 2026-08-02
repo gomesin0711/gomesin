@@ -1,0 +1,766 @@
+✓ Gomesin — Jual baru/bekas Mesin Cetak, Mesin Industri & Jasa Teknisi Berkualitas
+  https://gomesin.vercel.app/
+✓ Done
+✓ Done
+- banner
+  - button "Gomesin Beranda" [ref=e3]
+  - button "Bahasa" [expanded=false, ref=e4]
+  - button "Toggle theme" [ref=e5]
+  - button "Favorit" [ref=e6]
+  - form
+    - textbox "Temukan MESIN CETAK yang berkualitas." [ref=e20]
+    - button "Cari" [ref=e21]
+- main
+  - generic
+    - StaticText "Marketplace Mesin Industri #1 di Indonesia"
+    - heading "Jual baru/bekas Mesin Cetak,mesin industri & Jasa teknisi berkualitas" [level=1, ref=e103]
+      - StaticText "Jual baru/bekas Mesin Cetak,mesin industri & Jasa teknisi berkualitas"
+    - paragraph
+      - StaticText "Ribuan mesin cetak, CNC, laser, woodworking, food processing, kompressor, generator, alat berat, dan sparepart — baru & bekas dari seller terverifikasi se-Indonesia."
+    - form
+      - textbox "Temukan MESIN CETAK yang berkualitas." [ref=e186]
+      - button "Cari" [ref=e187]
+    - button "Mesin Cetak" [ref=e104]
+    - button "CNC" [ref=e105]
+    - button "Laser" [ref=e106]
+    - button "Kompressor" [ref=e107]
+    - button "Excavator" [ref=e108]
+  - generic
+    - heading "Jelajahi Kategori" [level=2, ref=e22]
+    - paragraph
+      - StaticText "Temukan mesin sesuai kebutuhan industri Anda"
+    - button "Mesin Cetak 3 iklan" [ref=e23]
+      - StaticText "Mesin Cetak"
+      - StaticText "3 iklan"
+    - button "Mesin Digital Printing 3 iklan" [ref=e24]
+      - StaticText "Mesin Digital Printing"
+      - StaticText "3 iklan"
+    - button "Mesin Kemasan & Packaging 1 iklan" [ref=e25]
+      - StaticText "Mesin Kemasan & Packaging"
+      - StaticText "1 iklan"
+    - button "Mesin Plastik & Injeksi 2 iklan" [ref=e26]
+      - StaticText "Mesin Plastik & Injeksi"
+      - StaticText "2 iklan"
+    - button "Kompressor & Generator 0 iklan" [ref=e27]
+      - StaticText "Kompressor & Generator"
+      - StaticText "0 iklan"
+    - button "Mesin CNC & Laser 4 iklan" [ref=e28]
+      - StaticText "Mesin CNC & Laser"
+      - StaticText "4 iklan"
+    - button "Mesin Bubut 3 iklan" [ref=e29]
+      - StaticText "Mesin Bubut"
+      - StaticText "3 iklan"
+    - button "Mesin Makanan & Minuman 0 iklan" [ref=e30]
+      - StaticText "Mesin Makanan & Minuman"
+      - StaticText "0 iklan"
+    - button "Mesin Tekstil & Garment 1 iklan" [ref=e31]
+      - StaticText "Mesin Tekstil & Garment"
+      - StaticText "1 iklan"
+    - button "Mesin Kayu & Perkakas 2 iklan" [ref=e32]
+      - StaticText "Mesin Kayu & Perkakas"
+      - StaticText "2 iklan"
+    - button "Alat Berat & Konstruksi 2 iklan" [ref=e33]
+      - StaticText "Alat Berat & Konstruksi"
+      - StaticText "2 iklan"
+    - button "Sparepart & Aksesoris 4 iklan" [ref=e34]
+      - StaticText "Sparepart & Aksesoris"
+      - StaticText "4 iklan"
+    - button "Jasa 6 iklan" [ref=e35]
+      - StaticText "Jasa"
+      - StaticText "6 iklan"
+  - generic
+    - heading "Produk Terpopuler" [level=2, ref=e36]
+    - paragraph
+      - StaticText "Mesin yang paling populer"
+    - button "Semua" [ref=e37]
+    - generic
+      - generic
+        - generic [ref=e188] clickable [onclick]
+          - article [ref=e261] clickable [cursor:pointer, onclick]
+            - generic
+              - button "Tambah ke favorit" [ref=e279]
+            - StaticText "TITANIUM"
+            - paragraph
+            - StaticText "Nego"
+            - heading "Excavator Komatsu PC200-8 Bekas" [level=3, ref=e270]
+            - StaticText "Bekasi"
+            - StaticText "•"
+            - StaticText "Th. "
+            - StaticText "2015"
+            - StaticText "3 hari lalu"
+            - StaticText "PT. Karya Teknik Sukses"
+        - generic [ref=e189] clickable [onclick]
+          - article [ref=e262] clickable [cursor:pointer, onclick]
+            - generic
+              - button "Tambah ke favorit" [ref=e280]
+            - StaticText "TITANIUM"
+            - paragraph
+            - StaticText "Nego"
+            - heading "Mesin Table Saw Sliding 3000mm + Scoring" [level=3, ref=e271]
+            - StaticText "Bekasi"
+            - StaticText "3 hari lalu"
+            - StaticText "PT. Indoprint Engineering"
+        - generic [ref=e190] clickable [onclick]
+          - article [ref=e263] clickable [cursor:pointer, onclick]
+            - generic
+              - button "Tambah ke favorit" [ref=e281]
+            - StaticText "TITANIUM"
+            - paragraph
+            - StaticText "Nego"
+            - heading "Mesin Bubut Logam Conventional WD6150 1500mm Swing 500mm" [level=3, ref=e272]
+            - StaticText "Surabaya"
+            - StaticText "3 hari lalu"
+            - StaticText "UD. Sumber Rezeki Mesin"
+        - generic [ref=e191] clickable [onclick]
+          - article [ref=e264] clickable [cursor:pointer, onclick]
+            - generic
+              - button "Tambah ke favorit" [ref=e282]
+            - StaticText "TITANIUM"
+            - paragraph
+            - heading "Mesin CNC Router Woodworking 1325 3 Axis" [level=3, ref=e273]
+            - StaticText "Bekasi"
+            - StaticText "3 hari lalu"
+            - StaticText "PT. Karya Teknik Sukses"
+      - button "Go to ad 1" [ref=e109]
+      - button "Go to ad 2" [ref=e110]
+      - button "Go to ad 3" [ref=e111]
+      - button "Go to ad 4" [ref=e112]
+  - generic
+    - heading "Produk Terdahsyat" [level=2, ref=e38]
+    - paragraph
+      - StaticText "Mesin pilihan dengan paket Platinum"
+    - button "Semua" [ref=e39]
+    - generic
+      - generic
+        - generic [ref=e192] clickable [onclick]
+          - article [ref=e265] clickable [cursor:pointer, onclick]
+            - generic
+              - button "Tambah ke favorit" [ref=e283]
+            - StaticText "PLATINUM"
+            - paragraph
+            - heading "Mesin Jahit Industri Juki DDL-8700 (1 Jarum)" [level=3, ref=e274]
+            - StaticText "Bandung"
+            - StaticText "3 hari lalu"
+            - StaticText "CV. Mesindo Mandiri"
+        - generic [ref=e193] clickable [onclick]
+          - article [ref=e266] clickable [cursor:pointer, onclick]
+            - generic
+              - button "Tambah ke favorit" [ref=e284]
+            - StaticText "PLATINUM"
+            - paragraph
+            - StaticText "Nego"
+            - heading "Mesin Bubut CNC 2 Axis Slant Bed Mazak QT-200" [level=3, ref=e275]
+            - StaticText "Jakarta Timur"
+            - StaticText "•"
+            - StaticText "Th. "
+            - StaticText "2008"
+            - StaticText "3 hari lalu"
+            - StaticText "PT. Indoprint Engineering"
+        - generic [ref=e194] clickable [onclick]
+          - article [ref=e267] clickable [cursor:pointer, onclick]
+            - generic
+              - button "Tambah ke favorit" [ref=e285]
+            - StaticText "PLATINUM"
+            - paragraph
+            - StaticText "Nego"
+            - heading "Mesin Laser Cutting CO2 1300x900 130W" [level=3, ref=e276]
+            - StaticText "Surabaya"
+            - StaticText "3 hari lalu"
+            - StaticText "Toko Mesin Jaya Abadi"
+        - generic [ref=e195] clickable [onclick]
+          - article [ref=e268] clickable [cursor:pointer, onclick]
+            - generic
+              - button "Tambah ke favorit" [ref=e286]
+            - StaticText "PLATINUM"
+            - paragraph
+            - StaticText "Nego"
+            - heading "Mesin UV Flatbed Printer 60x90cm A3+" [level=3, ref=e277]
+            - StaticText "Jakarta Selatan"
+            - StaticText "3 hari lalu"
+            - StaticText "UD. Sumber Rezeki Mesin"
+        - generic [ref=e196] clickable [onclick]
+          - article [ref=e269] clickable [cursor:pointer, onclick]
+            - generic
+              - button "Tambah ke favorit" [ref=e287]
+            - heading "Mesin Cetak Digital Konika Minolta C3080" [level=3, ref=e278]
+      - button "Go to ad 1" [ref=e113]
+      - button "Go to ad 2" [ref=e114]
+      - button "Go to ad 3" [ref=e115]
+      - button "Go to ad 4" [ref=e116]
+      - button "Go to ad 5" [ref=e117]
+  - generic
+    - StaticText "PREMIUM"
+    - StaticText "Promo Spesial"
+    - heading "Pasang Iklan Premium, Tayang 30 Hari" [level=3, ref=e197]
+    - paragraph
+      - StaticText "Badge Featured, 10 foto, prioritas tampil di beranda. Hanya Rp 50.000."
+    - button "Pasang Iklan Premium" [ref=e198]
+    - generic
+      - button "Go to banner 1" [ref=e199]
+      - button "Go to banner 2" [ref=e200]
+      - button "Go to banner 3" [ref=e201]
+      - button "Go to banner 4" [ref=e202]
+  - generic
+    - heading "Paling Banyak Dilihat" [level=2, ref=e40]
+    - paragraph
+      - StaticText "Mesin yang paling banyak dilihat pembeli"
+    - button "Tampilan grid" [ref=e41]
+    - button "Tampilan tabel" [ref=e42]
+    - article [ref=e43] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e203]
+      - StaticText "TITANIUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Excavator Komatsu PC200-8 Bekas" [level=3, ref=e118]
+      - StaticText "Bekasi"
+      - StaticText "•"
+      - StaticText "Th. "
+      - StaticText "2015"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Karya Teknik Sukses"
+    - article [ref=e44] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e204]
+      - StaticText "TITANIUM"
+      - paragraph
+      - heading "Mesin CNC Router Woodworking 1325 3 Axis" [level=3, ref=e119]
+      - StaticText "Bekasi"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Karya Teknik Sukses"
+    - article [ref=e45] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e205]
+      - StaticText "TITANIUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin Bubut Logam Conventional WD6150 1500mm Swing 500mm" [level=3, ref=e120]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "UD. Sumber Rezeki Mesin"
+    - article [ref=e46] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e206]
+      - StaticText "TITANIUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin Table Saw Sliding 3000mm + Scoring" [level=3, ref=e121]
+      - StaticText "Bekasi"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Indoprint Engineering"
+  - generic
+    - generic
+      - heading "Punya mesin? Ubah jadi cuan." [level=3, ref=e207]
+      - paragraph
+      - button "MULAI PASANG IKLAN" [ref=e208]
+  - generic
+    - heading "Brand New (Mesin Baru)" [level=2, ref=e47]
+    - paragraph
+      - StaticText "Mesin kondisi baru dari seller terverifikasi"
+    - article [ref=e48] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e209]
+      - paragraph
+      - heading "Nozzle Mesin Injeksi Plastik (Universal)" [level=3, ref=e122]
+      - StaticText "Tangerang"
+      - StaticText "3 hari lalu"
+      - StaticText "Mitramega Mesin Industri"
+    - article [ref=e49] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e210]
+      - paragraph
+      - heading "Filter Oli Kompressor Atlas Copco (Original)" [level=3, ref=e123]
+      - StaticText "Bekasi"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Indoprint Engineering"
+    - article [ref=e50] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e211]
+      - paragraph
+      - StaticText "Nego"
+      - heading "Sparepart Roller Offset Heidelberg (Set)" [level=3, ref=e124]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "UD. Sumber Rezeki Mesin"
+    - article [ref=e51] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e212]
+      - paragraph
+      - heading "Pisau CNC V-Bit Set 10pcs (Hard Carbide)" [level=3, ref=e125]
+      - StaticText "Jakarta Selatan"
+      - StaticText "3 hari lalu"
+      - StaticText "Bengkel Las & Mesin Sejahtera"
+    - article [ref=e52] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e213]
+      - paragraph
+      - heading "Concrete Mixer 350L Diesel Engine" [level=3, ref=e126]
+      - StaticText "Medan"
+      - StaticText "3 hari lalu"
+      - StaticText "CV. Mesindo Mandiri"
+    - article [ref=e53] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e214]
+      - paragraph
+      - heading "Mesin Planner Thicknesser 20 Inch 3 in 1" [level=3, ref=e127]
+      - StaticText "Semarang"
+      - StaticText "3 hari lalu"
+      - StaticText "Mitramega Mesin Industri"
+    - article [ref=e54] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e215]
+      - StaticText "PLATINUM"
+      - paragraph
+      - heading "Mesin Jahit Industri Juki DDL-8700 (1 Jarum)" [level=3, ref=e128]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "CV. Mesindo Mandiri"
+    - article [ref=e55] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e216]
+      - paragraph
+      - heading "Mesin Bubut Mini Table Top 180x300 (Bench Lathe)" [level=3, ref=e129]
+      - StaticText "Semarang"
+      - StaticText "3 hari lalu"
+      - StaticText "Mitramega Mesin Industri"
+    - article [ref=e56] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e217]
+      - paragraph
+      - heading "Mesin Laser Fiber Marking 20W (Tanda Seri)" [level=3, ref=e130]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "Bengkel Las & Mesin Sejahtera"
+    - article [ref=e57] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e218]
+      - StaticText "PLATINUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin Laser Cutting CO2 1300x900 130W" [level=3, ref=e131]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "Toko Mesin Jaya Abadi"
+    - article [ref=e58] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e219]
+      - StaticText "TITANIUM"
+      - paragraph
+      - heading "Mesin CNC Router Woodworking 1325 3 Axis" [level=3, ref=e132]
+      - StaticText "Bekasi"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Karya Teknik Sukses"
+    - article [ref=e59] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e220]
+      - paragraph
+      - heading "Mesin Blow Molding Botol 5L" [level=3, ref=e133]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "Bengkel Las & Mesin Sejahtera"
+    - article [ref=e60] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e221]
+      - paragraph
+      - heading "Mesin Sublimasi Tinta 1.8m + Heat Press" [level=3, ref=e134]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "Mitramega Mesin Industri"
+    - article [ref=e61] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e222]
+      - StaticText "PLATINUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin UV Flatbed Printer 60x90cm A3+" [level=3, ref=e135]
+      - StaticText "Jakarta Selatan"
+      - StaticText "3 hari lalu"
+      - StaticText "UD. Sumber Rezeki Mesin"
+    - article [ref=e62] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e223]
+      - paragraph
+      - heading "Mesin Cetak Sablon Flat Screen Manual + Vacuum" [level=3, ref=e136]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "CV. Mesindo Mandiri"
+  - generic
+    - heading "Jasa (Cetak, Service, Sewa)" [level=2, ref=e63]
+    - paragraph
+      - StaticText "Layanan industri: cetak, servis, sewa, installasi"
+    - article [ref=e64] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e224]
+      - paragraph
+      - heading "Jasa Installasi & Pemasangan Mesin Packaging Otomatis" [level=3, ref=e137]
+      - StaticText "Jakarta Selatan"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Indoprint Engineering"
+    - article [ref=e65] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e225]
+      - paragraph
+      - heading "Jasa Laser Cutting & Engraving Metal & Akrilik" [level=3, ref=e138]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "UD. Sumber Rezeki Mesin"
+    - article [ref=e66] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e226]
+      - paragraph
+      - heading "Jasa CNC Routing & Cutting Kayu, MDF, Akrilik" [level=3, ref=e139]
+      - StaticText "Tangerang"
+      - StaticText "3 hari lalu"
+      - StaticText "Bengkel Las & Mesin Sejahtera"
+    - article [ref=e67] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e227]
+      - paragraph
+      - heading "Jasa Sewa Excavator Komatsu PC200-8 dengan Operator" [level=3, ref=e140]
+      - StaticText "Semarang"
+      - StaticText "3 hari lalu"
+      - StaticText "Toko Mesin Jaya Abadi"
+    - article [ref=e68] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e228]
+      - paragraph
+      - heading "Jasa Service & Perbaikan Mesin Cetak Offset Semua Merk" [level=3, ref=e141]
+      - StaticText "Bekasi"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Karya Teknik Sukses"
+    - article [ref=e69] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e229]
+      - paragraph
+      - heading "Jasa Cetak Offset A3 Full Color (Min. 500 lembar)" [level=3, ref=e142]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "CV. Mesindo Mandiri"
+  - generic
+    - heading "Iklan Terbaru" [level=2, ref=e70]
+    - paragraph
+      - StaticText "Mesin baru saja dipasang"
+    - article [ref=e71] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e230]
+      - paragraph
+      - StaticText "Nego"
+      - heading "mesin sc" [level=3, ref=e143]
+      - StaticText "Penajam Paser Utara"
+      - StaticText "2 hari lalu"
+      - StaticText "Anda (Pengguna Gomesin)"
+    - article [ref=e72] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e231]
+      - paragraph
+      - heading "Jasa Installasi & Pemasangan Mesin Packaging Otomatis" [level=3, ref=e144]
+      - StaticText "Jakarta Selatan"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Indoprint Engineering"
+    - article [ref=e73] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e232]
+      - paragraph
+      - heading "Jasa Laser Cutting & Engraving Metal & Akrilik" [level=3, ref=e145]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "UD. Sumber Rezeki Mesin"
+    - article [ref=e74] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e233]
+      - paragraph
+      - heading "Jasa CNC Routing & Cutting Kayu, MDF, Akrilik" [level=3, ref=e146]
+      - StaticText "Tangerang"
+      - StaticText "3 hari lalu"
+      - StaticText "Bengkel Las & Mesin Sejahtera"
+    - article [ref=e75] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e234]
+      - paragraph
+      - heading "Jasa Sewa Excavator Komatsu PC200-8 dengan Operator" [level=3, ref=e147]
+      - StaticText "Semarang"
+      - StaticText "3 hari lalu"
+      - StaticText "Toko Mesin Jaya Abadi"
+    - article [ref=e76] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e235]
+      - paragraph
+      - heading "Jasa Service & Perbaikan Mesin Cetak Offset Semua Merk" [level=3, ref=e148]
+      - StaticText "Bekasi"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Karya Teknik Sukses"
+    - article [ref=e77] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e236]
+      - paragraph
+      - heading "Jasa Cetak Offset A3 Full Color (Min. 500 lembar)" [level=3, ref=e149]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "CV. Mesindo Mandiri"
+    - article [ref=e78] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e237]
+      - paragraph
+      - heading "Nozzle Mesin Injeksi Plastik (Universal)" [level=3, ref=e150]
+      - StaticText "Tangerang"
+      - StaticText "3 hari lalu"
+      - StaticText "Mitramega Mesin Industri"
+    - article [ref=e79] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e238]
+      - paragraph
+      - heading "Filter Oli Kompressor Atlas Copco (Original)" [level=3, ref=e151]
+      - StaticText "Bekasi"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Indoprint Engineering"
+    - article [ref=e80] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e239]
+      - paragraph
+      - StaticText "Nego"
+      - heading "Sparepart Roller Offset Heidelberg (Set)" [level=3, ref=e152]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "UD. Sumber Rezeki Mesin"
+    - article [ref=e81] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e240]
+      - paragraph
+      - heading "Pisau CNC V-Bit Set 10pcs (Hard Carbide)" [level=3, ref=e153]
+      - StaticText "Jakarta Selatan"
+      - StaticText "3 hari lalu"
+      - StaticText "Bengkel Las & Mesin Sejahtera"
+    - article [ref=e82] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e241]
+      - paragraph
+      - heading "Concrete Mixer 350L Diesel Engine" [level=3, ref=e154]
+      - StaticText "Medan"
+      - StaticText "3 hari lalu"
+      - StaticText "CV. Mesindo Mandiri"
+    - article [ref=e83] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e242]
+      - StaticText "TITANIUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Excavator Komatsu PC200-8 Bekas" [level=3, ref=e155]
+      - StaticText "Bekasi"
+      - StaticText "•"
+      - StaticText "Th. "
+      - StaticText "2015"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Karya Teknik Sukses"
+    - article [ref=e84] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e243]
+      - paragraph
+      - heading "Mesin Planner Thicknesser 20 Inch 3 in 1" [level=3, ref=e156]
+      - StaticText "Semarang"
+      - StaticText "3 hari lalu"
+      - StaticText "Mitramega Mesin Industri"
+    - article [ref=e85] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e244]
+      - StaticText "TITANIUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin Table Saw Sliding 3000mm + Scoring" [level=3, ref=e157]
+      - StaticText "Bekasi"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Indoprint Engineering"
+    - article [ref=e86] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e245]
+      - StaticText "PLATINUM"
+      - paragraph
+      - heading "Mesin Jahit Industri Juki DDL-8700 (1 Jarum)" [level=3, ref=e158]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "CV. Mesindo Mandiri"
+    - article [ref=e87] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e246]
+      - paragraph
+      - heading "Mesin Bubut Mini Table Top 180x300 (Bench Lathe)" [level=3, ref=e159]
+      - StaticText "Semarang"
+      - StaticText "3 hari lalu"
+      - StaticText "Mitramega Mesin Industri"
+    - article [ref=e88] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e247]
+      - StaticText "PLATINUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin Bubut CNC 2 Axis Slant Bed Mazak QT-200" [level=3, ref=e160]
+      - StaticText "Jakarta Timur"
+      - StaticText "•"
+      - StaticText "Th. "
+      - StaticText "2008"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Indoprint Engineering"
+    - article [ref=e89] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e248]
+      - StaticText "TITANIUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin Bubut Logam Conventional WD6150 1500mm Swing 500mm" [level=3, ref=e161]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "UD. Sumber Rezeki Mesin"
+    - article [ref=e90] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e249]
+      - paragraph
+      - heading "Mesin Laser Fiber Marking 20W (Tanda Seri)" [level=3, ref=e162]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "Bengkel Las & Mesin Sejahtera"
+    - article [ref=e91] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e250]
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin CNC Milling VMC 850 Second Import Jepang" [level=3, ref=e163]
+      - StaticText "Jakarta Selatan"
+      - StaticText "•"
+      - StaticText "Th. "
+      - StaticText "2010"
+      - StaticText "3 hari lalu"
+      - StaticText "CV. Mesindo Mandiri"
+    - article [ref=e92] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e251]
+      - StaticText "PLATINUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin Laser Cutting CO2 1300x900 130W" [level=3, ref=e164]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "Toko Mesin Jaya Abadi"
+    - article [ref=e93] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e252]
+      - StaticText "TITANIUM"
+      - paragraph
+      - heading "Mesin CNC Router Woodworking 1325 3 Axis" [level=3, ref=e165]
+      - StaticText "Bekasi"
+      - StaticText "3 hari lalu"
+      - StaticText "PT. Karya Teknik Sukses"
+    - article [ref=e94] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e253]
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin Extruder Pipa PVC 65mm" [level=3, ref=e166]
+      - StaticText "Medan"
+      - StaticText "3 hari lalu"
+      - StaticText "UD. Sumber Rezeki Mesin"
+    - article [ref=e95] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e254]
+      - paragraph
+      - heading "Mesin Blow Molding Botol 5L" [level=3, ref=e167]
+      - StaticText "Surabaya"
+      - StaticText "3 hari lalu"
+      - StaticText "Bengkel Las & Mesin Sejahtera"
+    - article [ref=e96] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e255]
+      - paragraph
+      - heading "Mesin Shrink Wrap Tunnel L Sealer" [level=3, ref=e168]
+      - StaticText "Tangerang"
+      - StaticText "3 hari lalu"
+      - StaticText "Toko Mesin Jaya Abadi"
+    - article [ref=e97] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e256]
+      - paragraph
+      - heading "Mesin Sublimasi Tinta 1.8m + Heat Press" [level=3, ref=e169]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "Mitramega Mesin Industri"
+    - article [ref=e98] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e257]
+      - StaticText "PLATINUM"
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin UV Flatbed Printer 60x90cm A3+" [level=3, ref=e170]
+      - StaticText "Jakarta Selatan"
+      - StaticText "3 hari lalu"
+      - StaticText "UD. Sumber Rezeki Mesin"
+    - article [ref=e99] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e258]
+      - paragraph
+      - StaticText "Nego"
+      - heading "Mesin Cetak Label Flexo 3 Warna" [level=3, ref=e171]
+      - StaticText "Tangerang"
+      - StaticText "3 hari lalu"
+      - StaticText "Bengkel Las & Mesin Sejahtera"
+    - article [ref=e100] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e259]
+      - paragraph
+      - heading "Mesin Cetak Sablon Flat Screen Manual + Vacuum" [level=3, ref=e172]
+      - StaticText "Bandung"
+      - StaticText "3 hari lalu"
+      - StaticText "CV. Mesindo Mandiri"
+    - article [ref=e101] clickable [cursor:pointer, onclick]
+      - generic
+        - button "Tambah ke favorit" [ref=e260]
+      - heading "Mesin Cetak Digital Konika Minolta C3080" [level=3, ref=e173]
+- contentinfo
+  - StaticText "go"
+  - StaticText "mesin"
+  - paragraph
+    - StaticText "Gomesin adalah marketplace mesin industri terlengkap di Indonesia. Jual beli mesin cetak, CNC, laser, woodworking, food processing, kompressor, generator, dan sparepart mesin bekas & baru."
+  - link "Facebook" [ref=e7]
+  - link "Instagram" [ref=e8]
+  - link "Youtube" [ref=e9]
+  - heading "Kategori" [level=4, ref=e10]
+  - list
+    - listitem [level=1]
+      - button "Mesin Cetak" [ref=e174]
+    - listitem [level=1]
+      - button "Mesin CNC & Laser" [ref=e175]
+    - listitem [level=1]
+      - button "Kompressor & Generator" [ref=e176]
+    - listitem [level=1]
+      - button "Alat Berat" [ref=e177]
+    - listitem [level=1]
+      - button "Sparepart" [ref=e178]
+  - heading "Gomesin" [level=4, ref=e11]
+  - list
+    - listitem [level=1]
+      - button "Jual Mesin" [ref=e179]
+    - listitem [level=1]
+      - link "Cara Membeli" [ref=e180]
+    - listitem [level=1]
+      - link "Tips Aman" [ref=e181]
+    - listitem [level=1]
+      - link "Pusat Bantuan" [ref=e182]
+    - listitem [level=1]
+      - link "Syarat & Ketentuan" [ref=e183]
+  - heading "Hubungi Kami" [level=4, ref=e12]
+  - list
+    - listitem [level=1]
+    - listitem [level=1]
+      - StaticText "WhatsApp: 0858 8808 2208"
+- navigation
+  - button "Home" [ref=e13]
+  - button "Chat" [ref=e14]
+  - button "Pasang Iklan" [ref=e15]
+  - button "Iklan saya" [ref=e16]
+  - button "Masuk" [ref=e17]
+- generic
+  - generic [ref=e18] clickable [onclick]
+  - generic [ref=e19] clickable [onclick]
+    - generic
+      - button [ref=e184]
+      - heading "Install Aplikasi Gomesin" [level=2, ref=e185]
+    - button "Nanti Saja" [ref=e102]
+- region "Notifications (F8)" [ref=e1]
+- region "Notifications alt+T" [ref=e2]

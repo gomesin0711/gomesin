@@ -9,6 +9,7 @@ import { getPaketMap } from "@/lib/paket";
 // (sebelumnya frontend fetch /api/admin/paket terpisah → saat data paket belum
 // loaded, kolom "Harga Pasang Iklan" sempat tampil "Gratis" untuk semua iklan).
 export async function GET(req: NextRequest) {
+  try {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || "";
   const where: any = {};
@@ -31,6 +32,9 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ listings: withFee });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
+  }
 }
 
 // PATCH: update status (approve/reject/sold) OR toggle violation

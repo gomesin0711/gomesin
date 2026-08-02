@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 export async function GET() {
+  try {
   const pakets = await db.paket.findMany({ orderBy: { sortOrder: "asc" } });
   return NextResponse.json({
     pakets: pakets.map((p) => ({
@@ -9,6 +10,9 @@ export async function GET() {
       features: JSON.parse(p.features),
     })),
   });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest) {
