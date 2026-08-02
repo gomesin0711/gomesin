@@ -403,19 +403,6 @@ export function HomeView() {
         </div>
       </section>
 
-      {/* BRAND TICKER MARQUEE */}
-      <div className="overflow-hidden border-b border-border/50 bg-muted/30 py-2.5">
-        <div className="marquee-track flex w-max gap-10 text-base font-bold tracking-wide text-muted-foreground/60">
-          {[...Array(2)].map((_, setIdx) => (
-            <span key={setIdx} className="flex shrink-0 items-center gap-8">
-              {"Heidelberg · Komori · Roland · Mitsubishi · KBA · Ryobi · Sakurai · Shinohara · Canon · HP Indigo · Xerox · Konica Minolta · Epson · Mimaki · Mutoh · Roland DG · Brother · Tajima · Barudan · Juki · Pfaff · Bernina · Singer · Yamata · Typical · Hsin Lai · CNC · Haas · DMG Mori · Mazak · Fanuc · Trumpf · Bystronic · Amada · Haco · Höfler · Hermle · Deckel Maho · Bridgeport · Sharp · Okuma · Hurco · Doosan · Hyundai · Kobelco · Komatsu · Caterpillar · Hitachi · Volvo · Bosch · Makita · DeWalt · Milwaukee · Festool · Jet · Baileigh · Knuth · WMW · Atlas · Grizzly · Jet Tools · Dayton · Ingersoll Rand · Atlas Copco · Kaeser · Boge · Sullair · Champion · Quincy · Chicago Pneumatic".split(" · ").map((brand) => (
-                <span key={`${setIdx}-${brand}`} className="whitespace-nowrap select-none">{brand}</span>
-              ))}
-            </span>
-          ))}
-        </div>
-      </div>
-
       {/* JELAJAHI KATEGORI — all categories with listing counts */}
       <section className="mx-auto max-w-7xl px-4 pt-6">
         <div className="mb-4 flex items-end justify-between">
