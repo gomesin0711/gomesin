@@ -554,3 +554,36 @@ Stage Summary:
 - Key merged features: auth fallback (client-store), listing persistence, admin DB error handling, PWA improvements, brand ticker in header, profile drawer sizing
 - Deployment: https://gomesin.vercel.app — Ready in 50s
 - Listing count differences are data-level (local DB vs seed fallback), not code-level
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix admin dashboard not showing on Vercel (online)
+
+Work Log:
+- Root cause: All admin API routes (stats, sellers, categories, users, monthly-report, info) threw 500 on Vercel because SQLite is unavailable
+- The admin.tsx useAdminQuery caught errors and showed DB_ERROR_UI ("Database tidak tersedia")
+- Created src/lib/admin-fallback.ts with 6 async fallback functions:
+  - getAdminFallbackStats() — computes stats from seed-data.json + auth-fallback store
+  - getAdminFallbackSellers() — derives sellers from seed listing data
+  - getAdminFallbackCategories() — categories with listing counts from seed
+  - getAdminFallbackUsers() — users from auth-fallback store
+  - getAdminFallbackMonthlyReport() — monthly breakdown from seed + auth store
+  - getAdminFallbackInfo() — admin info from auth-fallback store
+- Updated 7 admin API routes with isDbAvailable() + fallback pattern:
+  - /api/admin/stats/route.ts
+  - /api/admin/sellers/route.ts
+  - /api/admin/categories/route.ts
+  - /api/admin/categories/[id]/route.ts
+  - /api/admin/users/route.ts (also fixed relative import lib/db → @/lib/db)
+  - /api/admin/monthly-report/route.ts
+  - /api/admin/info/route.ts
+- Verified all admin APIs return 200 with real data on Vercel
+- Deployed to https://gomesin.vercel.app (build 29s, ready 50s)
+- Agent Browser verified: admin dashboard renders with stats cards, charts, sidebar
+
+Stage Summary:
+- Admin dashboard now works on Vercel with fallback data
+- Stats: 1 user, 31 listings, omzet Rp 440.000 (from seed data)
+- All admin tabs functional (Dashboard, Iklan Baru, Kategori, Paket, Users, etc.)
+- Write operations (POST/PATCH/DELETE) return 503 on Vercel (expected — no DB)
