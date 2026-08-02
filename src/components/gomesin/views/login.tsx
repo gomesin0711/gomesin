@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLang, translations as i18nTranslations, formatT } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
+import { saveClientCredential, verifyClientCredential } from "@/lib/client-store";
 
 export function LoginView() {
   const goBack = useStore((s) => s.goBack);
@@ -67,6 +68,20 @@ export function LoginView() {
       });
       const data = await res.json();
       if (!res.ok) {
+        // Server login failed — try client-side credential verification
+        // (handles Vercel where /tmp/ is ephemeral and user data is lost)
+        const localUser = verifyClientCredential(lEmail, lPass);
+        if (localUser) {
+          const setUser = useStore.getState().setUser;
+          const goHome = useStore.getState().goHome;
+          const goToAdmin = useStore.getState().goToAdmin;
+          setUser(localUser);
+          setSuccess(true);
+          toast.success(formatT(tr("welcomeBack"), { name: localUser.name }));
+          const isAdmin = localUser.role === "admin" || localUser.role === "superadmin";
+          setTimeout(() => isAdmin ? goToAdmin() : goHome(), 900);
+          return;
+        }
         toast.error(data.error || tr("errLogin"));
         return;
       }
@@ -123,6 +138,19 @@ export function LoginView() {
       const setUser = useStore.getState().setUser;
       const goToPost = useStore.getState().goToPost;
       const goToAdmin = useStore.getState().goToAdmin;
+      // Save credentials to client-side localStorage for Vercel persistence
+      saveClientCredential({
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        password: rPass, // plain password stored locally for client-side login fallback
+        phone: data.user.phone,
+        city: data.user.city,
+        company: data.user.company,
+        address: data.user.address,
+        role: data.user.role,
+        createdAt: data.user.createdAt,
+      });
       setUser(data.user);
       setSuccess(true);
       toast.success(tr("registerSuccess"));

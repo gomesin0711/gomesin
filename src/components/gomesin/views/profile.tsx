@@ -78,6 +78,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useLang } from "@/lib/i18n";
 import { timeAgo, formatRupiah, formatRupiahFull } from "@/lib/types";
+import { mergeListings } from "@/lib/client-store";
 import { translations as i18nTranslations } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
 import { Input } from "@/components/ui/input";
@@ -127,13 +128,25 @@ export function ProfileView() {
   const storeProfilePanel = useStore((s) => s.profilePanel);
   const clearProfilePanel = useStore((s) => s.clearProfilePanel);
 
-  // Fetch user's listing count
+  // Fetch user's listing count (merge server + client-side for Vercel persistence)
   const { data: myListingsData } = useQuery({
     queryKey: ["my-listing-count", user?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/my-listings?userId=${user!.id}`);
-      if (!res.ok) throw new Error("fail");
-      return res.json();
+      try {
+        const res = await fetch(`/api/my-listings?userId=${user!.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          // Merge with client-side stored listings
+          const merged = mergeListings(data.listings || [], user!.id);
+          return { ...data, listings: merged };
+        }
+      } catch {
+        // Server unavailable — use client-side only
+      }
+      // Fallback: only client-side listings
+      const { getClientListingsByUserId } = await import("@/lib/client-store");
+      const localListings = getClientListingsByUserId(user!.id);
+      return { listings: localListings, total: localListings.length };
     },
     enabled: !!user?.id,
     staleTime: 0,

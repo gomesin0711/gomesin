@@ -41,6 +41,7 @@ import { compressImage } from "@/lib/image";
 import { shareImageToWhatsApp } from "@/lib/share-image";
 import { useChatSocket } from "@/lib/use-chat-socket";
 import { generateUniqueCode } from "@/lib/unique-code";
+import { saveClientListing } from "@/lib/client-store";
 import {
   Popover,
   PopoverContent,
@@ -185,6 +186,8 @@ export function PostAdView() {
     onSuccess: (listing: any) => {
       const wasDraft = savingDraft;
       setSavingDraft(false);
+      // Save listing to client-side localStorage for Vercel persistence
+      try { saveClientListing(listing); } catch {}
       toast.success(wasDraft ? "Iklan disimpan (Belum Aktif)." : tr("adPosted"));
       if (wasDraft) {
         goHome();

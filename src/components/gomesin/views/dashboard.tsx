@@ -45,6 +45,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { mergeListings } from "@/lib/client-store";
 
 type Listing = any;
 
@@ -79,10 +80,28 @@ function formatRemainingDays(paymentExpiry: string | null | undefined, lang: str
 }
 
 async function fetchListings(userId?: string) {
-  const url = userId ? `/api/my-listings?userId=${encodeURIComponent(userId)}` : "/api/my-listings";
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("fail");
-  return res.json() as Promise<{ listings: Listing[]; total: number }>;
+  try {
+    const url = userId ? `/api/my-listings?userId=${encodeURIComponent(userId)}` : "/api/my-listings";
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json() as { listings: Listing[]; total: number };
+      // Merge with client-side stored listings (Vercel persistence)
+      if (userId) {
+        const merged = mergeListings(data.listings || [], userId);
+        return { listings: merged, total: merged.length };
+      }
+      return data;
+    }
+  } catch {
+    // Server unavailable
+  }
+  // Fallback: client-side only
+  if (userId) {
+    const { getClientListingsByUserId } = await import("@/lib/client-store");
+    const localListings = getClientListingsByUserId(userId);
+    return { listings: localListings, total: localListings.length };
+  }
+  return { listings: [], total: 0 };
 }
 
 async function deleteListing(slug: string) {

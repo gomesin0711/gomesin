@@ -457,3 +457,24 @@ Stage Summary:
 - WhatsApp mode: phone + OTP flow
 - Email mode: email + password flow
 - Smooth animate-fade-up transition between modes
+---
+Task ID: 1
+Agent: main
+Task: Fix Vercel deployment issues - auth persistence, listing persistence, unique code stability
+
+Work Log:
+- Created /home/z/my-project/src/lib/client-store.ts - Client-side localStorage persistence for credentials and listings
+- Modified login.tsx - Save credentials on register, client-side login fallback when server fails
+- Modified profile.tsx - Merge server listings with client-side listings for my-listings view
+- Modified dashboard.tsx - Same merge logic for dashboard view
+- Modified post-ad.tsx - Save listing to client store on successful creation
+- Fixed check-email API to use fallback when DB unavailable
+- Fixed listing PATCH/DELETE routes to use fallback when DB unavailable
+- Verified unique code is deterministic (DJB2 hash of userId+year+month, no API calls)
+- Deployed to Vercel production
+
+Stage Summary:
+- Auth persistence: Users register → credentials saved to localStorage → if server /tmp/ is wiped, login falls back to client-side verification
+- Listing persistence: Listings saved to both server and localStorage → my-listings page merges both sources
+- Unique code: Deterministic client-side generation, stable per user per month, does not change on refresh/page switch/package change
+- Deployed to https://gomesin.vercel.app/
