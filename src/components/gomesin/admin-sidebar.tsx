@@ -128,13 +128,13 @@ export function AdminSidebar({
                     key={item.view}
                     onClick={() => handleNav(item.view)}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] transition",
+                      "flex w-full items-center gap-3 rounded-md px-2 py-[15px] text-left text-[17px] transition",
                       active
                         ? "bg-primary font-semibold text-primary-foreground"
                         : "text-foreground/80 hover:bg-accent"
                     )}
                   >
-                    <item.icon className="size-[18px] shrink-0" />
+                    <item.icon className="size-[25px] shrink-0" />
                     <span className="truncate">{tr(item.labelKey)}</span>
                     {count !== undefined && count > 0 && (
                       <span className={cn(
@@ -155,13 +155,13 @@ export function AdminSidebar({
                     key={item.view}
                     onClick={() => handleNav(item.view)}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] transition",
+                      "flex w-full items-center gap-3 rounded-md px-2 py-[15px] text-left text-[17px] transition",
                       active
                         ? "bg-primary font-semibold text-primary-foreground"
                         : "text-foreground/80 hover:bg-accent"
                     )}
                   >
-                    <item.icon className="size-[18px] shrink-0" />
+                    <item.icon className="size-[25px] shrink-0" />
                     <span className="truncate">{tr(item.labelKey)}</span>
                   </button>
                 );
@@ -172,14 +172,14 @@ export function AdminSidebar({
                 onClick={() => { goHome(); onClose(); }}
                 className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] text-foreground/80 transition hover:bg-accent"
               >
-                <ArrowLeft className="size-[18px] shrink-0" />
+                <ArrowLeft className="size-[25px] shrink-0" />
                 <span className="truncate">Beranda</span>
               </button>
               <button
                 onClick={() => { goHome(); onClose(); }}
                 className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-[15px] text-destructive transition hover:bg-destructive/5"
               >
-                <Lock className="size-[18px] shrink-0" />
+                <Lock className="size-[25px] shrink-0" />
                 <span className="truncate">{tr("adminExit")}</span>
               </button>
             </div>
