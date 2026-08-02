@@ -72,10 +72,13 @@ export function AdminSidebar({
     queryKey: ["admin-listings"],
     queryFn: async () => {
       const res = await fetch("/api/admin/listings");
-      if (!res.ok) throw new Error("fail");
-      return res.json();
+      if (!res.ok) return { listings: [] };
+      const text = await res.text();
+      if (!text) return { listings: [] };
+      return JSON.parse(text);
     },
     staleTime: 0,
+    retry: false,
   });
 
   const allListings = listingsData?.listings ?? [];

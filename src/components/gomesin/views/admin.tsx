@@ -37,7 +37,33 @@ import {
 type Tab = "dashboard" | "iklan" | "iklanbaru" | "iklanexpired" | "iklanditolak" | "penjual" | "kategori" | "merek" | "lokasi" | "banner" | "paket" | "transaksi" | "laporan" | "laporanbulanan" | "audit" | "pengguna" | "chat";
 
 // ============ FETCHERS ============
-const fetchJson = async (url: string) => (await fetch(url)).json();
+const fetchJson = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  const text = await res.text();
+  if (!text) throw new Error(`API ${res.status}: empty response`);
+  return JSON.parse(text);
+};
+
+// Safe admin query — returns empty data on error instead of throwing
+function useAdminQuery<T>(key: string[], url: string) {
+  return useQuery({
+    queryKey: key,
+    queryFn: async () => {
+      try { return await fetchJson(url); } catch { return null; }
+    },
+    retry: false,
+    staleTime: 0,
+  });
+}
+
+const DB_ERROR_UI = (
+  <div className="flex flex-col items-center justify-center py-20 text-center">
+    <AlertTriangle className="size-10 text-amber-500" />
+    <p className="mt-3 text-sm font-semibold">Database tidak tersedia</p>
+    <p className="mt-1 max-w-xs text-xs text-muted-foreground">Panel admin memerlukan database cloud. SQLite lokal tidak bekerja di Vercel.</p>
+  </div>
+);
 
 // Format biaya pasang iklan (angka dari server) → "Rp X".
 // `adFee` sudah dihitung di sisi server (/api/admin/listings) dari tabel Paket,
@@ -122,8 +148,8 @@ function DashboardTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fetchJson("/api/admin/stats") });
-  if (isLoading || !data) return <SkeletonGrid count={4} />;
+  const { data, isLoading, error } = useAdminQuery(["admin-stats"], "/api/admin/stats");
+  if (error || !data) return isLoading ? <SkeletonGrid count={4} /> : DB_ERROR_UI;
   const stats = [
     { label: tr("admTotalUsers"), value: data.totals.users, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
     { label: tr("admTotalListings"), value: data.totals.listings, icon: Tag, color: "text-primary", bg: "bg-primary/10" },
@@ -236,7 +262,7 @@ function IklanTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -285,7 +311,7 @@ function IklanTab() {
     return filtered;
   }, [allListings, activeTab, search]);
 
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
 
   const openPreview = (l: any) => { setPreviewListing(l); setActiveImg(0); };
 
@@ -615,7 +641,7 @@ function IklanBaruTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -652,7 +678,7 @@ function IklanBaruTab() {
     return filtered;
   }, [newListings, activeTab, search]);
 
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
 
   const approve = (id: string) => {
     setStatus.mutate({ id, status: "active" });
@@ -897,7 +923,7 @@ function IklanExpiredTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -949,7 +975,7 @@ function IklanExpiredTab() {
     return filtered;
   }, [expiredListings, activeTab, search]);
 
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
 
   const openPreview = (l: any) => { setPreviewListing(l); setActiveImg(0); };
 
@@ -1180,7 +1206,7 @@ function IklanDitolakTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -1221,7 +1247,7 @@ function IklanDitolakTab() {
     return filtered;
   }, [rejectedListings, activeTab, search]);
 
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
 
   const openPreview = (l: any) => { setPreviewListing(l); setActiveImg(0); };
 
@@ -1441,12 +1467,12 @@ function PenjualTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-sellers"], queryFn: () => fetchJson("/api/admin/sellers") });
+  const { data, isLoading } = useAdminQuery(["admin-sellers"], "/api/admin/sellers");
   const toggle = useMutation({
     mutationFn: ({ id, verified }: { id: string; verified: boolean }) => fetch("/api/admin/sellers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, verified }) }),
     onSuccess: () => { toast.success(tr("admSellerStatusUpdated")); qc.invalidateQueries({ queryKey: ["admin-sellers"] }); },
   });
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
   return (
     <div className="space-y-3">
       <h2 className="text-base font-bold">Verifikasi Penjual ({data.sellers.length})</h2>
@@ -1475,7 +1501,7 @@ function KategoriTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-categories"], queryFn: () => fetchJson("/api/admin/categories") });
+  const { data, isLoading } = useAdminQuery(["admin-categories"], "/api/admin/categories");
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState(""); const [slug, setSlug] = useState(""); const [icon, setIcon] = useState("Cog");
   const create = useMutation({
@@ -1486,7 +1512,7 @@ function KategoriTab() {
     mutationFn: (id: string) => fetch(`/api/admin/categories/${id}`, { method: "DELETE" }),
     onSuccess: () => { toast.success(tr("admCategoryDeleted")); qc.invalidateQueries({ queryKey: ["admin-categories"] }); },
   });
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -1520,14 +1546,14 @@ function PenggunaTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-users"], queryFn: () => fetchJson("/api/admin/users") });
+  const { data, isLoading } = useAdminQuery(["admin-users"], "/api/admin/users");
   const [previewUser, setPreviewUser] = useState<any>(null);
   const del = useMutation({
     mutationFn: (id: string) => fetch("/api/admin/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
     onSuccess: () => { toast.success(tr("admUserDeleted")); qc.invalidateQueries({ queryKey: ["admin-users"] }); },
     onError: (e: any) => { const msg = e?.message || tr("admDeleteFailed2"); toast.error(msg); },
   });
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
   const users = data.users;
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
   const isAdmin = (u: any) => u.role === "admin" || u.role === "superadmin";
@@ -1682,11 +1708,11 @@ function MerekTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
   const [extraBrands, setExtraBrands] = useState<string[]>([]);
   const [newBrand, setNewBrand] = useState("");
 
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
 
   // Compute brands from listings + extra brands added by admin
   const brands: Record<string, number> = {};
@@ -1759,13 +1785,13 @@ function LokasiTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
   const [extraCities, setExtraCities] = useState<string[]>([]);
   const [extraProvinces, setExtraProvinces] = useState<string[]>([]);
   const [newCity, setNewCity] = useState("");
   const [newProvince, setNewProvince] = useState("");
 
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
 
   // Compute from listings + extra entries
   const cities: Record<string, number> = {};
@@ -1990,7 +2016,7 @@ function PaketTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-paket"], queryFn: () => fetchJson("/api/admin/paket") });
+  const { data, isLoading } = useAdminQuery(["admin-paket"], "/api/admin/paket");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPrice, setEditPrice] = useState("");
@@ -2004,7 +2030,7 @@ function PaketTab() {
     onError: (e: any) => { toast.error("Gagal menyimpan paket"); },
   });
 
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
 
   const pakets = data.pakets || [];
   const iconMap: Record<string, any> = { colek: Tag, sundul: TrendingUp, highlight: Zap, spotlight: Crown };
@@ -2114,11 +2140,11 @@ function TransaksiTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-listings"], queryFn: () => fetchJson("/api/admin/listings") });
+  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
   const [search, setSearch] = useState("");
   const [pkgFilter, setPkgFilter] = useState<"all" | "spotlight" | "highlight" | "sundul" | "colek">("all");
   const [viewMode, setViewMode] = useState<"grid" | "line">("line");
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
 
   const now = new Date();
   const startToday = new Date(now); startToday.setHours(0, 0, 0, 0);
@@ -2363,8 +2389,8 @@ function LaporanTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fetchJson("/api/admin/stats") });
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  const { data, isLoading } = useAdminQuery(["admin-stats"], "/api/admin/stats");
+  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
   return (
     <div className="space-y-4">
       <h2 className="text-base font-bold">Laporan Lengkap</h2>
@@ -2407,12 +2433,12 @@ function MonthlyReportTab() {
   const [year, setYear] = useState<number>(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin-monthly-report", year],
-    queryFn: () => fetchJson(`/api/admin/monthly-report?year=${year}`),
-  });
+  const { data, isLoading } = useAdminQuery(
+    ["admin-monthly-report", year],
+    `/api/admin/monthly-report?year=${year}`,
+  );
 
-  if (isLoading || !data) return <SkeletonGrid count={3} />;
+  if (isLoading || !data) return isLoading ? <SkeletonGrid count={3} /> : DB_ERROR_UI;
 
   const months: any[] = data.months || [];
   const yearTotal = data.yearTotal || { omzet: 0, listings: 0, users: 0 };
@@ -2726,13 +2752,10 @@ function ChatTab_REMOVED() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin-chat"],
-    queryFn: () => fetchJson("/api/admin/chat"),
-    refetchInterval: 15000, // auto-refresh every 15s
-  });
+  const { data, isLoading } = useAdminQuery(["admin-chat"], "/api/admin/chat");
 
   if (isLoading) return <SkeletonGrid count={4} />;
+  if (!data) return DB_ERROR_UI;
 
   const conversations: any[] = data?.conversations ?? [];
   const stats = data?.summary ?? { totalConversations: 0, totalMessages: 0, totalUnread: 0, activeUsers: 0 };
