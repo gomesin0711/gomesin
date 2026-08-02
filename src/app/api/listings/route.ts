@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { parseListing } from "@/lib/types";
 import { getPaketMap } from "@/lib/paket";
 import { saveImagesToLocal } from "@/lib/save-image";
 import { getFallbackListings } from "@/lib/fallback-data";
+import { fallbackCreateListing } from "@/lib/listing-fallback";
 import type { ListingFilters } from "@/lib/fallback-data";
 
 export async function GET(req: NextRequest) {
@@ -123,119 +124,119 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { title, description, price, priceType, condition, brand, yearProduced, city, province, categoryId, images, specs, featured, package: pkg, paymentMethod, userId, userName, userPhone, saveAsDraft } = body;
+  const body = await req.json();
+  const { title, description, price, priceType, condition, brand, yearProduced, city, province, categoryId, images, specs, featured, package: pkg, paymentMethod, userId, userName, userPhone, saveAsDraft, adType, availability } = body;
 
-    // Draft mode ("Simpan Dulu"): only title is required, skip payment verification.
-    const isDraft = saveAsDraft === true;
-    if (!isDraft && (!title || !description || !price || !categoryId || !city || !province)) {
-      return NextResponse.json({ error: "Data tidak lengkap. Mohon lengkapi semua field wajib." }, { status: 400 });
-    }
-    if (isDraft && !title) {
-      return NextResponse.json({ error: "Judul wajib diisi untuk menyimpan dulu." }, { status: 400 });
-    }
+  const isDraft = saveAsDraft === true;
+  if (!isDraft && (!title || !description || !price || !categoryId || !city || !province)) {
+    return NextResponse.json({ error: "Data tidak lengkap. Mohon lengkapi semua field wajib." }, { status: 400 });
+  }
+  if (isDraft && !title) {
+    return NextResponse.json({ error: "Judul wajib diisi untuk menyimpan dulu." }, { status: 400 });
+  }
 
-    // Fetch the actual user from DB to get their latest name + phone
-    // (more reliable than client-sent values which may be stale).
-    let dbUser = null;
-    if (userId) {
-      dbUser = await db.user.findUnique({ where: { id: userId } });
-    }
-    const finalName = dbUser?.name || userName || "Anda (Pengguna Gomesin)";
-    const finalPhone = dbUser?.phone || userPhone || "0812-0000-0000";
-
-    // Find or create a seller record tied to this user.
-    // Each user gets their own seller profile so their ads are isolated.
-    // Try to find existing seller by matching listings with this userId.
-    let seller = null;
-    if (userId) {
-      const userListings = await db.listing.findFirst({
-        where: { userId },
-        include: { seller: true },
-      });
-      if (userListings) {
-        seller = userListings.seller;
+  // ─── Try DB path first (local dev with SQLite) ───────────────────────────
+  if (isDbAvailable()) {
+    try {
+      let dbUser = null;
+      if (userId) {
+        dbUser = await db.user.findUnique({ where: { id: userId } });
       }
-    }
-    if (!seller) {
-      seller = await db.seller.create({
+      const finalName = dbUser?.name || userName || "Anda (Pengguna Gomesin)";
+      const finalPhone = dbUser?.phone || userPhone || "0812-0000-0000";
+
+      let seller = null;
+      if (userId) {
+        const userListings = await db.listing.findFirst({
+          where: { userId },
+          include: { seller: true },
+        });
+        if (userListings) {
+          seller = userListings.seller;
+        }
+      }
+      if (!seller) {
+        seller = await db.seller.create({
+          data: {
+            name: finalName,
+            phone: finalPhone,
+            city,
+            province,
+            verified: false,
+            rating: 5.0,
+            reviewCount: 0,
+          },
+        });
+      } else {
+        seller = await db.seller.update({
+          where: { id: seller.id },
+          data: { name: finalName, phone: finalPhone },
+        });
+      }
+
+      const slugBase = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const slug = slugBase + "-" + Math.random().toString(36).slice(2, 7);
+
+      const paketMap = await getPaketMap();
+      const pkgKey = pkg || "colek";
+      const pkgDays = paketMap[pkgKey]?.duration ?? 30;
+
+      let finalCategoryId = categoryId;
+      if (!finalCategoryId) {
+        const firstCat = await db.category.findFirst({ orderBy: { sortOrder: "asc" } });
+        finalCategoryId = firstCat?.id;
+      }
+
+      const isPaid = !!paymentMethod;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + pkgDays);
+
+      const rawImages: string[] = images || [];
+      const localImages = await saveImagesToLocal(rawImages);
+
+      const created = await db.listing.create({
         data: {
-          name: finalName,
-          phone: finalPhone,
-          city: city,
-          province: province,
-          verified: false,
-          rating: 5.0,
-          reviewCount: 0,
+          title,
+          slug,
+          description,
+          price: BigInt(Math.floor(Number(price) || 0)),
+          priceType: priceType || "fixed",
+          condition: condition || "bekas",
+          brand: brand || null,
+          yearProduced: yearProduced ? parseInt(yearProduced, 10) : null,
+          city,
+          province,
+          images: JSON.stringify(localImages),
+          specs: JSON.stringify(specs || {}),
+          packageType: pkgKey,
+          featured: pkgKey === "spotlight" || pkgKey === "highlight",
+          status: isDraft ? "draft" : "pending",
+          paymentStatus: isDraft ? "unpaid" : (isPaid ? "paid" : "unpaid"),
+          paymentExpiry: isPaid ? expiryDate : null,
+          categoryId: finalCategoryId,
+          sellerId: seller.id,
+          userId: userId || null,
         },
+        include: { category: true, seller: true, user: { select: { id: true, name: true, phone: true, email: true, city: true, logoImage: true, bannerImage: true } } },
       });
-    } else {
-      // Update existing seller with latest user info (in case profile changed)
-      seller = await db.seller.update({
-        where: { id: seller.id },
-        data: { name: finalName, phone: finalPhone },
-      });
+
+      return NextResponse.json({ listing: parseListing(created) }, { status: 201 });
+    } catch (dbError: any) {
+      console.error("POST /api/listings DB error, falling back", dbError);
     }
+  }
 
-    const slugBase = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    const slug = slugBase + "-" + Math.random().toString(36).slice(2, 7);
-
-    // Package pricing from DB (admin can edit via Paket tab)
-    const paketMap = await getPaketMap();
-    const pkgKey = pkg || "colek";
-    const pkgPrice = paketMap[pkgKey]?.price ?? 0;
-    const pkgDays = paketMap[pkgKey]?.duration ?? 30;
-
-    // For draft ("Simpan Dulu"), categoryId may be empty — fallback to first category.
-    let finalCategoryId = categoryId;
-    if (!finalCategoryId) {
-      const firstCat = await db.category.findFirst({ orderBy: { sortOrder: "asc" } });
-      finalCategoryId = firstCat?.id;
-    }
-
-    // If payment method provided, mark as pending. Otherwise pending.
-    const isPaid = !!paymentMethod;
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + pkgDays);
-
-    // Save all images to local filesystem (base64 → file, external URL → download)
-    // This ensures images NEVER disappear as long as the listing exists.
-    const rawImages: string[] = images || [];
-    const localImages = await saveImagesToLocal(rawImages);
-
-    const created = await db.listing.create({
-      data: {
-        title,
-        slug,
-        description,
-        price: BigInt(Math.floor(Number(price) || 0)),
-        priceType: priceType || "fixed",
-        condition: condition || "bekas",
-        brand: brand || null,
-        yearProduced: yearProduced ? parseInt(yearProduced, 10) : null,
-        city,
-        province,
-        images: JSON.stringify(localImages),
-        specs: JSON.stringify(specs || {}),
-        packageType: pkgKey,
-        featured: pkgKey === "spotlight" || pkgKey === "highlight",
-        // "Simpan Dulu" → status "draft" (Belum Aktif, tidak tayang, belum perlu bayar).
-        // Iklan normal → "pending" (menunggu verifikasi admin sebelum tayang).
-        // Admin menyetujui via /api/admin/listings (PATCH status=active) yang juga
-        // mengeset paymentStatus=paid agar langsung muncul di beranda.
-        status: isDraft ? "draft" : "pending",
-        paymentStatus: isDraft ? "unpaid" : (isPaid ? "paid" : "unpaid"),
-        paymentExpiry: isPaid ? expiryDate : null,
-        categoryId: finalCategoryId,
-        sellerId: seller.id,
-        userId: userId || null,
-      },
-      include: { category: true, seller: true, user: { select: { id: true, name: true, phone: true, email: true, city: true, logoImage: true, bannerImage: true } } },
+  // ─── Fallback path (Vercel / no DB) ───────────────────────────────────────
+  try {
+    const listing = await fallbackCreateListing({
+      title, description, price, priceType, condition, brand, yearProduced,
+      city, province, images, specs, featured, packageType: pkg,
+      paymentMethod, userId, userName, userPhone, categoryId, saveAsDraft,
+      adType, availability,
     });
-
-    return NextResponse.json({ listing: parseListing(created) }, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ error: "Gagal membuat iklan: " + (e?.message || "unknown") }, { status: 500 });
+    return NextResponse.json({ listing: parseListing(listing as any) }, { status: 201 });
+  } catch (fallbackError: any) {
+    console.error("POST /api/listings fallback error", fallbackError);
+    return NextResponse.json({ error: "Gagal membuat iklan: " + (fallbackError?.message || "unknown") }, { status: 500 });
   }
 }

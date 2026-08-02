@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { compressImage } from "@/lib/image";
 import { shareImageToWhatsApp } from "@/lib/share-image";
 import { useChatSocket } from "@/lib/use-chat-socket";
+import { generateUniqueCode } from "@/lib/unique-code";
 import {
   Popover,
   PopoverContent,
@@ -153,7 +154,10 @@ export function PostAdView() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [showPayment, setShowPayment] = useState(true);
   const [qrisModal, setQrisModal] = useState(false);
-  const [qrisAmount, setQrisAmount] = useState(0);
+  // Kode unik: dihitung langsung di client (deterministik, stabil per user per bulan).
+  const uniqueCode = user?.id ? generateUniqueCode(user.id) : null;
+  // Reactive: total = harga paket + kode unik
+  const qrisAmount = (paketMap[selectedPackage]?.price ?? 0) + (uniqueCode ?? 0);
   const [proofImage, setProofImage] = useState<string>("");
   const [uploadingProof, setUploadingProof] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -234,25 +238,6 @@ export function PostAdView() {
     const pk = paketMap[selectedPackage];
     const pkgPrice = pk?.price ?? 0;
     if (pkgPrice > 0 && selectedPackage !== "simpan") {
-      // Kode unik: fetch dari API (unik per user, stored in DB, tidak berubah).
-      // Hanya generate jika belum ada (qrisAmount === 0).
-      if (qrisAmount === 0) {
-        try {
-          const codeRes = await fetch("/api/listings/unique-code", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: user?.id, packageType: selectedPackage }),
-          });
-          if (codeRes.ok) {
-            const codeData = await codeRes.json();
-            setQrisAmount(pkgPrice + codeData.uniqueCode);
-          } else {
-            setQrisAmount(pkgPrice);
-          }
-        } catch {
-          setQrisAmount(pkgPrice);
-        }
-      }
       setQrisModal(true);
       return;
     }
@@ -1049,6 +1034,11 @@ export function PostAdView() {
                 <div className="mb-4 text-center">
                   <p className="text-xs text-muted-foreground">Total Pembayaran</p>
                   <p className="text-3xl font-extrabold text-primary sm:text-4xl">{formatRupiahFull(qrisAmount)}</p>
+                  {uniqueCode !== null && (
+                    <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                      Kode Unik {String(uniqueCode).padStart(3, "0")}
+                    </span>
+                  )}
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Harga paket + kode unik untuk identifikasi pembayar
                   </p>

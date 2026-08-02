@@ -14,6 +14,7 @@ import { useMounted } from "@/lib/use-mounted";
 import { compressImage } from "@/lib/image";
 import { shareImageToWhatsApp } from "@/lib/share-image";
 import { useStore } from "@/lib/store";
+import { generateUniqueCode } from "@/lib/unique-code";
 
 type PackageKey = "simpan" | "colek" | "sundul" | "highlight" | "spotlight";
 
@@ -185,28 +186,9 @@ export function PackageActivateDialog({
 
   // Button label: selalu "Upgrade" (dialog hanya dibuka untuk iklan aktif).
   const buttonLabel = "Upgrade";
-  // Kode unik: fetch dari API (stored in DB, unik per user, tidak berubah).
-  const [uniqueCode, setUniqueCode] = useState<number | null>(null);
+  // Kode unik: dihitung langsung di client (deterministik, stabil per user per bulan).
   const currentUserId = useStore((s) => s.user?.id);
-
-  useEffect(() => {
-    if (!open || !listing.id || selectedPkg.price <= 0 || !currentUserId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/listings/unique-code", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ listingId: listing.id, userId: currentUserId, packageType: selectedPackage }),
-        });
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setUniqueCode(data.uniqueCode);
-        }
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; };
-  }, [open, listing.id, currentUserId, selectedPackage, selectedPkg.price]);
+  const uniqueCode = currentUserId ? generateUniqueCode(currentUserId) : null;
 
   const qrisAmount = selectedPkg.price > 0 && uniqueCode !== null
     ? selectedPkg.price + uniqueCode

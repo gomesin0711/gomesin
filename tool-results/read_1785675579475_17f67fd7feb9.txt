@@ -1,0 +1,987 @@
+   140→  const [adType, setAdType] = useState<"mesin" | "jasa">("mesin");
+   141→  const [brand, setBrand] = useState("");
+   142→  const [yearProduced, setYearProduced] = useState("");
+   143→  const [city, setCity] = useState("");
+   144→  const [province, setProvince] = useState("");
+   145→  const [images, setImages] = useState<string[]>([]);
+   146→  const [specs, setSpecs] = useState<{ k: string; v: string }[]>([
+   147→    { k: "", v: "" },
+   148→  ]);
+   149→  const [success, setSuccess] = useState(false);
+   150→  const [compressing, setCompressing] = useState(false);
+   151→  const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+   152→  const [selectedPackage, setSelectedPackage] = useState("colek");
+   153→  const [paymentMethod, setPaymentMethod] = useState("");
+   154→  const [showPayment, setShowPayment] = useState(true);
+   155→  const [qrisModal, setQrisModal] = useState(false);
+   156→  const [qrisAmount, setQrisAmount] = useState(0);
+   157→  const [proofImage, setProofImage] = useState<string>("");
+   158→  const [uploadingProof, setUploadingProof] = useState(false);
+   159→  const [savingDraft, setSavingDraft] = useState(false);
+   160→  const fileInputRef = useRef<HTMLInputElement>(null);
+   161→
+   162→  // Scroll to top when QRIS page opens + lock body scroll (hilangkan scrollbar browser)
+   163→  useEffect(() => {
+   164→    if (qrisModal) {
+   165→      window.scrollTo({ top: 0, behavior: "instant" });
+   166→      document.body.style.overflow = "hidden";
+   167→      document.documentElement.style.overflow = "hidden";
+   168→    } else {
+   169→      document.body.style.overflow = "";
+   170→      document.documentElement.style.overflow = "";
+   171→    }
+   172→    return () => {
+   173→      document.body.style.overflow = "";
+   174→      document.documentElement.style.overflow = "";
+   175→    };
+   176→  }, [qrisModal]);
+   177→  const cameraInputRef = useRef<HTMLInputElement>(null);
+   178→
+   179→  const mutation = useMutation({
+   180→    mutationFn: postListing,
+   181→    onSuccess: (listing: any) => {
+   182→      const wasDraft = savingDraft;
+   183→      setSavingDraft(false);
+   184→      toast.success(wasDraft ? "Iklan disimpan (Belum Aktif)." : tr("adPosted"));
+   185→      if (wasDraft) {
+   186→        goHome();
+   187→      } else {
+   188→        goToProfilePanel("iklan-saya"); // Langsung ke halaman Iklan Saya di akun
+   189→      }
+   190→    },
+   191→    onError: (e: any) => {
+   192→      setSavingDraft(false);
+   193→      toast.error(e.message || tr("postFailed"));
+   194→    },
+   195→  });
+   196→
+   197→  const addImage = (url?: string) => {
+   198→    const u = (url ?? "").trim();
+   199→    if (!u) return;
+   200→    setImages((p) => [...p, u]);
+   201→  };
+   202→
+   203→  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   204→    const files = e.target.files;
+   205→    if (!files || files.length === 0) return;
+   206→    setCompressing(true);
+   207→    try {
+   208→      for (const file of Array.from(files)) {
+   209→        const compressed = await compressImage(file);
+   210→        setImages((p) => [...p, compressed]);
+   211→      }
+   212→      toast.success(tr("photoAdded"));
+   213→    } catch (err: any) {
+   214→      toast.error(err?.message || tr("photoError"));
+   215→    } finally {
+   216→      setCompressing(false);
+   217→      // reset input so same file can be re-selected
+   218→      e.target.value = "";
+   219→    }
+   220→  };
+   221→
+   222→  const submit = async (e: React.FormEvent) => {
+   223→    e.preventDefault();
+   224→    if (!title || !categoryId || !description || !price || !city || !province) {
+   225→      toast.error(tr("completeFields"));
+   226→      return;
+   227→    }
+   228→    const selPkgPrice = paketMap[selectedPackage]?.price ?? 0;
+   229→    if (selPkgPrice > 0 && selectedPackage !== "simpan" && !paymentMethod) {
+   230→      toast.error(tr("choosePayment"));
+   231→      return;
+   232→    }
+   233→    // For paid packages, show QRIS payment modal first
+   234→    const pk = paketMap[selectedPackage];
+   235→    const pkgPrice = pk?.price ?? 0;
+   236→    if (pkgPrice > 0 && selectedPackage !== "simpan") {
+   237→      // Kode unik: fetch dari API (unik per user, stored in DB, tidak berubah).
+   238→      // Hanya generate jika belum ada (qrisAmount === 0).
+   239→      if (qrisAmount === 0) {
+   240→        try {
+   241→          const codeRes = await fetch("/api/listings/unique-code", {
+   242→            method: "POST",
+   243→            headers: { "Content-Type": "application/json" },
+   244→            body: JSON.stringify({ userId: user?.id, packageType: selectedPackage }),
+   245→          });
+   246→          if (codeRes.ok) {
+   247→            const codeData = await codeRes.json();
+   248→            setQrisAmount(pkgPrice + codeData.uniqueCode);
+   249→          } else {
+   250→            setQrisAmount(pkgPrice);
+   251→          }
+   252→        } catch {
+   253→          setQrisAmount(pkgPrice);
+   254→        }
+   255→      }
+   256→      setQrisModal(true);
+   257→      return;
+   258→    }
+   259→    doSubmit();
+   260→  };
+   261→
+   262→  const doSubmit = () => {
+   263→    const finalImages = images.length ? images : PLACEHOLDER_IMAGES.slice(0, 1);
+   264→    const specObj: Record<string, string> = {};
+   265→    for (const s of specs) {
+   266→      if (s.k.trim() && s.v.trim()) specObj[s.k.trim()] = s.v.trim();
+   267→    }
+   268→    mutation.mutate({
+   269→      title,
+   270→      categoryId,
+   271→      description,
+   272→      price,
+   273→      priceType,
+   274→      condition: adType === "jasa" ? "jasa" : condition,
+   275→      availability,
+   276→      adType,
+   277→      brand: adType === "jasa" ? undefined : (brand || undefined),
+   278→      yearProduced: yearProduced || undefined,
+   279→      city,
+   280→      province,
+   281→      images: finalImages,
+   282→      specs: specObj,
+   283→      featured: selectedPackage === "spotlight" || selectedPackage === "highlight",
+   284→      package: selectedPackage,
+   285→      paymentMethod: paymentMethod || undefined,
+   286→      userId: user?.id,
+   287→      userName: user?.name,
+   288→      userPhone: user?.phone,
+   289→    });
+   290→  };
+   291→
+   292→  if (success) {
+   293→    return (
+   294→      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center animate-fade-up">
+   295→        <div className="grid size-20 place-items-center rounded-full bg-primary/10">
+   296→          <CheckCircle2 className="size-12 text-primary" />
+   297→        </div>
+   298→        <h2 className="mt-4 text-2xl font-bold">{tr("postSuccess")}</h2>
+   299→        <p className="mt-2 text-sm text-muted-foreground">
+   300→          {tr("postSuccessDesc")}
+   301→        </p>
+   302→        <Loader2 className="mt-4 size-5 animate-spin text-primary" />
+   303→      </div>
+   304→    );
+   305→  }
+   306→
+   307→  // Package card styling maps (matching admin Paket Iklan)
+   308→  const pkgIconMap: Record<string, any> = { colek: Tag, sundul: TrendingUp, highlight: Zap, spotlight: Crown };
+   309→  const pkgColorMap: Record<string, string> = {
+   310→    colek: 'border-blue-400 ring-1 ring-blue-200',
+   311→    sundul: 'border-purple-400 ring-1 ring-purple-200',
+   312→    highlight: 'border-orange-400 ring-1 ring-orange-200',
+   313→    spotlight: 'border-amber-400 ring-1 ring-amber-200',
+   314→  };
+   315→  const pkgIconColorMap: Record<string, string> = {
+   316→    colek: 'text-blue-500',
+   317→    sundul: 'text-purple-500',
+   318→    highlight: 'text-orange-500',
+   319→    spotlight: 'text-amber-500',
+   320→  };
+   321→  const pkgSelectedColorMap: Record<string, string> = {
+   322→    colek: 'border-blue-500 ring-2 ring-blue-400 bg-blue-50/50',
+   323→    sundul: 'border-purple-500 ring-2 ring-purple-400 bg-purple-50/50',
+   324→    highlight: 'border-orange-500 ring-2 ring-orange-400 bg-orange-50/50',
+   325→    spotlight: 'border-amber-500 ring-2 ring-amber-400 bg-amber-50/50',
+   326→  };
+   327→  const pkgKeys = ['colek', 'highlight', 'spotlight', 'sundul'];
+   328→
+   329→  return (
+   330→    <div className="mx-auto max-w-3xl px-4 py-6 animate-fade-up">
+   331→      {/* breadcrumb */}
+   332→      <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
+   333→        <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
+   334→        <ChevronRight className="size-3" />
+   335→        <span className="text-foreground">{tr("postAdCrumb")}</span>
+   336→      </div>
+   337→
+   338→      <div className="mb-5">
+   339→        <h1 className="text-2xl font-bold">{tr("postAd")}</h1>
+   340→        <p className="text-sm text-muted-foreground">
+   341→          {tr("postAdDesc")}
+   342→        </p>
+   343→      </div>
+   344→
+   345→      <form onSubmit={submit} className="space-y-5">
+   346→        {/* category */}
+   347→        <Section title={tr("category")} required>
+   348→          <Select value={categoryId} onValueChange={setCategoryId}>
+   349→            <SelectTrigger className="w-full">
+   350→              <SelectValue placeholder={tr("selectCategory")} />
+   351→            </SelectTrigger>
+   352→            <SelectContent>
+   353→              {(cats ?? []).map((c) => (
+   354→                <SelectItem key={c.id} value={c.id}>
+   355→                  <span className="flex items-center gap-2">
+   356→                    <CategoryIcon name={c.icon} className="size-4 shrink-0 text-primary" />
+   357→                    {categoryName(c.name, mounted ? lang : "id")}
+   358→                  </span>
+   359→                </SelectItem>
+   360→              ))}
+   361→            </SelectContent>
+   362→          </Select>
+   363→          {!cats && (
+   364→            <div className="h-10 w-full animate-pulse rounded-lg bg-muted" />
+   365→          )}
+   366→        </Section>
+   367→
+   368→        {/* basic info */}
+   369→        <Section title={tr("detailSection")} required>
+   370→          <Field label={tr("adTypeLabel")} required>
+   371→            <RadioGroup
+   372→              value={adType}
+   373→              onValueChange={(v) => {
+   374→                setAdType(v as "mesin" | "jasa");
+   375→                if (v === "jasa") {
+   376→                  setCondition("baru");
+   377→                }
+   378→              }}
+   379→              className="flex gap-4 pt-2"
+   380→            >
+   381→              <div className="flex items-center gap-2">
+   382→                <RadioGroupItem value="mesin" id="at-mesin" />
+   383→                <Label htmlFor="at-mesin" className="cursor-pointer text-sm">{tr("adTypeMachine")}</Label>
+   384→              </div>
+   385→              <div className="flex items-center gap-2">
+   386→                <RadioGroupItem value="jasa" id="at-jasa" />
+   387→                <Label htmlFor="at-jasa" className="cursor-pointer text-sm">{tr("adTypeService")}</Label>
+   388→              </div>
+   389→            </RadioGroup>
+   390→          </Field>
+   391→          <Field label={tr("adTitle")} required>
+   392→            <Input
+   393→              value={title}
+   394→              onChange={(e) => setTitle(e.target.value)}
+   395→              placeholder={adType === "jasa" ? tr("serviceTitlePlaceholder") || "Contoh: Jasa Servis Mesin Cetak, Jasa Installasi CNC" : tr("adTitlePlaceholder")}
+   396→              maxLength={120}
+   397→            />
+   398→          </Field>
+   399→          <Field label={tr("description")} required>
+   400→            <Textarea
+   401→              value={description}
+   402→              onChange={(e) => setDescription(e.target.value)}
+   403→              placeholder={tr("descPlaceholder")}
+   404→              rows={5}
+   405→              maxLength={2000}
+   406→            />
+   407→            <p className="text-right text-[11px] text-muted-foreground">{description.length}/2000</p>
+   408→          </Field>
+   409→        </Section>
+   410→
+   411→        {/* price & condition */}
+   412→        <Section title={tr("priceCondition")} required>
+   413→          <div className="grid gap-4 sm:grid-cols-2">
+   414→            <Field label={tr("priceLabel")} required>
+   415→              <Input
+   416→                type="text"
+   417→                inputMode="numeric"
+   418→                value={price ? Number(price.replace(/[^0-9]/g, "")).toLocaleString("de-DE") : ""}
+   419→                onChange={(e) => {
+   420→                  const digits = e.target.value.replace(/[^0-9]/g, "");
+   421→                  setPrice(digits);
+   422→                }}
+   423→                placeholder={tr("pricePlaceholder")}
+   424→              />
+   425→            </Field>
+   426→            <Field label={tr("priceType")}>
+   427→              <Select value={priceType} onValueChange={setPriceType}>
+   428→                <SelectTrigger className="w-full">
+   429→                  <SelectValue />
+   430→                </SelectTrigger>
+   431→                <SelectContent>
+   432→                  <SelectItem value="negotiable">{tr("negotiable")}</SelectItem>
+   433→                  <SelectItem value="fixed">{tr("fixed")}</SelectItem>
+   434→                </SelectContent>
+   435→              </Select>
+   436→            </Field>
+   437→            {adType === "mesin" && (
+   438→            <Field label={tr("condition")}>
+   439→              <Select value={condition} onValueChange={setCondition}>
+   440→                <SelectTrigger className="w-full">
+   441→                  <SelectValue />
+   442→                </SelectTrigger>
+   443→                <SelectContent>
+   444→                  <SelectItem value="bekas">{tr("used")}</SelectItem>
+   445→                  <SelectItem value="baru">{tr("new")}</SelectItem>
+   446→                </SelectContent>
+   447→              </Select>
+   448→            </Field>
+   449→            )}
+   450→            <Field label={tr("availability")}>
+   451→              <Select value={availability} onValueChange={setAvailability}>
+   452→                <SelectTrigger className="w-full">
+   453→                  <SelectValue />
+   454→                </SelectTrigger>
+   455→                <SelectContent>
+   456→                  <SelectItem value="tersedia">{tr("available")}</SelectItem>
+   457→                  <SelectItem value="preorder">{tr("preorder")}</SelectItem>
+   458→                  <SelectItem value="indent">{tr("indent")}</SelectItem>
+   459→                </SelectContent>
+   460→              </Select>
+   461→            </Field>
+   462→            {adType === "mesin" && (
+   463→            <Field label={tr("brand")}>
+   464→              <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder={tr("brandPlaceholder")} />
+   465→            </Field>
+   466→            )}
+   467→            {adType === "mesin" && (
+   468→            <Field label={tr("yearProduced")}>
+   469→              <Input
+   470→                type="number"
+   471→                value={yearProduced}
+   472→                onChange={(e) => setYearProduced(e.target.value)}
+   473→                placeholder={tr("yearPlaceholder")}
+   474→              />
+   475→            </Field>
+   476→            )}
+   477→          </div>
+   478→        </Section>
+   479→
+   480→        {/* specs */}
+   481→        <Section title={tr("specsOptional")}>
+   482→          <p className="-mt-1 mb-2 text-xs text-muted-foreground">
+   483→            {tr("specsDesc")}
+   484→          </p>
+   485→          <div className="space-y-2">
+   486→            {specs.map((s, i) => (
+   487→              <div key={i} className="flex gap-2">
+   488→                {s.k === "Lainnya" ? (
+   489→                  <Input
+   490→                    value={s.k}
+   491→                    onChange={(e) =>
+   492→                      setSpecs((p) => p.map((x, j) => (j === i ? { ...x, k: e.target.value } : x)))
+   493→                    }
+   494→                    placeholder={tr("specNameCustom")}
+   495→                    className="flex-1"
+   496→                  />
+   497→                ) : (
+   498→                  <Select
+   499→                    value={s.k}
+   500→                    onValueChange={(v) =>
+   501→                      setSpecs((p) => p.map((x, j) => (j === i ? { ...x, k: v } : x)))
+   502→                    }
+   503→                  >
+   504→                    <SelectTrigger className="flex-1">
+   505→                      <SelectValue placeholder={tr("specName")} />
+   506→                    </SelectTrigger>
+   507→                    <SelectContent>
+   508→                      {SPEC_OPTIONS.map((opt) => (
+   509→                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+   510→                      ))}
+   511→                    </SelectContent>
+   512→                  </Select>
+   513→                )}
+   514→                <Input
+   515→                  value={s.v}
+   516→                  onChange={(e) =>
+   517→                    setSpecs((p) => p.map((x, j) => (j === i ? { ...x, v: e.target.value } : x)))
+   518→                  }
+   519→                  placeholder={tr("specValue")}
+   520→                  className="flex-1"
+   521→                />
+   522→                <Button
+   523→                  type="button"
+   524→                  variant="outline"
+   525→                  size="icon"
+   526→                  onClick={() => setSpecs((p) => p.filter((_, j) => j !== i))}
+   527→                  disabled={specs.length === 1}
+   528→                >
+   529→                  <X className="size-4" />
+   530→                </Button>
+   531→              </div>
+   532→            ))}
+   533→          </div>
+   534→          <Button
+   535→            type="button"
+   536→            variant="outline"
+   537→            size="sm"
+   538→            className="mt-2"
+   539→            onClick={() => setSpecs((p) => [...p, { k: "", v: "" }])}
+   540→          >
+   541→            <Plus className="size-4" /> {tr("addSpec")}
+   542→          </Button>
+   543→        </Section>
+   544→
+   545→        {/* location */}
+   546→        <Section title={tr("location")} required>
+   547→          <div className="grid gap-4 sm:grid-cols-2">
+   548→            <Field label={tr("province")} required>
+   549→              <Select value={province} onValueChange={(v) => { setProvince(v); setCity(""); }}>
+   550→                <SelectTrigger className="w-full">
+   551→                  <SelectValue placeholder={tr("selectProvince")} />
+   552→                </SelectTrigger>
+   553→                <SelectContent>
+   554→                  {PROVINCES.map((p) => (
+   555→                    <SelectItem key={p} value={p}>{p}</SelectItem>
+   556→                  ))}
+   557→                </SelectContent>
+   558→              </Select>
+   559→            </Field>
+   560→            <Field label={tr("city")} required>
+   561→              <Select value={city} onValueChange={setCity} disabled={!province}>
+   562→                <SelectTrigger className="w-full">
+   563→                  <SelectValue placeholder={province ? tr("selectCity") : tr("selectProvinceFirst")} />
+   564→                </SelectTrigger>
+   565→                <SelectContent>
+   566→                  {(PROVINCE_CITIES[province] || []).map((c) => (
+   567→                    <SelectItem key={c} value={c}>{c}</SelectItem>
+   568→                  ))}
+   569→                </SelectContent>
+   570→              </Select>
+   571→            </Field>
+   572→          </div>
+   573→        </Section>
+   574→
+   575→        {/* images */}
+   576→        <Section title={tr("machinePhotos")}>
+   577→          <p className="-mt-1 mb-2 text-xs text-muted-foreground">
+   578→            {tr("uploadDesc")}
+   579→          </p>
+   580→
+   581→          {/* hidden file inputs */}
+   582→          <input
+   583→            ref={fileInputRef}
+   584→            type="file"
+   585→            accept="image/*"
+   586→            multiple
+   587→            className="hidden"
+   588→            onChange={handleFileSelect}
+   589→          />
+   590→          <input
+   591→            ref={cameraInputRef}
+   592→            type="file"
+   593→            accept="image/*"
+   594→            capture="environment"
+   595→            className="hidden"
+   596→            onChange={handleFileSelect}
+   597→          />
+   598→
+   599→          <div className="flex gap-2">
+   600→            <Popover open={photoMenuOpen} onOpenChange={setPhotoMenuOpen}>
+   601→              <PopoverTrigger asChild>
+   602→                <Button type="button" variant="outline" disabled={compressing}>
+   603→                  {compressing ? (
+   604→                    <Loader2 className="size-4 animate-spin" />
+   605→                  ) : (
+   606→                    <ImagePlus className="size-4" />
+   607→                  )}
+   608→                  {compressing ? tr("compressing") : tr("addPhoto")}
+   609→                </Button>
+   610→              </PopoverTrigger>
+   611→              <PopoverContent className="w-48 p-1" align="start">
+   612→                <button
+   613→                  type="button"
+   614→                  onClick={() => {
+   615→                    setPhotoMenuOpen(false);
+   616→                    fileInputRef.current?.click();
+   617→                  }}
+   618→                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-accent"
+   619→                >
+   620→                  <FileImage className="size-4 text-primary" />
+   621→                  {tr("selectFile")}
+   622→                </button>
+   623→                <button
+   624→                  type="button"
+   625→                  onClick={() => {
+   626→                    setPhotoMenuOpen(false);
+   627→                    cameraInputRef.current?.click();
+   628→                  }}
+   629→                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-accent"
+   630→                >
+   631→                  <Camera className="size-4 text-primary" />
+   632→                  {tr("camera")}
+   633→                </button>
+   634→              </PopoverContent>
+   635→            </Popover>
+   636→          </div>
+   637→
+   638→          {images.length > 0 && (
+   639→            <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+   640→              {images.map((img, i) => (
+   641→                <div key={i} className="relative aspect-square overflow-hidden rounded-xl border border-border">
+   642→                  <img src={img} alt="" className="size-full object-cover" />
+   643→                  <button
+   644→                    type="button"
+   645→                    onClick={() => setImages((p) => p.filter((_, j) => j !== i))}
+   646→                    className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-black/60 text-white"
+   647→                  >
+   648→                    <X className="size-3.5" />
+   649→                  </button>
+   650→                  {i === 0 && (
+   651→                    <span className="absolute bottom-1.5 left-1.5 rounded-md bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
+   652→                      {tr("mainPhoto")}
+   653→                    </span>
+   654→                  )}
+   655→                </div>
+   656→              ))}
+   657→            </div>
+   658→          )}
+   659→          {images.length === 0 && (
+   660→            <div className="mt-3 rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+   661→              <Upload className="mx-auto mb-1 size-5" />
+   662→              {tr("noPhotosYet")}
+   663→              <button
+   664→                type="button"
+   665→                onClick={() => setImages(PLACEHOLDER_IMAGES.slice(0, 2))}
+   666→                className="ml-1 font-semibold text-primary hover:underline"
+   667→              >
+   668→                {tr("useExample")}
+   669→              </button>
+   670→            </div>
+   671→          )}
+   672→        </Section>
+   673→
+   674→        {/* SIMPAN DULU — tombol hijau untuk tunda pasang iklan (simpan sebagai draft) */}
+   675→        <Button
+   676→          type="button"
+   677→          variant="outline"
+   678→          className="w-full gap-2 border-orange-600 bg-orange-600 text-white hover:bg-orange-700 hover:text-white"
+   679→          disabled={mutation.isPending || savingDraft}
+   680→          onClick={() => {
+   681→            if (!title.trim()) { toast.error("Judul wajib diisi untuk menyimpan dulu."); return; }
+   682→            setSavingDraft(true);
+   683→            const finalImages = images.length ? images : PLACEHOLDER_IMAGES.slice(0, 1);
+   684→            const specObj: Record<string, string> = {};
+   685→            for (const s of specs) {
+   686→              if (s.k.trim() && s.v.trim()) specObj[s.k.trim()] = s.v.trim();
+   687→            }
+   688→            mutation.mutate({
+   689→              title,
+   690→              categoryId: categoryId || undefined,
+   691→              description: description || "(Draft)",
+   692→              price: price || "0",
+   693→              priceType,
+   694→              condition: adType === "jasa" ? "jasa" : condition,
+   695→              availability,
+   696→              adType,
+   697→              brand: adType === "jasa" ? undefined : (brand || undefined),
+   698→              yearProduced: yearProduced || undefined,
+   699→              city: city || "Draft",
+   700→              province: province || "Draft",
+   701→              images: finalImages,
+   702→              specs: specObj,
+   703→              featured: false,
+   704→              package: "colek",
+   705→              userId: user?.id,
+   706→              userName: user?.name,
+   707→              userPhone: user?.phone,
+   708→              saveAsDraft: true,
+   709→            } as any);
+   710→          }}
+   711→        >
+   712→          {savingDraft ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+   713→          {savingDraft ? "Menyimpan..." : "Simpan Dulu"}
+   714→        </Button>
+   715→        <p className="mt-1 text-center text-[11px] text-muted-foreground">
+   716→          Simpan dulu untuk menunda pasang iklan. Iklan tersimpan dengan status "Belum Aktif" dan bisa Anda terbitkan nanti.
+   717→        </p>
+   718→
+   719→        {/* PACKAGE SELECTION — matches admin Paket Iklan layout */}
+   720→        <Section title={tr("packageName")} required>
+   721→          <p className="-mt-1 mb-3 text-xs text-muted-foreground">
+   722→            {tr("packageDesc")}
+   723→          </p>
+   724→          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+   725→            {pkgKeys.map((key) => {
+   726→              const pk = paketMap[key];
+   727→              const isUpgradeOnly = key === 'sundul';
+   728→              const Icon = pkgIconMap[key] || Tag;
+   729→              const name = pk?.name || key;
+   730→              const price = pk?.price ?? 0;
+   731→              const origPrice = pk?.originalPrice ?? 0;
+   732→              const dur = pk?.duration || 30;
+   733→              const feats = (pk?.features && pk.features.length > 0) ? pk.features : [];
+   734→              const disc = origPrice > 0 && origPrice > price ? Math.round((1 - price / origPrice) * 100) : 0;
+   735→              const savings = origPrice > price ? origPrice - price : 0;
+   736→              return (
+   737→                <button
+   738→                  type="button"
+   739→                  key={key}
+   740→                  disabled={isUpgradeOnly}
+   741→                  onClick={() => { setSelectedPackage(key); setShowPayment(price > 0); setPaymentMethod(''); }}
+   742→                  className={cn(
+   743→                    'relative rounded-lg border-2 bg-card p-3 text-left transition',
+   744→                    isUpgradeOnly
+   745→                      ? 'cursor-not-allowed border-border bg-muted/40 opacity-60'
+   746→                      : selectedPackage === key
+   747→                        ? pkgSelectedColorMap[key] || 'border-primary'
+   748→                        : (pkgColorMap[key] || 'border-border') + ' hover:shadow-md'
+   749→                  )}
+   750→                  title={isUpgradeOnly ? 'Paket Colek hanya untuk iklan yang sudah terbit (upgrade)' : undefined}
+   751→                >
+   752→                  {key === 'highlight' && !isUpgradeOnly && (
+   753→                    <span className="absolute -top-2 left-2 rounded-full bg-primary px-1.5 py-0.5 text-[8px] font-bold uppercase text-primary-foreground">Populer</span>
+   754→                  )}
+   755→                  {isUpgradeOnly && (
+   756→                    <span className="absolute -top-2 right-1 rounded-full bg-slate-500 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white">Upgrade saja</span>
+   757→                  )}
+   758→                  {disc > 0 && (
+   759→                    <span className={cn('absolute -top-2 right-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[8px] font-bold text-white', key === 'highlight' && '-top-7')}>-{disc}%</span>
+   760→                  )}
+   761→                  <div className="flex items-center justify-between">
+   762→                    <span className="grid size-7 place-items-center rounded-md bg-secondary">
+   763→                      <Icon className={cn('size-4', pkgIconColorMap[key] || 'text-muted-foreground')} />
+   764→                    </span>
+   765→                    {selectedPackage === key && !isUpgradeOnly && (
+   766→                      <span className="rounded-full bg-primary p-0.5">
+   767→                        <CheckCircle2 className="size-3 text-primary-foreground" />
+   768→                      </span>
+   769→                    )}
+   770→                  </div>
+   771→                  <p className="mt-2 text-xs font-bold">{name}</p>
+   772→                  <p className="mt-0.5 text-sm font-extrabold text-primary">
+   773→                    {formatRupiahFull(price)}
+   774→                    {origPrice > 0 && origPrice > price && (
+   775→                      <span className="ml-1 text-[10px] font-medium text-muted-foreground line-through">{formatRupiahFull(origPrice)}</span>
+   776→                    )}
+   777→                    <span className="text-[10px] font-normal text-muted-foreground">/{dur}hari</span>
+   778→                  </p>
+   779→                  {savings > 0 && (
+   780→                    <p className="mt-0.5 text-[10px] font-semibold text-red-500">Hemat {formatRupiahFull(savings)}</p>
+   781→                  )}
+   782→                  {feats.length > 0 && (
+   783→                    <ul className="mt-2 space-y-1">
+   784→                      {feats.map((f: string, i: number) => (
+   785→                        <li key={i} className="flex items-start gap-1.5 text-[10px] leading-tight text-foreground">
+   786→                          <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-orange-500" />
+   787→                          {f}
+   788→                        </li>
+   789→                      ))}
+   790→                    </ul>
+   791→                  )}
+   792→                </button>
+   793→              );
+   794→            })}
+   795→          </div>
+   796→        </Section>
+   797→
+   798→        {/* PAYMENT (only for paid packages — check actual price from DB, not key name) */}
+   799→        {showPayment && (paketMap[selectedPackage]?.price ?? 0) > 0 && (
+   800→          <Section title={tr("payment")} required>
+   801→            <p className="-mt-1 mb-3 text-xs text-muted-foreground">
+   802→              {tr("paymentDesc")}
+   803→            </p>
+   804→            <div className="grid gap-2 sm:grid-cols-2">
+   805→              {[
+   806→                { key: "bca", label: "Transfer ke Blu BCA", desc: "Transfer manual ke rekening Blu BCA" },
+   807→                { key: "qris", label: "QRIS GoPay", desc: "Scan QR dari GoPay / e-wallet" },
+   808→              ].map((m) => (
+   809→                <button
+   810→                  type="button"
+   811→                  key={m.key}
+   812→                  onClick={() => setPaymentMethod(m.key)}
+   813→                  className={cn(
+   814→                    "rounded-lg border-2 p-3 text-left transition",
+   815→                    paymentMethod === m.key ? "border-primary bg-primary/5" : "border-border hover:bg-accent"
+   816→                  )}
+   817→                >
+   818→                  <p className="text-sm font-semibold">{m.label}</p>
+   819→                  <p className="text-[10px] text-muted-foreground">{m.desc}</p>
+   820→                </button>
+   821→              ))}
+   822→            </div>
+   823→            {paymentMethod && (
+   824→              <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-700">
+   825→                <CheckCircle2 className="mr-1 inline size-4" />
+   826→                {formatT(tr("paymentChosen"), { method: paymentMethod.toUpperCase() })}
+   827→                <br />
+   828→                <span className="text-[10px] text-orange-600">{tr("paymentSim")}</span>
+   829→              </div>
+   830→            )}
+   831→          </Section>
+   832→        )}
+   833→
+   834→        {/* submit */}
+   835→        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+   836→          <Button type="button" variant="outline" onClick={goHome} className="sm:w-auto">
+   837→            {tr("cancel")}
+   838→          </Button>
+   839→          <Button
+   840→            type="submit"
+   841→            disabled={mutation.isPending}
+   842→            className="gap-2 bg-primary font-semibold sm:w-auto"
+   843→            size="lg"
+   844→          >
+   845→            {mutation.isPending ? (
+   846→              <Loader2 className="size-4 animate-spin" />
+   847→            ) : (
+   848→              <Tag className="size-4" />
+   849→            )}
+   850→            {mutation.isPending ? tr("processing") : (paketMap[selectedPackage]?.price ?? 0) > 0 && paymentMethod ? tr("payAndPost") : tr("postNow")}
+   851→          </Button>
+   852→        </div>
+   853→      </form>
+   854→
+   855→      {/* QRIS PAYMENT PAGE — fit to desktop, scrollable on mobile */}
+   856→      {qrisModal && (
+   857→        <div className="no-scrollbar fixed inset-0 z-[70] overflow-y-auto bg-background md:overflow-hidden">
+   858→          <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:py-6 md:h-screen">
+   859→            {/* Header */}
+   860→            <div className="mb-4 flex shrink-0 items-center justify-between">
+   861→              <h2 className="text-xl font-bold sm:text-2xl">{paymentMethod === "bca" ? "Transfer ke Blu BCA" : "Pembayaran QRIS"}</h2>
+   862→              <button
+   863→                type="button"
+   864→                onClick={() => { setQrisModal(false); setProofImage(""); }}
+   865→                className="grid size-10 place-items-center rounded-full border border-border bg-card hover:bg-accent"
+   866→              >
+   867→                <X className="size-5" />
+   868→              </button>
+   869→            </div>
+   870→
+   871→            {/* Content — scrollable on mobile, fit on desktop.
+   872→                Urutan: QR+Total di-render pertama (order-1) supaya di mobile
+   873→                tampil di atas. Desktop: kembali ke 2 kolom (kiri instr, kanan QR). */}
+   874→            <div className="grid flex-1 gap-6 md:grid-cols-2 md:overflow-hidden">
+   875→              {/* LEFT — instructions + upload proof (di mobile tampil di BAWAH QR) */}
+   876→              <div className="order-2 space-y-3 md:order-1 md:overflow-hidden">
+   877→                {/* Instructions */}
+   878→                <div className="rounded-xl border border-border bg-card p-4">
+   879→                  <p className="text-sm font-bold">Cara Pembayaran:</p>
+   880→                  {paymentMethod === "bca" ? (
+   881→                    <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+   882→                      <li>Buka aplikasi m-banking / ATM Blu BCA</li>
+   883→                      <li>Transfer ke rekening <strong className="text-foreground">0011 2208 8800</strong> a.n. Lina Listiawati</li>
+   884→                      <li>Pastikan jumlah sesuai: <strong className="text-foreground">{formatRupiahFull(qrisAmount)}</strong></li>
+   885→                      <li>Konfirmasi & selesaikan transfer</li>
+   886→                      <li>Upload foto / screenshot bukti transfer di bawah</li>
+   887→                    </ol>
+   888→                  ) : (
+   889→                    <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+   890→                      <li>Buka aplikasi e-wallet / m-banking</li>
+   891→                      <li>Pilih menu Scan / Bayar QRIS</li>
+   892→                      <li>Arahkan kamera ke QR code di sebelah kanan</li>
+   893→                      <li>Pastikan jumlah sesuai: <strong className="text-foreground">{formatRupiahFull(qrisAmount)}</strong></li>
+   894→                      <li>Konfirmasi & selesaikan pembayaran</li>
+   895→                      <li>Upload foto / screenshot bukti pembayaran di bawah</li>
+   896→                    </ol>
+   897→                  )}
+   898→                </div>
+   899→
+   900→                {/* Upload proof of payment */}
+   901→                <div className="rounded-xl border border-border bg-card p-4">
+   902→                  <p className="mb-2 text-sm font-bold">Kirim Bukti Pembayaran</p>
+   903→                  {proofImage ? (
+   904→                    <div className="relative">
+   905→                      <img src={proofImage} alt="Bukti Pembayaran" className="max-h-40 w-full rounded-lg border border-border object-contain" />
+   906→                      <button
+   907→                        type="button"
+   908→                        onClick={() => setProofImage("")}
+   909→                        className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-red-500 text-white shadow"
+   910→                      >
+   911→                        <X className="size-4" />
+   912→                      </button>
+   913→                    </div>
+   914→                  ) : (
+   915→                    <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-center transition hover:border-primary hover:bg-accent">
+   916→                      <Upload className="size-8 text-muted-foreground" />
+   917→                      <span className="text-xs text-muted-foreground">Klik untuk upload bukti pembayaran</span>
+   918→                      <span className="text-[10px] text-muted-foreground/70">JPG, PNG (maks 120KB)</span>
+   919→                      <input
+   920→                        type="file"
+   921→                        accept="image/*"
+   922→                        className="hidden"
+   923→                        onChange={async (e) => {
+   924→                          const file = e.target.files?.[0];
+   925→                          if (!file) return;
+   926→                          try {
+   927→                            const compressed = await compressImage(file);
+   928→                            setProofImage(compressed);
+   929→                            toast.success("Bukti pembayaran diunggah");
+   930→                          } catch (err: any) {
+   931→                            toast.error("Gagal upload: " + (err?.message || ""));
+   932→                          }
+   933→                          e.target.value = "";
+   934→                        }}
+   935→                      />
+   936→                    </label>
+   937→                  )}
+   938→                </div>
+   939→
+   940→                {/* Action buttons */}
+   941→                <div className="flex gap-2">
+   942→                  <Button
+   943→                    variant="outline"
+   944→                    className="flex-1"
+   945→                    onClick={() => { setQrisModal(false); setProofImage(""); toast.info("Pembayaran dibatalkan"); }}
+   946→                  >
+   947→                    Batal
+   948→                  </Button>
+   949→                  <Button
+   950→                    className="flex-1 gap-1.5"
+   951→                    disabled={mutation.isPending || uploadingProof || !proofImage}
+   952→                    onClick={async () => {
+   953→                      const pkgName = paketMap[selectedPackage]?.name || selectedPackage;
+   954→
+   955→                      setUploadingProof(true);
+   956→                      try {
+   957→                        const caption =
+   958→                          `*Bukti Pembayaran Iklan Gomesin*\n\n` +
+   959→                          `Paket: ${pkgName}\n` +
+   960→                          `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
+   961→                          `User: ${user?.name || "-"}\n` +
+   962→                          `Email: ${user?.email || "-"}\n` +
+   963→                          `Judul Iklan: ${title}`;
+   964→
+   965→                        // Convert base64 → Blob untuk Web Share API.
+   966→                        const matches = proofImage.match(/^data:image\/(\w+);base64,(.+)$/);
+   967→                        if (!matches) { toast.error("Format gambar tidak valid"); return; }
+   968→                        const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+   969→                        const byteString = atob(matches[2]);
+   970→                        const buf = new Uint8Array(byteString.length);
+   971→                        for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i);
+   972→                        const blob = new Blob([buf], { type: `image/${matches[1]}` });
+   973→                        const fileName = `bukti-pembayaran-${pkgName.toLowerCase()}-${Date.now()}.${ext}`;
+   974→
+   975→                        // 1) Kirim bukti pembayaran (gambar) ke WhatsApp admin via Web Share API.
+   976→                        const result = await shareImageToWhatsApp({ blob, fileName, caption, phone: "6285888082208" });
+   977→                        if (result.status === "shared") toast.success("Gambar bukti dibagikan ke WhatsApp!");
+   978→                        else if (result.status === "opened") toast.success("Bukti pembayaran terkirim ke WhatsApp admin!");
+   979→                        else if (result.status === "cancelled") { setUploadingProof(false); return; }
+   980→
+   981→                        // 2) Kirim bukti pembayaran + gambar ke CHAT ADMIN (in-app) via socket.
+   982→                        //    Jika user belum login atau admin tidak ditemukan, lewati (non-fatal).
+   983→                        if (user?.id) {
+   984→                          try {
+   985→                            const adminRes = await fetch("/api/admin/info");
+   986→                            if (adminRes.ok) {
+   987→                              const { admin } = await adminRes.json() as { admin: { id: string; name: string } };
+   988→                              const methodLabel = paymentMethod === "bca" ? "Transfer Blu BCA" : "QRIS";
+   989→                              const chatCaption =
+   990→                                `*Bukti Pembayaran Iklan*\n\n` +
+   991→                                `Judul Iklan: ${title}\n` +
+   992→                                `Paket: ${pkgName}\n` +
+   993→                                `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
+   994→                                `Metode: ${methodLabel}\n` +
+   995→                                `User: ${user.name || "-"} (${user.email || "-"})\n\n` +
+   996→                                `Bukti pembayaran terlampir. Mohon diverifikasi agar iklan segera aktif.`;
+   997→
+   998→                              const ack = await sendMessage({
+   999→                                senderId: user.id,
+  1000→                                receiverId: admin.id,
+  1001→                                content: chatCaption,
+  1002→                                image: proofImage, // base64 data URL — gambar bukti
+  1003→                                listingTitle: `Bukti Pembayaran — ${title}`,
+  1004→                              });
+  1005→
+  1006→                              if (!ack?.ok) {
+  1007→                                // Fallback ke REST POST /api/messages (tetap tersimpan di DB).
+  1008→                                await fetch("/api/messages", {
+  1009→                                  method: "POST",
+  1010→                                  headers: { "Content-Type": "application/json" },
+  1011→                                  body: JSON.stringify({
+  1012→                                    senderId: user.id,
+  1013→                                    receiverId: admin.id,
+  1014→                                    content: chatCaption,
+  1015→                                    image: proofImage,
+  1016→                                    listingTitle: `Bukti Pembayaran — ${title}`,
+  1017→                                  }),
+  1018→                                });
+  1019→                              }
+  1020→                              toast.success("Bukti pembayaran dikirim ke chat admin");
+  1021→                            }
+  1022→                          } catch (chatErr) {
+  1023→                            // Non-fatal: jangan blokir submit iklan jika pengiriman chat gagal.
+  1024→                            console.error("Gagal kirim bukti ke chat admin:", chatErr);
+  1025→                            toast.error("Bukti terkirim ke WhatsApp, tapi gagal ke chat admin");
+  1026→                          }
+  1027→                        }
+  1028→                      } catch {
+  1029→                        toast.error("Gagal mengirim bukti");
+  1030→                      } finally {
+  1031→                        setUploadingProof(false);
+  1032→                      }
+  1033→                      setQrisModal(false);
+  1034→                      doSubmit();
+  1035→                    }}
+  1036→                  >
+  1037→                    {uploadingProof ? <Loader2 className="size-4 animate-spin" /> : mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+  1038→                    {uploadingProof ? "Mengirim bukti..." : mutation.isPending ? "Memproses..." : "Kirim & Pasang Iklan"}
+  1039→                  </Button>
+  1040→                </div>
+  1041→                {!proofImage && (
+  1042→                  <p className="text-center text-[11px] text-amber-600">Upload bukti pembayaran dulu untuk melanjutkan</p>
+  1043→                )}
+  1044→              </div>
+  1045→
+  1046→              {/* RIGHT — total pembayaran + QR code / BCA info (di mobile di ATAS) */}
+  1047→              <div className="order-1 flex flex-col items-center justify-start pb-6 md:order-2 md:pb-0">
+  1048→                {/* Total pembayaran */}
+  1049→                <div className="mb-4 text-center">
+  1050→                  <p className="text-xs text-muted-foreground">Total Pembayaran</p>
+  1051→                  <p className="text-3xl font-extrabold text-primary sm:text-4xl">{formatRupiahFull(qrisAmount)}</p>
+  1052→                  <p className="mt-1 text-[11px] text-muted-foreground">
+  1053→                    Harga paket + kode unik untuk identifikasi pembayar
+  1054→                  </p>
+  1055→                </div>
+  1056→                {paymentMethod === "bca" ? (
+  1057→                  <>
+  1058→                    {/* Blu BCA bank info */}
+  1059→                    <div className="rounded-2xl border-2 border-blue-500 bg-white p-8 shadow-lg text-center">
+  1060→                      <p className="text-sm font-bold text-blue-600">Blu BCA</p>
+  1061→                      <p className="mt-2 text-3xl font-extrabold tracking-wider text-foreground">0011 2208 8800</p>
+  1062→                      <p className="mt-2 text-sm text-muted-foreground">a.n. Lina Listiawati</p>
+  1063→                    </div>
+  1064→                    <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Transfer ke rekening di atas</p>
+  1065→                  </>
+  1066→                ) : (
+  1067→                  <>
+  1068→                    {/* QR code */}
+  1069→                    <div className="rounded-2xl border-2 border-border bg-white p-4 shadow-lg sm:p-6">
+  1070→                      <img
+  1071→                        src="/qris-gomesin.jpeg"
+  1072→                        alt="QRIS Gomesin"
+  1073→                        className="h-auto w-full max-w-[250px] object-contain"
+  1074→                      />
+  1075→                    </div>
+  1076→                    <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">Scan QRIS untuk membayar</p>
+  1077→                  </>
+  1078→                )}
+  1079→              </div>
+  1080→            </div>
+  1081→          </div>
+  1082→        </div>
+  1083→      )}
+  1084→    </div>
+  1085→  );
+  1086→}
+  1087→
+  1088→function Section({
+  1089→  title,
+  1090→  required,
+  1091→  children,
+  1092→}: {
+  1093→  title: string;
+  1094→  required?: boolean;
+  1095→  children: React.ReactNode;
+  1096→}) {
+  1097→  return (
+  1098→    <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+  1099→      <h2 className="mb-3 flex items-center gap-1 text-base font-bold">
+  1100→        {title}
+  1101→        {required && <span className="text-destructive">*</span>}
+  1102→      </h2>
+  1103→      <div className="space-y-3">{children}</div>
+  1104→    </section>
+  1105→  );
+  1106→}
+  1107→
+  1108→function Field({
+  1109→  label,
+  1110→  required,
+  1111→  children,
+  1112→}: {
+  1113→  label: string;
+  1114→  required?: boolean;
+  1115→  children: React.ReactNode;
+  1116→}) {
+  1117→  return (
+  1118→    <div className="space-y-1.5">
+  1119→      <Label className="text-sm font-medium">
+  1120→        {label} {required && <span className="text-destructive">*</span>}
+  1121→      </Label>
+  1122→      {children}
+  1123→    </div>
+  1124→  );
+  1125→}
+  1126→

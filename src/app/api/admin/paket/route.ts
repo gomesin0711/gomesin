@@ -1,20 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, isDbAvailable } from "@/lib/db";
+import { getFallbackPakets } from "@/lib/fallback-data";
 
 export async function GET() {
-  const pakets = await db.paket.findMany({ orderBy: { sortOrder: "asc" } });
-  return NextResponse.json({
-    pakets: pakets.map((p) => ({
-      ...p,
-      features: JSON.parse(p.features),
-    })),
-  });
+  if (isDbAvailable()) {
+    try {
+      const pakets = await db.paket.findMany({ orderBy: { sortOrder: "asc" } });
+      return NextResponse.json({
+        pakets: pakets.map((p) => ({
+          ...p,
+          features: JSON.parse(p.features),
+        })),
+      });
+    } catch { /* fallback */ }
+  }
+
+  const fallback = getFallbackPakets().map((p: any) => ({
+    ...p,
+    features: typeof p.features === 'string' ? JSON.parse(p.features) : p.features || [],
+  }));
+  return NextResponse.json({ pakets: fallback });
 }
 
 export async function PUT(req: NextRequest) {
   const body = await req.json();
   const { id, name, price, originalPrice, duration, features, active } = body;
   if (!id) return NextResponse.json({ error: "ID wajib" }, { status: 400 });
+
+  if (!isDbAvailable()) {
+    return NextResponse.json({ error: "DB tidak tersedia" }, { status: 503 });
+  }
 
   const updated = await db.paket.update({
     where: { id },
