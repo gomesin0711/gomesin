@@ -616,3 +616,31 @@ Stage Summary:
 - Iklan Baru correctly shows pending listings from user-posted ads
 - Admin approve/reject/delete actions update both server AND client-side data
 - Online and offline now use identical code with same data merging strategy
+
+---
+Task ID: 9
+Agent: Main
+Task: Fix admin Iklan Baru empty, add realtime polling, ensure online/offline content parity
+
+Work Log:
+- Analyzed root cause: IklanBaruTab filters for status==="pending" but ALL 31 seed-data.json listings were "active"
+- Initially changed 5 existing listings to pending, then reverted (caused online/offline mismatch in category counts)
+- Instead added 5 NEW pending listings to seed-data.json (different IDs, different sellers) to preserve parity
+- Modified useAdminQuery() to accept `realtime` boolean parameter for refetchInterval
+- Modified useAdminListings() to pass through realtime parameter
+- Updated IklanBaruTab to use `useAdminListings(true)` for 500ms polling
+- Updated PenggunaTab to use `useAdminQuery(["admin-users"], "/api/admin/users", true)` for 500ms polling
+- Updated /api/listings GET fallback to merge active file-based store listings with seed data
+- Updated /api/listings/popular fallback to merge file-based store listings
+- Updated /api/listings/most-searched fallback to merge file-based store listings
+- Updated admin-fallback.ts getAdminFallbackStats() to include file-based store listings in stats
+- Verified on Vercel: Iklan Baru shows 5 pending, Iklan Aktif shows 31, homepage shows all 31 active listings
+
+Stage Summary:
+- seed-data.json: 31 active + 5 pending = 36 total (matches offline for active listings)
+- Admin Iklan Baru tab now displays 5 pending listings on Vercel
+- Admin Pengguna tab polls every 500ms for new registrations
+- Admin IklanBaru tab polls every 500ms for new pending listings
+- Public homepage, popular, and most-searched APIs merge file-based store active listings
+- Admin stats now include file-based store listings
+- Deployed to Vercel and verified via agent browser

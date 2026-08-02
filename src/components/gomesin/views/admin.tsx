@@ -405,25 +405,25 @@ function IklanTab() {
               )}
             </div>
           )}
-          {/* Bottom */}
-          <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+          {/* Bottom: Views + Action Buttons */}
+          <div className="mt-auto space-y-2 border-t border-border pt-2">
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0}
             </span>
-            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setStatus.mutate({ id: l.id, status: "active" })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Approve">
-                <CheckCircle2 className="size-3" />
+            <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setStatus.mutate({ id: l.id, status: "active" })} className="flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2.5 py-1.5 text-[11px] font-semibold text-green-700 transition hover:bg-green-600 hover:text-white hover:border-green-600">
+                <CheckCircle2 className="size-3.5" /> Setujui
               </button>
-              <button onClick={() => { if (confirm('Tandai iklan ini sebagai terjual?')) markSold.mutate(l.id); }} className="grid size-7 place-items-center rounded-md border border-border bg-background text-orange-600 transition hover:bg-orange-500 hover:text-white hover:border-orange-500" title="Terjual">
-                <DollarSign className="size-3" />
+              <button onClick={() => { if (confirm('Tandai iklan ini sebagai terjual?')) markSold.mutate(l.id); }} className="flex items-center gap-1 rounded-md border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700 transition hover:bg-orange-600 hover:text-white hover:border-orange-600">
+                <DollarSign className="size-3.5" /> Terjual
               </button>
-              <button onClick={() => setViolation.mutate({ id: l.id, flag: !l.violationFlag, reason: tr("admViolationReason") })} className={cn("grid size-7 place-items-center rounded-md border transition",
-                l.violationFlag ? "border-red-500 bg-red-500 text-white" : "border-red-300 bg-background text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500"
-              )} title="Pelanggaran">
-                <XCircle className="size-3" />
+              <button onClick={() => setViolation.mutate({ id: l.id, flag: !l.violationFlag, reason: tr("admViolationReason") })} className={cn("flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition",
+                l.violationFlag ? "border-red-500 bg-red-500 text-white hover:bg-red-700" : "border-red-200 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600"
+              )}>
+                <XCircle className="size-3.5" /> {l.violationFlag ? "Batal Tolak" : "Tolak"}
               </button>
-              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}>
-                <Trash2 className="size-3" />
+              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 text-[11px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive">
+                <Trash2 className="size-3.5" /> Hapus
               </button>
             </div>
           </div>
@@ -470,20 +470,28 @@ function IklanTab() {
               </span>
             )}
           </div>
-          <div className="mt-auto flex items-center justify-between pt-2">
+          <div className="mt-auto flex flex-col gap-2 pt-2">
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-0.5"><Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0} dilihat</span>
               {l.paymentExpiry && l.paymentStatus === "paid" && !expired && (
                 <span>Berakhir: {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
               )}
             </div>
-            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setStatus.mutate({ id: l.id, status: "active" })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Approve"><CheckCircle2 className="size-3" /></button>
-              <button onClick={() => { if (confirm('Tandai iklan ini sebagai terjual?')) markSold.mutate(l.id); }} className="grid size-7 place-items-center rounded-md border border-border bg-background text-orange-600 transition hover:bg-orange-500 hover:text-white hover:border-orange-500" title="Terjual"><DollarSign className="size-3" /></button>
-              <button onClick={() => setViolation.mutate({ id: l.id, flag: !l.violationFlag, reason: tr("admViolationReason") })} className={cn("grid size-7 place-items-center rounded-md border transition",
-                l.violationFlag ? "border-red-500 bg-red-500 text-white" : "border-red-300 bg-background text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500"
-              )} title="Pelanggaran"><XCircle className="size-3" /></button>
-              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}><Trash2 className="size-3" /></button>
+            <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setStatus.mutate({ id: l.id, status: "active" })} className="flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2.5 py-1.5 text-[11px] font-semibold text-green-700 transition hover:bg-green-600 hover:text-white hover:border-green-600">
+                <CheckCircle2 className="size-3.5" /> Setujui
+              </button>
+              <button onClick={() => { if (confirm('Tandai iklan ini sebagai terjual?')) markSold.mutate(l.id); }} className="flex items-center gap-1 rounded-md border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700 transition hover:bg-orange-600 hover:text-white hover:border-orange-600">
+                <DollarSign className="size-3.5" /> Terjual
+              </button>
+              <button onClick={() => setViolation.mutate({ id: l.id, flag: !l.violationFlag, reason: tr("admViolationReason") })} className={cn("flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition",
+                l.violationFlag ? "border-red-500 bg-red-500 text-white hover:bg-red-700" : "border-red-200 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600"
+              )}>
+                <XCircle className="size-3.5" /> {l.violationFlag ? "Batal Tolak" : "Tolak"}
+              </button>
+              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 text-[11px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive">
+                <Trash2 className="size-3.5" /> Hapus
+              </button>
             </div>
           </div>
         </div>
@@ -1028,14 +1036,14 @@ function IklanExpiredTab() {
           {l.paymentExpiry && (
             <p className="mt-1 text-[10px] text-muted-foreground">Berakhir: {fmtDate(l.paymentExpiry)}</p>
           )}
-          <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+          <div className="mt-auto space-y-2 border-t border-border pt-2">
             <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
-            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => renew.mutate({ id: l.id, days: 30 })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-orange-600 transition hover:bg-orange-500 hover:text-white hover:border-orange-500" title="Perpanjang 30 hari">
-                <RefreshCw className="size-3" />
+            <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => renew.mutate({ id: l.id, days: 30 })} className="flex items-center gap-1 rounded-md border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700 transition hover:bg-orange-600 hover:text-white hover:border-orange-600">
+                <RefreshCw className="size-3.5" /> Perpanjang
               </button>
-              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}>
-                <Trash2 className="size-3" />
+              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 text-[11px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive">
+                <Trash2 className="size-3.5" /> Hapus
               </button>
             </div>
           </div>
@@ -1073,11 +1081,11 @@ function IklanExpiredTab() {
             <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold", pkg.bg)}>{pkg.name}</span>
             {l.paymentExpiry && <span className="text-[10px] text-muted-foreground">Berakhir: {fmtDate(l.paymentExpiry)}</span>}
           </div>
-          <div className="mt-auto flex items-center justify-between pt-2">
+          <div className="mt-auto flex flex-col gap-2 pt-2">
             <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
-            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => renew.mutate({ id: l.id, days: 30 })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-orange-600 transition hover:bg-orange-500 hover:text-white hover:border-orange-500" title="Perpanjang 30 hari"><RefreshCw className="size-3" /></button>
-              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}><Trash2 className="size-3" /></button>
+            <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => renew.mutate({ id: l.id, days: 30 })} className="flex items-center gap-1 rounded-md border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700 transition hover:bg-orange-600 hover:text-white hover:border-orange-600"><RefreshCw className="size-3.5" /> Perpanjang</button>
+              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 text-[11px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"><Trash2 className="size-3.5" /> Hapus</button>
             </div>
           </div>
         </div>
@@ -1300,14 +1308,14 @@ function IklanDitolakTab() {
           {l.violationReason && (
             <p className="mt-1 text-[10px] text-red-600">{l.violationReason}</p>
           )}
-          <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+          <div className="mt-auto space-y-2 border-t border-border pt-2">
             <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
-            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => restore.mutate({ id: l.id })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Pulihkan & Tayangkan">
-                <CheckCircle2 className="size-3" />
+            <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => restore.mutate({ id: l.id })} className="flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2.5 py-1.5 text-[11px] font-semibold text-green-700 transition hover:bg-green-600 hover:text-white hover:border-green-600">
+                <CheckCircle2 className="size-3.5" /> Pulihkan
               </button>
-              <button onClick={() => { if (confirm("Hapus permanen?")) del.mutate(l.id); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title="Hapus Permanen">
-                <Trash2 className="size-3" />
+              <button onClick={() => { if (confirm("Hapus permanen?")) del.mutate(l.id); }} className="flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 text-[11px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive">
+                <Trash2 className="size-3.5" /> Hapus
               </button>
             </div>
           </div>
@@ -1345,11 +1353,11 @@ function IklanDitolakTab() {
             <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold", pkg.bg)}>{pkg.name}</span>
             {l.violationReason && <span className="text-[10px] text-red-600">{l.violationReason}</span>}
           </div>
-          <div className="mt-auto flex items-center justify-between pt-2">
+          <div className="mt-auto flex flex-col gap-2 pt-2">
             <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
-            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => restore.mutate({ id: l.id })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Pulihkan & Tayangkan"><CheckCircle2 className="size-3" /></button>
-              <button onClick={() => { if (confirm("Hapus permanen?")) del.mutate(l.id); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title="Hapus Permanen"><Trash2 className="size-3" /></button>
+            <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => restore.mutate({ id: l.id })} className="flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2.5 py-1.5 text-[11px] font-semibold text-green-700 transition hover:bg-green-600 hover:text-white hover:border-green-600"><CheckCircle2 className="size-3.5" /> Pulihkan</button>
+              <button onClick={() => { if (confirm("Hapus permanen?")) del.mutate(l.id); }} className="flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 text-[11px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"><Trash2 className="size-3.5" /> Hapus</button>
             </div>
           </div>
         </div>
