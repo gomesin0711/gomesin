@@ -103,7 +103,7 @@ export function AdminSidebar({
       {open && (
         <div className="fixed inset-0 z-[90] flex md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-          <aside className="relative z-10 flex h-full w-64 max-w-[80vw] flex-col overflow-y-auto bg-card shadow-2xl ring-2 ring-red-500">
+          <aside className="relative z-10 flex h-full w-64 max-w-[80vw] flex-col overflow-y-auto bg-card shadow-2xl">
             <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
               <div className="flex items-center gap-2.5">
                 <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
