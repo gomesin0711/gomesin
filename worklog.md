@@ -457,3 +457,28 @@ Stage Summary:
 - WhatsApp mode: phone + OTP flow
 - Email mode: email + password flow
 - Smooth animate-fade-up transition between modes
+
+---
+Task ID: pwa-fix
+Agent: main
+Task: Fix PWA auto-install not working on mobile and desktop
+
+Work Log:
+- Analyzed root causes: SW registered on `load` event (too late), event listener cleanup bug, no dynamic prompt checking, popup showed before SW active
+- Rewrote layout.tsx inline script: SW registers IMMEDIATELY (not on load), dispatches `pwa-sw-ready` and `pwa-prompt-ready` custom events
+- Completely rewrote pwa-install-prompt.tsx:
+  - Uses `queueMicrotask` to detect pre-hydration state (SW/prompt set before React hydrates)
+  - Polls for `beforeinstallprompt` every 300ms on Chromium (up to 5s timeout)
+  - Shows native install button only when `beforeinstallprompt` event is captured
+  - Shows instructions-only popup for iOS (Share > Add to Home Screen) and Chromium without prompt
+  - Proper cleanup with `cancelled` flag to prevent state updates after unmount
+  - Added `markDismissed()` in catch block for unsupported contexts
+- Verified: SW registers immediately, `beforeinstallprompt` captured, popup shows with "Install Sekarang" button
+- Verified: popup correctly calls `prompt.prompt()` on install button click
+
+Stage Summary:
+- PWA install prompt now works correctly on Chromium (Chrome/Edge) with native install dialog
+- iOS shows proper Add to Home Screen instructions
+- SW registers immediately for fastest `beforeinstallprompt` event
+- Popup appears 1 second after SW is ready (not fixed delay from page load)
+

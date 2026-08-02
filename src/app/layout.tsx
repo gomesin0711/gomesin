@@ -67,27 +67,63 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              // Capture beforeinstallprompt IMMEDIATELY before React hydrates
+              // ====== PWA BOOTSTRAP (runs before React hydrates) ======
               window.__deferredInstallPrompt = null;
+              window.__swReady = false;
+
+              // 1. Capture beforeinstallprompt AS EARLY AS POSSIBLE
               window.addEventListener('beforeinstallprompt', function(e) {
                 e.preventDefault();
                 window.__deferredInstallPrompt = e;
-                console.log('[PWA] beforeinstallprompt captured early');
+                console.log('[PWA] beforeinstallprompt captured');
+                // Notify React component that prompt is now available
+                window.dispatchEvent(new CustomEvent('pwa-prompt-ready'));
               });
+
+              // 2. Handle appinstalled
               window.addEventListener('appinstalled', function() {
                 window.__deferredInstallPrompt = null;
+                window.__swReady = true;
                 try { localStorage.setItem('gomesin-pwa-installed', '1'); } catch(ex) {}
                 console.log('[PWA] app installed');
+                window.dispatchEvent(new CustomEvent('pwa-installed'));
               });
-              // Register SW
+
+              // 3. Register SW IMMEDIATELY (not on load) for fastest activation
               if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
-                    console.log('SW registered:', reg.scope);
-                  }).catch(function(err) {
-                    console.warn('SW registration failed:', err);
-                  });
+                navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
+                  console.log('[PWA] SW registered:', reg.scope);
+                  // If already active, mark ready immediately
+                  if (reg.active) {
+                    window.__swReady = true;
+                    window.dispatchEvent(new CustomEvent('pwa-sw-ready'));
+                  }
+                  // Also listen for activation
+                  function onStateChange() {
+                    if (reg.active) {
+                      window.__swReady = true;
+                      window.dispatchEvent(new CustomEvent('pwa-sw-ready'));
+                      reg.removeEventListener('controllerchange', onStateChange);
+                    }
+                  }
+                  reg.addEventListener('controllerchange', onStateChange);
+                  // Check if we have an active controller already
+                  if (navigator.serviceWorker.controller) {
+                    window.__swReady = true;
+                    window.dispatchEvent(new CustomEvent('pwa-sw-ready'));
+                  }
+                }).catch(function(err) {
+                  console.warn('[PWA] SW registration failed:', err);
+                  // Even if SW fails, still show popup after delay (for iOS/edge cases)
+                  setTimeout(function() {
+                    window.dispatchEvent(new CustomEvent('pwa-sw-ready'));
+                  }, 3000);
                 });
+              } else {
+                // No SW support (e.g. some iOS webviews) — proceed anyway
+                setTimeout(function() {
+                  window.dispatchEvent(new CustomEvent('pwa-sw-ready'));
+                }, 1000);
               }
             `,
           }}
