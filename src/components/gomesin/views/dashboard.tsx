@@ -145,6 +145,7 @@ export function DashboardView() {
     enabled: !!user?.id,
     staleTime: 0,
     refetchInterval: 5000,
+    refetchIntervalInBackground: true,
   });
 
   const deleteMutation = useMutation({

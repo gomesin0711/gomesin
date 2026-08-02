@@ -77,6 +77,17 @@ async function getStore(): Promise<Map<string, StoredListing>> {
   return globalStore.__listingsStore;
 }
 
+/** Get the internal store map (used by admin API to read all listings) */
+export { getStore };
+
+/** Get ALL listings from fallback store */
+export async function getAllFallbackListings(): Promise<StoredListing[]> {
+  const store = await getStore();
+  return Array.from(store.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
 function generateId(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   let id = "";
