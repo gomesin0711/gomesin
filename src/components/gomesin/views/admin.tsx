@@ -96,54 +96,7 @@ export function AdminView({ initialTab }: { initialTab?: Tab }) {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 animate-fade-up">
-      {/* breadcrumb */}
-      <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
-        <button onClick={goHome} className="hover:text-primary">Beranda</button>
-        <ChevronRight className="size-3" />
-        <span className="text-foreground">Administrator</span>
-      </div>
-
-      {/* Banner + Logo + Title — sama persis dengan dashboard iklan saya */}
-      <div className="relative mb-5 w-full">
-        {/* Banner image — full width */}
-        <div className="relative h-40 w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary to-orange-600 sm:h-52 md:h-60">
-          {user.bannerImage ? (
-            <img src={user.bannerImage} alt="Banner" className="size-full object-cover" />
-          ) : (
-            <div className="size-full bg-gradient-to-br from-primary to-orange-600" />
-          )}
-        </div>
-        {/* Logo — ½ below banner (overlap bottom edge, di DEPAN banner), digeser ke kanan ~1cm */}
-        <div className="-mt-10 flex items-end gap-3 px-3 sm:-mt-12 sm:px-4 sm:gap-4">
-          <div className="relative z-10 shrink-0">
-            {user.logoImage ? (
-              <img src={user.logoImage} alt="Logo" className="size-20 rounded-xl border-4 border-white bg-white object-cover shadow-xl sm:size-24" />
-            ) : (
-              <span className="grid size-20 place-items-center rounded-xl border-4 border-white bg-primary text-lg font-bold text-primary-foreground shadow-xl sm:size-24">
-                <ShieldCheck className="size-8" />
-              </span>
-            )}
-          </div>
-          {/* Name + title — below/outside banner, beside logo */}
-          <div className="min-w-0 flex-1 pb-1">
-            <h1 className="truncate text-base font-extrabold text-foreground sm:text-xl">Panel Administrator</h1>
-            <p className="truncate text-xs text-muted-foreground sm:text-sm">
-              {user.name}{user.email ? ` · ${user.email}` : ""}
-            </p>
-          </div>
-          {/* Back button — right side */}
-          <button
-            onClick={goHome}
-            aria-label="Kembali"
-            className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-card hover:bg-accent"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* content — tab dikontrol via sidebar, tidak ada tab bar */}
+    <div className="px-2 py-2 md:px-6 md:py-4">
       {tab === "dashboard" && <DashboardTab />}
       {tab === "iklan" && <IklanTab />}
       {tab === "iklanbaru" && <IklanBaruTab />}
@@ -160,7 +113,6 @@ export function AdminView({ initialTab }: { initialTab?: Tab }) {
       {tab === "laporan" && <LaporanTab />}
       {tab === "laporanbulanan" && <MonthlyReportTab />}
       {tab === "audit" && <AuditTab />}
-
     </div>
   );
 }

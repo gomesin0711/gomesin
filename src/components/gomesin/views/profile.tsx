@@ -901,21 +901,21 @@ export function ProfileView() {
       {drawerOpen && (
         <div className="fixed inset-0 z-[90] flex md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} />
-          <aside className="relative z-10 flex h-full w-72 max-w-[85vw] flex-col overflow-y-auto bg-card shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border p-4">
-              <div className="flex items-center gap-3">
-                <Avatar className="size-10 border-2 border-primary/20 overflow-hidden">
+          <aside className="relative z-10 flex h-full w-64 max-w-[80vw] flex-col overflow-y-auto bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+              <div className="flex items-center gap-2.5">
+                <Avatar className="size-9 border-2 border-primary/20 overflow-hidden">
                   {user?.logoImage ? (
                     <img src={user.logoImage} alt={user.name || ""} className="size-full object-cover" onError={(e)=>{(e.target as HTMLImageElement).style.display='none';}} />
                   ) : (
-                    <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
+                    <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
                       {initials}
                     </AvatarFallback>
                   )}
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold">{user?.name || "Pengguna"}</p>
-                  <p className="truncate text-xs text-muted-foreground">{user?.email || "Belum login"}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{user?.email || "Belum login"}</p>
                 </div>
               </div>
               <button onClick={() => setDrawerOpen(false)} className="grid size-8 place-items-center rounded-full hover:bg-accent">
@@ -923,14 +923,14 @@ export function ProfileView() {
               </button>
             </div>
             {user?.role === "admin" && (
-              <div className="px-4 pt-2">
+              <div className="px-3 pt-1.5">
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
                   <ShieldCheck className="size-3" /> Admin
                 </span>
               </div>
             )}
-            <nav className="px-1.5 py-1">
-              <p className="px-2.5 pb-0.5 pt-1.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/50">Iklan & Transaksi</p>
+            <nav className="px-1 py-0.5">
+              <p className="px-2 pb-0.5 pt-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Iklan & Transaksi</p>
               {[
                 ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), action: () => { goToAdmin(); setDrawerOpen(false); }, navigate: true, key: "admin" }] : []),
                 { icon: LayoutDashboard, label: "Dashboard", action: () => { goToDashboard(); setPanel(null); setDrawerOpen(false); }, navigate: true, key: "dashboard" },
@@ -945,19 +945,19 @@ export function ProfileView() {
                     key={i}
                     onClick={m.action}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
+                      "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
                       isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
                     )}
                   >
-                    <m.icon className="size-3.5 shrink-0" />
+                    <m.icon className="size-4 shrink-0" />
                     <span className="truncate">{m.label}</span>
                     {m.key === "pesan" && unreadCount > 0 && (
-                      <span className="ml-auto rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">{unreadCount}</span>
+                      <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{unreadCount}</span>
                     )}
                   </button>
                 );
               })}
-              <p className="px-2.5 pb-0.5 pt-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/50">Akun & Keamanan</p>
+              <p className="px-2 pb-0.5 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Akun & Keamanan</p>
               {[
                 { icon: Bell, label: tr("notifications"), action: () => { setPanel("notifikasi"); setDrawerOpen(false); }, key: "notifikasi" },
                 { icon: Lock, label: tr("security"), action: () => { setPanel("keamanan"); setDrawerOpen(false); }, key: "keamanan" },
@@ -969,31 +969,31 @@ export function ProfileView() {
                     key={i}
                     onClick={m.action}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
+                      "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
                       isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
                     )}
                   >
-                    <m.icon className="size-3.5 shrink-0" />
+                    <m.icon className="size-4 shrink-0" />
                     <span className="truncate">{m.label}</span>
                   </button>
                 );
               })}
-              <p className="px-2.5 pb-0.5 pt-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/50">Bantuan</p>
+              <p className="px-2 pb-0.5 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/50">Bantuan</p>
               <button
                 onClick={() => { setPanel("bantuan"); setDrawerOpen(false); }}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
+                  "flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm transition",
                   panel === "bantuan" ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
                 )}
               >
-                <HelpCircle className="size-3.5 shrink-0" />
+                <HelpCircle className="size-4 shrink-0" />
                 <span className="truncate">{tr("help")}</span>
               </button>
               <button
                 onClick={() => { setDrawerOpen(false); if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
-                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-destructive transition hover:bg-destructive/5"
+                className="flex w-full items-center gap-2.5 rounded-md px-2 py-1 text-left text-sm text-destructive transition hover:bg-destructive/5"
               >
-                <LogOut className="size-3.5 shrink-0" />
+                <LogOut className="size-4 shrink-0" />
                 <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
               </button>
             </nav>

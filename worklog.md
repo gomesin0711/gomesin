@@ -499,3 +499,28 @@ Stage Summary:
 - iOS Chrome/Firefox show clear use Safari instructions with copy link
 - iOS Safari still shows Share > Add to Home Screen
 - Android/Desktop unchanged
+
+---
+Task ID: mobile-menu-fix
+Agent: main
+Task: Fix mobile hamburger menu on profile and admin pages
+
+Work Log:
+- Analyzed profile.tsx mobile drawer: text-[13px] with px-2.5 py-1.5 gap-2
+- Changed to text-sm with px-2 py-1 gap-2.5 (larger text, slimmer boxes, bigger icons)
+- Reduced drawer width from w-72/85vw to w-64/80vw
+- Reduced header padding and avatar size for slimmer look
+- Section headers from text-[9px] to text-[10px]
+- Discovered admin page had NO mobile navigation - AdminSidebar in admin-sidebar.tsx used slide-from-left pattern
+- Rewrote admin-sidebar.tsx: mobile now uses overlay+drawer pattern (like profile page) instead of fixed slide-from-left
+- Desktop sidebar kept as permanent sticky sidebar
+- Updated app-shell.tsx: mobile toggle changed from text bar to hamburger icon button (grid size-10, bg-primary/10, Menu icon)
+- Removed duplicate local ShieldCheck SVG, imported from lucide-react
+- Fixed SWC parsing error by rewriting app-shell.tsx from scratch
+
+Stage Summary:
+- Profile drawer: larger text (text-sm), slimmer boxes (px-2 py-1), bigger icons (size-4)
+- Admin page: hamburger menu now works on mobile with drawer pattern matching profile page
+- Desktop: permanent sidebar unchanged
+- Zero new lint errors, zero JS errors in browser
+- Verified: profile drawer, admin drawer, tab switching, desktop sidebar all working
