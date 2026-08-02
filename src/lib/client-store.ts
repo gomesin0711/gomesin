@@ -236,7 +236,7 @@ export function getClientListingsByUserId(userId: string): StoredListing[] {
   );
 }
 
-/** Merge server listings with local listings (dedup by id) */
+/** Merge server listings with local listings for a specific user (dedup by id) */
 export function mergeListings(
   serverListings: any[],
   userId: string
@@ -246,16 +246,63 @@ export function mergeListings(
 
   const serverIds = new Set(serverListings.map((l: any) => l.id));
   const merged = [...serverListings];
-  // Add local listings that aren't on the server
   for (const local of localListings) {
     if (!serverIds.has(local.id)) {
       merged.push(local);
     }
   }
-  // Sort by creation date descending
   merged.sort(
     (a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
   return merged;
+}
+
+/** Merge ALL server listings with ALL client-side listings (for admin view) */
+export function mergeAllListings(serverListings: any[]): any[] {
+  const localListings = getClientListings();
+  if (localListings.length === 0) return serverListings;
+
+  const serverIds = new Set(serverListings.map((l: any) => l.id));
+  const merged = [...serverListings];
+  for (const local of localListings) {
+    if (!serverIds.has(local.id)) {
+      merged.push(local);
+    } else {
+      // Update existing listing with client-side version (may have newer status)
+      const idx = merged.findIndex((m: any) => m.id === local.id);
+      if (idx >= 0) {
+        merged[idx] = { ...merged[idx], ...local };
+      }
+    }
+  }
+  merged.sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  return merged;
+}
+
+/** Update a client-side listing's status (used when admin approves/rejects) */
+export function updateClientListingStatus(
+  listingId: string,
+  status: string,
+  paymentStatus?: string
+): void {
+  const listings = getClientListings();
+  for (const l of listings) {
+    if (l.id === listingId) {
+      l.status = status;
+      if (paymentStatus) l.paymentStatus = paymentStatus;
+      l.updatedAt = new Date().toISOString();
+      break;
+    }
+  }
+  writeJSON(LISTINGS_KEY, listings);
+}
+
+/** Remove a client-side listing by id (used when admin deletes) */
+export function removeClientListingById(listingId: string): void {
+  const listings = getClientListings().filter((l) => l.id !== listingId);
+  writeJSON(LISTINGS_KEY, listings);
 }

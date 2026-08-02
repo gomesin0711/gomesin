@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { useLang, translations as i18nTranslations } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
+import { mergeAllListings, updateClientListingStatus, removeClientListingById } from "@/lib/client-store";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +56,16 @@ function useAdminQuery<T>(key: string[], url: string) {
     retry: false,
     staleTime: 0,
   });
+}
+
+// Admin listings query with client-side merge (localStorage + server)
+function useAdminListings() {
+  const { data, isLoading, error } = useAdminQuery(["admin-listings"], "/api/admin/listings");
+  const merged = useMemo(() => {
+    const server = (data?.listings || []) as any[];
+    return mergeAllListings(server);
+  }, [data?.listings]);
+  return { data: { listings: merged }, isLoading, error };
 }
 
 const DB_ERROR_UI = (
@@ -262,7 +273,7 @@ function IklanTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
+  const { data, isLoading } = useAdminListings();
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -270,19 +281,19 @@ function IklanTab() {
   const [search, setSearch] = useState("");
   const del = useMutation({
     mutationFn: (id: string) => fetch("/api/admin/listings", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
-    onSuccess: () => { toast.success(tr("admDeleted")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+    onSuccess: (_, id) => { toast.success(tr("admDeleted")); removeClientListingById(id as string); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
   });
   const setStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) }),
-    onSuccess: () => { toast.success(tr("admStatusUpdated")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+    onSuccess: (_, vars) => { toast.success(tr("admStatusUpdated")); updateClientListingStatus(vars.id, vars.status, vars.status === "active" ? "paid" : undefined); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
   });
   const setViolation = useMutation({
     mutationFn: ({ id, flag, reason }: { id: string; flag: boolean; reason?: string }) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, violationFlag: flag, violationReason: reason }) }),
-    onSuccess: () => { toast.success(tr("admViolationStatusUpdated")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+    onSuccess: (_, vars) => { toast.success(tr("admViolationStatusUpdated")); updateClientListingStatus(vars.id, vars.flag ? "rejected" : "active"); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
   });
   const markSold = useMutation({
     mutationFn: (id: string) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "sold" }) }),
-    onSuccess: () => { toast.success("Iklan ditandai terjual"); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+    onSuccess: (_, id) => { toast.success("Iklan ditandai terjual"); updateClientListingStatus(id as string, "sold"); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
   });
 
   const allListings = useMemo(() => (data?.listings || []) as any[], [data?.listings]);
@@ -641,7 +652,7 @@ function IklanBaruTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
+  const { data, isLoading } = useAdminListings();
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -681,10 +692,12 @@ function IklanBaruTab() {
   if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
 
   const approve = (id: string) => {
+    updateClientListingStatus(id, "active", "paid");
     setStatus.mutate({ id, status: "active" });
   };
   const reject = (id: string) => {
     if (confirm(tr("admRejectConfirm"))) {
+      updateClientListingStatus(id, "rejected");
       setStatus.mutate({ id, status: "rejected" });
     }
   };
@@ -923,7 +936,7 @@ function IklanExpiredTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
+  const { data, isLoading } = useAdminListings();
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -935,7 +948,7 @@ function IklanExpiredTab() {
   });
   const del = useMutation({
     mutationFn: (id: string) => fetch("/api/admin/listings", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
-    onSuccess: () => { toast.success(tr("admDeleted")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+    onSuccess: (_, id) => { toast.success(tr("admDeleted")); removeClientListingById(id as string); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
   });
 
   const expiredListings = useMemo(() => {
@@ -1206,7 +1219,7 @@ function IklanDitolakTab() {
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const qc = useQueryClient();
-  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
+  const { data, isLoading } = useAdminListings();
   const [previewListing, setPreviewListing] = useState<any>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
@@ -1214,11 +1227,11 @@ function IklanDitolakTab() {
   const [search, setSearch] = useState("");
   const restore = useMutation({
     mutationFn: ({ id }: { id: string }) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "active", violationFlag: false, violationReason: null }) }),
-    onSuccess: () => { toast.success(tr("admRestored")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+    onSuccess: (_, vars) => { toast.success(tr("admRestored")); updateClientListingStatus(vars.id, "active", "paid"); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
   });
   const del = useMutation({
     mutationFn: (id: string) => fetch("/api/admin/listings", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
-    onSuccess: () => { toast.success(tr("admDeletedPermanent")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+    onSuccess: (_, id) => { toast.success(tr("admDeletedPermanent")); removeClientListingById(id as string); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
   });
 
   const rejectedListings = useMemo(() => (data?.listings || []).filter((l: any) => l.status === "rejected" || l.violationFlag === true), [data?.listings]);
@@ -1708,7 +1721,7 @@ function MerekTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
+  const { data, isLoading } = useAdminListings();
   const [extraBrands, setExtraBrands] = useState<string[]>([]);
   const [newBrand, setNewBrand] = useState("");
 
@@ -1785,7 +1798,7 @@ function LokasiTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
+  const { data, isLoading } = useAdminListings();
   const [extraCities, setExtraCities] = useState<string[]>([]);
   const [extraProvinces, setExtraProvinces] = useState<string[]>([]);
   const [newCity, setNewCity] = useState("");
@@ -2140,7 +2153,7 @@ function TransaksiTab() {
   const { t } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
-  const { data, isLoading } = useAdminQuery(["admin-listings"], "/api/admin/listings");
+  const { data, isLoading } = useAdminListings();
   const [search, setSearch] = useState("");
   const [pkgFilter, setPkgFilter] = useState<"all" | "spotlight" | "highlight" | "sundul" | "colek">("all");
   const [viewMode, setViewMode] = useState<"grid" | "line">("line");

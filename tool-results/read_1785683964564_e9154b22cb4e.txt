@@ -1,0 +1,1787 @@
+  1219→  const mounted = useMounted();
+  1220→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1221→  const qc = useQueryClient();
+  1222→  const { data, isLoading } = useAdminListings();
+  1223→  const [previewListing, setPreviewListing] = useState<any>(null);
+  1224→  const [activeImg, setActiveImg] = useState(0);
+  1225→  const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
+  1226→  const [viewMode, setViewMode] = useState<"grid" | "line">("grid");
+  1227→  const [search, setSearch] = useState("");
+  1228→  const restore = useMutation({
+  1229→    mutationFn: ({ id }: { id: string }) => fetch("/api/admin/listings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "active", violationFlag: false, violationReason: null }) }),
+  1230→    onSuccess: () => { toast.success(tr("admRestored")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+  1231→  });
+  1232→  const del = useMutation({
+  1233→    mutationFn: (id: string) => fetch("/api/admin/listings", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
+  1234→    onSuccess: () => { toast.success(tr("admDeletedPermanent")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
+  1235→  });
+  1236→
+  1237→  const rejectedListings = useMemo(() => (data?.listings || []).filter((l: any) => l.status === "rejected" || l.violationFlag === true), [data?.listings]);
+  1238→
+  1239→  // Tab counts
+  1240→  const tabCounts = useMemo(() => {
+  1241→    const c: Record<string, number> = { all: rejectedListings.length };
+  1242→    for (const tab of ADMIN_PKG_TABS) {
+  1243→      if (tab.key !== "all") c[tab.key] = rejectedListings.filter((l: any) => l.packageType === tab.key).length;
+  1244→    }
+  1245→    return c;
+  1246→  }, [rejectedListings]);
+  1247→
+  1248→  // Filter by tab + search
+  1249→  const listings = useMemo(() => {
+  1250→    let filtered = activeTab === "all" ? rejectedListings : rejectedListings.filter((l: any) => l.packageType === activeTab);
+  1251→    if (search.trim()) {
+  1252→      const q = search.toLowerCase();
+  1253→      filtered = filtered.filter((l: any) =>
+  1254→        l.title?.toLowerCase().includes(q) ||
+  1255→        l.seller?.name?.toLowerCase().includes(q) ||
+  1256→        l.city?.toLowerCase().includes(q) ||
+  1257→        l.category?.name?.toLowerCase().includes(q)
+  1258→      );
+  1259→    }
+  1260→    return filtered;
+  1261→  }, [rejectedListings, activeTab, search]);
+  1262→
+  1263→  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
+  1264→
+  1265→  const openPreview = (l: any) => { setPreviewListing(l); setActiveImg(0); };
+  1266→
+  1267→  // --- Grid Card ---
+  1268→  const renderGridCard = (l: any) => {
+  1269→    const img = l.images?.[0];
+  1270→    const pkg = getPkgBadge(l.packageType);
+  1271→
+  1272→    return (
+  1273→      <div
+  1274→        key={l.id}
+  1275→        onClick={() => openPreview(l)}
+  1276→        className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-red-400 bg-card transition hover:shadow-lg"
+  1277→      >
+  1278→        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+  1279→          {img ? (
+  1280→            <img src={img} alt={l.title} className="size-full object-cover transition group-hover:scale-105" />
+  1281→          ) : (
+  1282→            <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-8" /></div>
+  1283→          )}
+  1284→          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
+  1285→            <XCircle className="size-3" /> Ditolak
+  1286→          </span>
+  1287→          <span className={cn("absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold", pkg.bg)}>
+  1288→            {pkg.name}
+  1289→          </span>
+  1290→        </div>
+  1291→        <div className="flex flex-1 flex-col p-3">
+  1292→          <p className="text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+  1293→          <h3 className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-foreground">{l.title}</h3>
+  1294→          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+  1295→            <MapPin className="size-3 shrink-0" /> {l.city}{l.seller?.name ? ` · ${l.seller.name}` : ""}
+  1296→          </div>
+  1297→          {l.violationReason && (
+  1298→            <p className="mt-1 text-[10px] text-red-600">{l.violationReason}</p>
+  1299→          )}
+  1300→          <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+  1301→            <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
+  1302→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+  1303→              <button onClick={() => restore.mutate({ id: l.id })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Pulihkan & Tayangkan">
+  1304→                <CheckCircle2 className="size-3" />
+  1305→              </button>
+  1306→              <button onClick={() => { if (confirm("Hapus permanen?")) del.mutate(l.id); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title="Hapus Permanen">
+  1307→                <Trash2 className="size-3" />
+  1308→              </button>
+  1309→            </div>
+  1310→          </div>
+  1311→        </div>
+  1312→      </div>
+  1313→    );
+  1314→  };
+  1315→
+  1316→  // --- Line Card ---
+  1317→  const renderLineCard = (l: any) => {
+  1318→    const img = l.images?.[0];
+  1319→    const pkg = getPkgBadge(l.packageType);
+  1320→
+  1321→    return (
+  1322→      <div
+  1323→        key={l.id}
+  1324→        onClick={() => openPreview(l)}
+  1325→        className="group flex cursor-pointer gap-3 border-b border-red-200 p-3 transition hover:bg-red-50/50"
+  1326→      >
+  1327→        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
+  1328→          {img ? <img src={img} alt={l.title} className="size-full object-cover" /> : <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-6" /></div>}
+  1329→        </div>
+  1330→        <div className="flex min-w-0 flex-1 flex-col">
+  1331→          <div className="flex items-start justify-between gap-2">
+  1332→            <div className="min-w-0 flex-1">
+  1333→              <h3 className="line-clamp-1 text-sm font-semibold text-foreground group-hover:text-primary">{l.title}</h3>
+  1334→              <p className="mt-0.5 text-[11px] text-muted-foreground">{l.seller?.name} · {l.category?.name} · {l.city}</p>
+  1335→            </div>
+  1336→            <p className="shrink-0 text-sm font-bold text-primary">{formatRupiahFull(l.price)}</p>
+  1337→          </div>
+  1338→          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+  1339→            <span className="flex items-center gap-1 rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+  1340→              <XCircle className="size-2.5" /> Ditolak
+  1341→            </span>
+  1342→            <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold", pkg.bg)}>{pkg.name}</span>
+  1343→            {l.violationReason && <span className="text-[10px] text-red-600">{l.violationReason}</span>}
+  1344→          </div>
+  1345→          <div className="mt-auto flex items-center justify-between pt-2">
+  1346→            <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
+  1347→            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+  1348→              <button onClick={() => restore.mutate({ id: l.id })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-green-600 transition hover:bg-green-500 hover:text-white hover:border-green-500" title="Pulihkan & Tayangkan"><CheckCircle2 className="size-3" /></button>
+  1349→              <button onClick={() => { if (confirm("Hapus permanen?")) del.mutate(l.id); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title="Hapus Permanen"><Trash2 className="size-3" /></button>
+  1350→            </div>
+  1351→          </div>
+  1352→        </div>
+  1353→      </div>
+  1354→    );
+  1355→  };
+  1356→
+  1357→  return (
+  1358→    <div className="space-y-3">
+  1359→      <h2 className="text-base font-bold">Iklan Ditolak ({rejectedListings.length})</h2>
+  1360→
+  1361→      {/* Package Tabs */}
+  1362→      <div className="overflow-x-auto gomesin-scroll">
+  1363→        <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
+  1364→          {ADMIN_PKG_TABS.map((tab) => {
+  1365→            const isActive = activeTab === tab.key;
+  1366→            const count = tabCounts[tab.key] ?? 0;
+  1367→            return (
+  1368→              <button
+  1369→                key={tab.key}
+  1370→                onClick={() => setActiveTab(tab.key)}
+  1371→                className={cn(
+  1372→                  "relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition",
+  1373→                  isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+  1374→                )}
+  1375→              >
+  1376→                <tab.icon className="size-3.5" />
+  1377→                <span>{tab.label}</span>
+  1378→                <span className={cn(
+  1379→                  "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+  1380→                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+  1381→                )}>{count}</span>
+  1382→              </button>
+  1383→            );
+  1384→          })}
+  1385→        </div>
+  1386→      </div>
+  1387→
+  1388→      {/* Toolbar: Search + View Toggle */}
+  1389→      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  1390→        <div className="flex items-center gap-2">
+  1391→          <div className="relative flex-1 sm:flex-none">
+  1392→            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+  1393→            <input
+  1394→              type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+  1395→              placeholder="Cari iklan..."
+  1396→              className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary sm:w-56"
+  1397→            />
+  1398→          </div>
+  1399→          <span className="text-xs text-muted-foreground">{listings.length} iklan</span>
+  1400→        </div>
+  1401→        <div className="flex items-center gap-2">
+  1402→          <div className="flex overflow-hidden rounded-lg border border-border">
+  1403→            <button type="button" onClick={() => setViewMode("grid")}
+  1404→              className={cn("grid size-9 place-items-center transition", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1405→              aria-label="Grid"><LayoutGrid className="size-4" /></button>
+  1406→            <button type="button" onClick={() => setViewMode("line")}
+  1407→              className={cn("grid size-9 place-items-center border-l border-border transition", viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  1408→              aria-label="Line"><List className="size-4" /></button>
+  1409→          </div>
+  1410→        </div>
+  1411→      </div>
+  1412→
+  1413→      {/* Results */}
+  1414→      {listings.length === 0 ? (
+  1415→        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+  1416→          <Frown className="size-12 text-muted-foreground" />
+  1417→          <h3 className="mt-3 text-lg font-semibold">Tidak ada iklan ditolak</h3>
+  1418→          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tidak ditemukan iklan ditolak untuk tab ini.</p>
+  1419→        </div>
+  1420→      ) : viewMode === "grid" ? (
+  1421→        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{listings.map(renderGridCard)}</div>
+  1422→      ) : (
+  1423→        <div className="rounded-xl border border-border bg-card overflow-hidden">{listings.map(renderLineCard)}</div>
+  1424→      )}
+  1425→
+  1426→      <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+  1427→        <XCircle className="mr-1 inline size-4" />
+  1428→        Iklan ditolak karena melanggar ketentuan atau ditolak admin. Pulihkan untuk tayang kembali, atau hapus permanen.
+  1429→      </div>
+  1430→
+  1431→      {/* PREVIEW DIALOG */}
+  1432→      {previewListing && (
+  1433→        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewListing(null)}>
+  1434→          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+  1435→            <div className="flex items-center justify-between border-b border-border p-4">
+  1436→              <h3 className="line-clamp-1 text-base font-bold">{previewListing.title}</h3>
+  1437→              <button onClick={() => setPreviewListing(null)} className="grid size-8 place-items-center rounded-lg hover:bg-accent"><XCircle className="size-5" /></button>
+  1438→            </div>
+  1439→            <div className="p-4">
+  1440→              <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
+  1441→                {previewListing.images?.[activeImg] && (
+  1442→                  <img src={previewListing.images[activeImg]} alt={previewListing.title} className="size-full object-cover" />
+  1443→                )}
+  1444→                {previewListing.images?.length > 1 && (
+  1445→                  <>
+  1446→                    <button onClick={() => setActiveImg((p) => (p - 1 + previewListing.images.length) % previewListing.images.length)} className="absolute left-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronLeft className="size-4" /></button>
+  1447→                    <button onClick={() => setActiveImg((p) => (p + 1) % previewListing.images.length)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow hover:bg-white"><ChevronRight className="size-4" /></button>
+  1448→                    <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">{activeImg + 1} / {previewListing.images.length}</span>
+  1449→                  </>
+  1450→                )}
+  1451→              </div>
+  1452→              <div className="mt-4 space-y-2">
+  1453→                <div className="flex items-center gap-2">
+  1454→                  <Badge className="bg-red-100 text-red-700"><XCircle className="mr-0.5 size-3" /> Ditolak</Badge>
+  1455→                  {previewListing.violationReason && <span className="text-xs text-red-600">Alasan: {previewListing.violationReason}</span>}
+  1456→                </div>
+  1457→                <p className="text-sm text-muted-foreground">{previewListing.description}</p>
+  1458→                <div className="grid grid-cols-2 gap-2 text-xs">
+  1459→                  <div><span className="text-muted-foreground">Kategori:</span> {previewListing.category?.name}</div>
+  1460→                  <div><span className="text-muted-foreground">Penjual:</span> {previewListing.seller?.name}</div>
+  1461→                  <div><span className="text-muted-foreground">Lokasi:</span> {previewListing.city}, {previewListing.province}</div>
+  1462→                  <div><span className="text-muted-foreground">Harga:</span> {formatRupiahFull(previewListing.price)}</div>
+  1463→                </div>
+  1464→              </div>
+  1465→              <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
+  1466→                <Button size="sm" variant="default" onClick={() => { restore.mutate({ id: previewListing.id }); setPreviewListing(null); }}><CheckCircle2 className="size-4" /> Pulihkan & Tayangkan</Button>
+  1467→                <Button size="sm" variant="destructive" onClick={() => { if (confirm("Hapus permanen?")) { del.mutate(previewListing.id); setPreviewListing(null); } }}><Trash2 className="size-4" /> Hapus Permanen</Button>
+  1468→              </div>
+  1469→            </div>
+  1470→          </div>
+  1471→        </div>
+  1472→      )}
+  1473→    </div>
+  1474→  );
+  1475→}
+  1476→
+  1477→// ============ PENJUAL TAB ============
+  1478→function PenjualTab() {
+  1479→  const { t } = useLang();
+  1480→  const mounted = useMounted();
+  1481→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1482→  const qc = useQueryClient();
+  1483→  const { data, isLoading } = useAdminQuery(["admin-sellers"], "/api/admin/sellers");
+  1484→  const toggle = useMutation({
+  1485→    mutationFn: ({ id, verified }: { id: string; verified: boolean }) => fetch("/api/admin/sellers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, verified }) }),
+  1486→    onSuccess: () => { toast.success(tr("admSellerStatusUpdated")); qc.invalidateQueries({ queryKey: ["admin-sellers"] }); },
+  1487→  });
+  1488→  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
+  1489→  return (
+  1490→    <div className="space-y-3">
+  1491→      <h2 className="text-base font-bold">Verifikasi Penjual ({data.sellers.length})</h2>
+  1492→      <div className="space-y-2">
+  1493→        {data.sellers.map((s: any) => (
+  1494→          <div key={s.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+  1495→            <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{s.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}</div>
+  1496→            <div className="min-w-0 flex-1">
+  1497→              <div className="flex items-center gap-1"><p className="truncate text-sm font-semibold">{s.name}</p>{s.verified && <BadgeCheck className="size-4 shrink-0 text-primary" />}</div>
+  1498→              <p className="truncate text-xs text-muted-foreground">{s.phone} · {s.city}, {s.province}</p>
+  1499→              <p className="text-[10px] text-muted-foreground">{s.listingCount} iklan · ⭐ {s.rating} ({s.reviewCount} ulasan)</p>
+  1500→            </div>
+  1501→            <Button size="sm" variant={s.verified ? "outline" : "default"} onClick={() => toggle.mutate({ id: s.id, verified: !s.verified })}>
+  1502→              {s.verified ? <><XCircle className="size-3.5" /> Cabut</> : <><CheckCircle2 className="size-3.5" /> Verifikasi</>}
+  1503→            </Button>
+  1504→          </div>
+  1505→        ))}
+  1506→      </div>
+  1507→    </div>
+  1508→  );
+  1509→}
+  1510→
+  1511→// ============ KATEGORI TAB ============
+  1512→function KategoriTab() {
+  1513→  const { t } = useLang();
+  1514→  const mounted = useMounted();
+  1515→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1516→  const qc = useQueryClient();
+  1517→  const { data, isLoading } = useAdminQuery(["admin-categories"], "/api/admin/categories");
+  1518→  const [showForm, setShowForm] = useState(false);
+  1519→  const [name, setName] = useState(""); const [slug, setSlug] = useState(""); const [icon, setIcon] = useState("Cog");
+  1520→  const create = useMutation({
+  1521→    mutationFn: () => fetch("/api/admin/categories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, slug: slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), icon }) }),
+  1522→    onSuccess: () => { toast.success(tr("admCategoryAdded")); setShowForm(false); setName(""); setSlug(""); qc.invalidateQueries({ queryKey: ["admin-categories"] }); },
+  1523→  });
+  1524→  const del = useMutation({
+  1525→    mutationFn: (id: string) => fetch(`/api/admin/categories/${id}`, { method: "DELETE" }),
+  1526→    onSuccess: () => { toast.success(tr("admCategoryDeleted")); qc.invalidateQueries({ queryKey: ["admin-categories"] }); },
+  1527→  });
+  1528→  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
+  1529→  return (
+  1530→    <div className="space-y-3">
+  1531→      <div className="flex items-center justify-between">
+  1532→        <h2 className="text-base font-bold">Kelola Kategori ({data.categories.length})</h2>
+  1533→        <Button size="sm" onClick={() => setShowForm(!showForm)}><Plus className="size-4" /> Tambah</Button>
+  1534→      </div>
+  1535→      {showForm && (
+  1536→        <div className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-4">
+  1537→          <div><Label className="text-xs">Nama</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama kategori" /></div>
+  1538→          <div><Label className="text-xs">Slug</Label><Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="auto" /></div>
+  1539→          <div><Label className="text-xs">Icon</Label><Input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="Cog" /></div>
+  1540→          <div className="flex items-end"><Button className="w-full" onClick={() => create.mutate()} disabled={create.isPending}>{create.isPending ? <Loader2 className="size-4 animate-spin" /> : "Simpan"}</Button></div>
+  1541→        </div>
+  1542→      )}
+  1543→      <div className="grid gap-2 sm:grid-cols-2">
+  1544→        {data.categories.map((c: any) => (
+  1545→          <div key={c.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+  1546→            <span className="text-xs font-bold text-muted-foreground">#{c.sortOrder}</span>
+  1547→            <div className="flex-1"><p className="text-sm font-semibold">{c.name}</p><p className="text-xs text-muted-foreground">{c.slug} · {c.listingCount} iklan</p></div>
+  1548→            <button onClick={() => del.mutate(c.id)} className="grid size-7 place-items-center rounded bg-red-100 text-red-600 hover:bg-red-200" title={tr("admDelete")}><Trash2 className="size-4" /></button>
+  1549→          </div>
+  1550→        ))}
+  1551→      </div>
+  1552→    </div>
+  1553→  );
+  1554→}
+  1555→
+  1556→// ============ PENGGUNA TAB ============
+  1557→function PenggunaTab() {
+  1558→  const { t } = useLang();
+  1559→  const mounted = useMounted();
+  1560→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1561→  const qc = useQueryClient();
+  1562→  const { data, isLoading } = useAdminQuery(["admin-users"], "/api/admin/users");
+  1563→  const [previewUser, setPreviewUser] = useState<any>(null);
+  1564→  const del = useMutation({
+  1565→    mutationFn: (id: string) => fetch("/api/admin/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
+  1566→    onSuccess: () => { toast.success(tr("admUserDeleted")); qc.invalidateQueries({ queryKey: ["admin-users"] }); },
+  1567→    onError: (e: any) => { const msg = e?.message || tr("admDeleteFailed2"); toast.error(msg); },
+  1568→  });
+  1569→  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
+  1570→  const users = data.users;
+  1571→  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  1572→  const isAdmin = (u: any) => u.role === "admin" || u.role === "superadmin";
+  1573→
+  1574→  const handleDelete = (u: any, e: React.MouseEvent) => {
+  1575→    e.stopPropagation();
+  1576→    if (isAdmin(u)) { toast.error(tr("admCannotDeleteAdmin")); return; }
+  1577→    if (confirm(`Hapus user "${u.name}" (${u.email})?`)) {
+  1578→      del.mutate(u.id);
+  1579→    }
+  1580→  };
+  1581→
+  1582→  return (
+  1583→    <div className="space-y-3">
+  1584→      <h2 className="text-base font-bold">Pengguna Terdaftar ({users.length})</h2>
+  1585→      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+  1586→        <table className="w-full min-w-[640px] text-sm">
+  1587→          <thead><tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+  1588→            <th className="p-2">Nama</th><th className="p-2">Email</th><th className="hidden p-2 sm:table-cell">No. HP</th><th className="hidden p-2 sm:table-cell">Kota</th><th className="p-2">Role</th><th className="hidden p-2 sm:table-cell">Daftar</th><th className="p-2 text-center">Aksi</th>
+  1589→          </tr></thead>
+  1590→          <tbody>
+  1591→            {users.map((u: any) => (
+  1592→              <tr
+  1593→                key={u.id}
+  1594→                onClick={() => setPreviewUser(u)}
+  1595→                className="cursor-pointer border-b border-border hover:bg-accent/30"
+  1596→              >
+  1597→                <td className="p-2">
+  1598→                  <div className="flex items-center gap-2">
+  1599→                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+  1600→                      {u.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+  1601→                    </span>
+  1602→                    <span className="text-xs font-medium">{u.name}</span>
+  1603→                  </div>
+  1604→                </td>
+  1605→                <td className="p-2 text-xs text-muted-foreground">{u.email}</td>
+  1606→                <td className="hidden p-2 text-xs sm:table-cell">{u.phone || "-"}</td>
+  1607→                <td className="hidden p-2 text-xs sm:table-cell">{u.city || "-"}</td>
+  1608→                <td className="p-2"><Badge className={isAdmin(u) ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}>{u.role}</Badge></td>
+  1609→                <td className="hidden p-2 text-xs text-muted-foreground sm:table-cell">{fmtDate(u.createdAt)}</td>
+  1610→                <td className="p-2" onClick={(e) => e.stopPropagation()}>
+  1611→                  <div className="flex justify-center">
+  1612→                    <button
+  1613→                      onClick={(e) => handleDelete(u, e)}
+  1614→                      disabled={isAdmin(u) || del.isPending}
+  1615→                      className={cn(
+  1616→                        "grid size-7 place-items-center rounded transition",
+  1617→                        isAdmin(u) ? "cursor-not-allowed bg-muted text-muted-foreground/40" : "bg-red-100 text-red-600 hover:bg-red-200"
+  1618→                      )}
+  1619→                      title={isAdmin(u) ? "Tidak dapat menghapus admin" : "Hapus user"}
+  1620→                    >
+  1621→                      <Trash2 className="size-4" />
+  1622→                    </button>
+  1623→                  </div>
+  1624→                </td>
+  1625→              </tr>
+  1626→            ))}
+  1627→          </tbody>
+  1628→        </table>
+  1629→      </div>
+  1630→
+  1631→      {/* POPUP DATA USER LENGKAP */}
+  1632→      {previewUser && (
+  1633→        <div
+  1634→          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+  1635→          onClick={() => setPreviewUser(null)}
+  1636→        >
+  1637→          <div
+  1638→            className="w-full max-w-md overflow-y-auto rounded-xl bg-card shadow-2xl"
+  1639→            onClick={(e) => e.stopPropagation()}
+  1640→          >
+  1641→            {/* header */}
+  1642→            <div className="flex items-center justify-between border-b border-border p-4">
+  1643→              <h3 className="text-base font-bold">Detail Pengguna</h3>
+  1644→              <button onClick={() => setPreviewUser(null)} className="grid size-8 place-items-center rounded-lg hover:bg-accent">
+  1645→                <XCircle className="size-5" />
+  1646→              </button>
+  1647→            </div>
+  1648→
+  1649→            {/* content */}
+  1650→            <div className="p-4 space-y-4">
+  1651→              {/* avatar + name */}
+  1652→              <div className="flex items-center gap-3">
+  1653→                <span className="grid size-16 shrink-0 place-items-center rounded-full bg-primary/10 text-xl font-bold text-primary">
+  1654→                  {previewUser.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+  1655→                </span>
+  1656→                <div className="min-w-0">
+  1657→                  <p className="text-lg font-bold">{previewUser.name}</p>
+  1658→                  <Badge className={isAdmin(previewUser) ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}>{previewUser.role}</Badge>
+  1659→                </div>
+  1660→              </div>
+  1661→
+  1662→              {/* data lengkap */}
+  1663→              <div className="space-y-2 rounded-lg border border-border p-3">
+  1664→                <div className="flex items-center justify-between text-sm">
+  1665→                  <span className="flex items-center gap-1.5 text-muted-foreground"><Mail className="size-3.5" /> Email</span>
+  1666→                  <span className="font-medium">{previewUser.email}</span>
+  1667→                </div>
+  1668→                <Separator className="bg-border" />
+  1669→                <div className="flex items-center justify-between text-sm">
+  1670→                  <span className="flex items-center gap-1.5 text-muted-foreground"><Phone className="size-3.5" /> No. HP</span>
+  1671→                  <span className="font-medium">{previewUser.phone || "-"}</span>
+  1672→                </div>
+  1673→                <Separator className="bg-border" />
+  1674→                <div className="flex items-center justify-between text-sm">
+  1675→                  <span className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="size-3.5" /> Kota</span>
+  1676→                  <span className="font-medium">{previewUser.city || "-"}</span>
+  1677→                </div>
+  1678→                <Separator className="bg-border" />
+  1679→                <div className="flex items-center justify-between text-sm">
+  1680→                  <span className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="size-3.5" /> Tanggal Daftar</span>
+  1681→                  <span className="font-medium">{fmtDate(previewUser.createdAt)}</span>
+  1682→                </div>
+  1683→                <Separator className="bg-border" />
+  1684→                <div className="flex items-center justify-between text-sm">
+  1685→                  <span className="flex items-center gap-1.5 text-muted-foreground"><ShieldCheck className="size-3.5" /> Role</span>
+  1686→                  <Badge className={isAdmin(previewUser) ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}>{previewUser.role}</Badge>
+  1687→                </div>
+  1688→              </div>
+  1689→
+  1690→              {/* actions */}
+  1691→              {!isAdmin(previewUser) ? (
+  1692→                <Button
+  1693→                  variant="destructive"
+  1694→                  className="w-full gap-2"
+  1695→                  onClick={() => {
+  1696→                    if (confirm(`Hapus user "${previewUser.name}"?`)) {
+  1697→                      del.mutate(previewUser.id);
+  1698→                      setPreviewUser(null);
+  1699→                    }
+  1700→                  }}
+  1701→                  disabled={del.isPending}
+  1702→                >
+  1703→                  <Trash2 className="size-4" /> Hapus User
+  1704→                </Button>
+  1705→              ) : (
+  1706→                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-center text-xs text-amber-700">
+  1707→                  <ShieldCheck className="mx-auto mb-1 size-5" />
+  1708→                  Akun admin tidak dapat dihapus
+  1709→                </div>
+  1710→              )}
+  1711→            </div>
+  1712→          </div>
+  1713→        </div>
+  1714→      )}
+  1715→    </div>
+  1716→  );
+  1717→}
+  1718→
+  1719→// ============ MEREK TAB ============
+  1720→function MerekTab() {
+  1721→  const { t } = useLang();
+  1722→  const mounted = useMounted();
+  1723→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1724→  const { data, isLoading } = useAdminListings();
+  1725→  const [extraBrands, setExtraBrands] = useState<string[]>([]);
+  1726→  const [newBrand, setNewBrand] = useState("");
+  1727→
+  1728→  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
+  1729→
+  1730→  // Compute brands from listings + extra brands added by admin
+  1731→  const brands: Record<string, number> = {};
+  1732→  data.listings.forEach((l: any) => { if (l.brand) brands[l.brand] = (brands[l.brand] || 0) + 1; });
+  1733→  extraBrands.forEach((b) => { if (!(b in brands)) brands[b] = 0; });
+  1734→  const sorted = Object.entries(brands).sort((a, b) => b[1] - a[1]);
+  1735→
+  1736→  const addBrand = () => {
+  1737→    const name = newBrand.trim();
+  1738→    if (!name) return;
+  1739→    if (name in brands) { toast.error(tr("admBrandExists")); return; }
+  1740→    setExtraBrands([...extraBrands, name]);
+  1741→    setNewBrand("");
+  1742→    toast.success(tr("admBrandAdded"));
+  1743→  };
+  1744→
+  1745→  const deleteBrand = (name: string) => {
+  1746→    setExtraBrands(extraBrands.filter((b) => b !== name));
+  1747→    toast.success(tr("admBrandDeleted"));
+  1748→  };
+  1749→
+  1750→  return (
+  1751→    <div className="space-y-3">
+  1752→      <div className="flex items-center justify-between">
+  1753→        <h2 className="text-base font-bold">Kelola Merek ({sorted.length})</h2>
+  1754→      </div>
+  1755→      <div className="flex gap-2">
+  1756→        <Input
+  1757→          value={newBrand}
+  1758→          onChange={(e) => setNewBrand(e.target.value)}
+  1759→          placeholder="Nama merek baru (mis. Heidelberg)"
+  1760→          className="h-9"
+  1761→          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBrand(); } }}
+  1762→        />
+  1763→        <Button size="sm" onClick={addBrand} disabled={!newBrand.trim()}>
+  1764→          <Plus className="size-4" /> Tambah
+  1765→        </Button>
+  1766→      </div>
+  1767→      <div className="grid gap-2 sm:grid-cols-3">
+  1768→        {sorted.map(([brand, count]) => (
+  1769→          <div key={brand} className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
+  1770→            <div className="flex items-center gap-2 min-w-0">
+  1771→              <Award className="size-5 shrink-0 text-amber-500" />
+  1772→              <div className="min-w-0">
+  1773→                <p className="truncate text-sm font-semibold">{brand}</p>
+  1774→                <p className="text-xs text-muted-foreground">{count} iklan</p>
+  1775→              </div>
+  1776→            </div>
+  1777→            <button
+  1778→              onClick={() => deleteBrand(brand)}
+  1779→              className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+  1780→              aria-label="Hapus merek"
+  1781→            >
+  1782→              <Trash2 className="size-3.5" />
+  1783→            </button>
+  1784→          </div>
+  1785→        ))}
+  1786→        {sorted.length === 0 && (
+  1787→          <div className="col-span-full rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+  1788→            Belum ada merek. Tambah merek baru di atas.
+  1789→          </div>
+  1790→        )}
+  1791→      </div>
+  1792→    </div>
+  1793→  );
+  1794→}
+  1795→
+  1796→// ============ LOKASI TAB ============
+  1797→function LokasiTab() {
+  1798→  const { t } = useLang();
+  1799→  const mounted = useMounted();
+  1800→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1801→  const { data, isLoading } = useAdminListings();
+  1802→  const [extraCities, setExtraCities] = useState<string[]>([]);
+  1803→  const [extraProvinces, setExtraProvinces] = useState<string[]>([]);
+  1804→  const [newCity, setNewCity] = useState("");
+  1805→  const [newProvince, setNewProvince] = useState("");
+  1806→
+  1807→  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
+  1808→
+  1809→  // Compute from listings + extra entries
+  1810→  const cities: Record<string, number> = {};
+  1811→  const provinces: Record<string, number> = {};
+  1812→  data.listings.forEach((l: any) => {
+  1813→    cities[l.city] = (cities[l.city] || 0) + 1;
+  1814→    provinces[l.province] = (provinces[l.province] || 0) + 1;
+  1815→  });
+  1816→  extraCities.forEach((c) => { if (!(c in cities)) cities[c] = 0; });
+  1817→  extraProvinces.forEach((p) => { if (!(p in provinces)) provinces[p] = 0; });
+  1818→  const cityList = Object.entries(cities).sort((a, b) => b[1] - a[1]);
+  1819→  const provList = Object.entries(provinces).sort((a, b) => b[1] - a[1]);
+  1820→
+  1821→  const addCity = () => {
+  1822→    const name = newCity.trim();
+  1823→    if (!name) return;
+  1824→    if (name in cities) { toast.error(tr("admCityExists")); return; }
+  1825→    setExtraCities([...extraCities, name]);
+  1826→    setNewCity("");
+  1827→    toast.success(tr("admCityAdded"));
+  1828→  };
+  1829→  const addProvince = () => {
+  1830→    const name = newProvince.trim();
+  1831→    if (!name) return;
+  1832→    if (name in provinces) { toast.error(tr("admProvinceExists")); return; }
+  1833→    setExtraProvinces([...extraProvinces, name]);
+  1834→    setNewProvince("");
+  1835→    toast.success(tr("admProvinceAdded"));
+  1836→  };
+  1837→  const deleteCity = (name: string) => {
+  1838→    setExtraCities(extraCities.filter((c) => c !== name));
+  1839→    toast.success(tr("admCityDeleted"));
+  1840→  };
+  1841→  const deleteProvince = (name: string) => {
+  1842→    setExtraProvinces(extraProvinces.filter((p) => p !== name));
+  1843→    toast.success(tr("admProvinceDeleted"));
+  1844→  };
+  1845→
+  1846→  return (
+  1847→    <div className="space-y-4">
+  1848→      <h2 className="text-base font-bold">Kelola Lokasi</h2>
+  1849→      <div className="grid gap-4 sm:grid-cols-2">
+  1850→        {/* Cities */}
+  1851→        <div>
+  1852→          <div className="mb-2 flex items-center justify-between">
+  1853→            <h3 className="text-sm font-bold">Kota ({cityList.length})</h3>
+  1854→          </div>
+  1855→          <div className="mb-2 flex gap-2">
+  1856→            <Input
+  1857→              value={newCity}
+  1858→              onChange={(e) => setNewCity(e.target.value)}
+  1859→              placeholder="Tambah kota..."
+  1860→              className="h-9"
+  1861→              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCity(); } }}
+  1862→            />
+  1863→            <Button size="sm" onClick={addCity} disabled={!newCity.trim()}>
+  1864→              <Plus className="size-4" />
+  1865→            </Button>
+  1866→          </div>
+  1867→          <div className="space-y-1.5">
+  1868→            {cityList.map(([city, count]) => (
+  1869→              <div key={city} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-sm">
+  1870→                <span className="flex items-center gap-1"><MapPin className="size-3 text-primary" />{city}</span>
+  1871→                <div className="flex items-center gap-2">
+  1872→                  <Badge variant="secondary">{count}</Badge>
+  1873→                  <button onClick={() => deleteCity(city)} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Hapus kota">
+  1874→                    <X className="size-3" />
+  1875→                  </button>
+  1876→                </div>
+  1877→              </div>
+  1878→            ))}
+  1879→            {cityList.length === 0 && (
+  1880→              <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">Belum ada kota.</div>
+  1881→            )}
+  1882→          </div>
+  1883→        </div>
+  1884→        {/* Provinces */}
+  1885→        <div>
+  1886→          <div className="mb-2 flex items-center justify-between">
+  1887→            <h3 className="text-sm font-bold">Provinsi ({provList.length})</h3>
+  1888→          </div>
+  1889→          <div className="mb-2 flex gap-2">
+  1890→            <Input
+  1891→              value={newProvince}
+  1892→              onChange={(e) => setNewProvince(e.target.value)}
+  1893→              placeholder="Tambah provinsi..."
+  1894→              className="h-9"
+  1895→              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addProvince(); } }}
+  1896→            />
+  1897→            <Button size="sm" onClick={addProvince} disabled={!newProvince.trim()}>
+  1898→              <Plus className="size-4" />
+  1899→            </Button>
+  1900→          </div>
+  1901→          <div className="space-y-1.5">
+  1902→            {provList.map(([prov, count]) => (
+  1903→              <div key={prov} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-sm">
+  1904→                <span>{prov}</span>
+  1905→                <div className="flex items-center gap-2">
+  1906→                  <Badge variant="secondary">{count}</Badge>
+  1907→                  <button onClick={() => deleteProvince(prov)} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Hapus provinsi">
+  1908→                    <X className="size-3" />
+  1909→                  </button>
+  1910→                </div>
+  1911→              </div>
+  1912→            ))}
+  1913→            {provList.length === 0 && (
+  1914→              <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">Belum ada provinsi.</div>
+  1915→            )}
+  1916→          </div>
+  1917→        </div>
+  1918→      </div>
+  1919→    </div>
+  1920→  );
+  1921→}
+  1922→
+  1923→// ============ BANNER TAB ============
+  1924→function BannerTab() {
+  1925→  const { t } = useLang();
+  1926→  const mounted = useMounted();
+  1927→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  1928→  const [banners, setBanners] = useState([
+  1929→    { id: 1, title: tr("admBanner1Title"), status: "active", placement: "Home Hero", clicks: 342 },
+  1930→    { id: 2, title: tr("admBanner2Title"), status: "scheduled", placement: "Category Page", clicks: 0 },
+  1931→    { id: 3, title: tr("admBanner3Title"), status: "active", placement: "Sidebar", clicks: 128 },
+  1932→  ]);
+  1933→  const [showForm, setShowForm] = useState(false);
+  1934→  const [newTitle, setNewTitle] = useState("");
+  1935→  const [newPlacement, setNewPlacement] = useState("Home Hero");
+  1936→
+  1937→  const addBanner = () => {
+  1938→    if (!newTitle.trim()) return;
+  1939→    setBanners([...banners, { id: Date.now(), title: newTitle.trim(), status: "scheduled", placement: newPlacement, clicks: 0 }]);
+  1940→    setNewTitle("");
+  1941→    setShowForm(false);
+  1942→    toast.success(tr("admBannerAdded"));
+  1943→  };
+  1944→  const toggleStatus = (id: number) => {
+  1945→    setBanners(banners.map(b => b.id === id ? { ...b, status: b.status === "active" ? "scheduled" : "active" } : b));
+  1946→  };
+  1947→  const deleteBanner = (id: number) => {
+  1948→    setBanners(banners.filter(b => b.id !== id));
+  1949→    toast.success(tr("admBannerDeleted"));
+  1950→  };
+  1951→
+  1952→  return (
+  1953→    <div className="space-y-3">
+  1954→      <div className="flex items-center justify-between">
+  1955→        <h2 className="text-base font-bold">Banner Promosi ({banners.length})</h2>
+  1956→        <Button size="sm" onClick={() => setShowForm(!showForm)}>
+  1957→          <Plus className="size-4" /> {showForm ? "Batal" : "Tambah Banner"}
+  1958→        </Button>
+  1959→      </div>
+  1960→
+  1961→      {/* Add banner form */}
+  1962→      {showForm && (
+  1963→        <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+  1964→          <Input
+  1965→            value={newTitle}
+  1966→            onChange={(e) => setNewTitle(e.target.value)}
+  1967→            placeholder="Judul banner (mis. Promo Lebaran)"
+  1968→            className="h-9"
+  1969→          />
+  1970→          <div className="flex gap-2">
+  1971→            <select
+  1972→              value={newPlacement}
+  1973→              onChange={(e) => setNewPlacement(e.target.value)}
+  1974→              className="h-9 flex-1 rounded-md border border-border bg-card px-2 text-sm"
+  1975→            >
+  1976→              <option value="Home Hero">Home Hero</option>
+  1977→              <option value="Category Page">Category Page</option>
+  1978→              <option value="Sidebar">Sidebar</option>
+  1979→              <option value="Detail Page">Detail Page</option>
+  1980→            </select>
+  1981→            <Button size="sm" onClick={addBanner} disabled={!newTitle.trim()}>
+  1982→              <CheckCircle2 className="size-4" /> Simpan
+  1983→            </Button>
+  1984→          </div>
+  1985→        </div>
+  1986→      )}
+  1987→
+  1988→      {/* Banner list */}
+  1989→      <div className="space-y-2">
+  1990→        {banners.map((b) => (
+  1991→          <div key={b.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+  1992→            <Image className="size-5 shrink-0 text-primary" />
+  1993→            <div className="min-w-0 flex-1">
+  1994→              <p className="truncate text-sm font-semibold">{b.title}</p>
+  1995→              <p className="text-xs text-muted-foreground">{b.placement} · {b.clicks} klik</p>
+  1996→            </div>
+  1997→            <button
+  1998→              onClick={() => toggleStatus(b.id)}
+  1999→              className="shrink-0"
+  2000→              title="Toggle aktif"
+  2001→            >
+  2002→              <Badge className={b.status === "active" ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"}>
+  2003→                {b.status === "active" ? tr("admActive2") : tr("admScheduled")}
+  2004→              </Badge>
+  2005→            </button>
+  2006→            <button
+  2007→              onClick={() => deleteBanner(b.id)}
+  2008→              className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+  2009→              aria-label="Hapus banner"
+  2010→            >
+  2011→              <Trash2 className="size-3.5" />
+  2012→            </button>
+  2013→          </div>
+  2014→        ))}
+  2015→        {banners.length === 0 && (
+  2016→          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+  2017→            {tr("admNoBanner")}
+  2018→          </div>
+  2019→        )}
+  2020→      </div>
+  2021→      <p className="text-center text-xs text-muted-foreground">Kelola banner promosi yang tampil di beranda & halaman kategori.</p>
+  2022→    </div>
+  2023→  );
+  2024→}
+  2025→
+  2026→// ============ PAKET TAB ============
+  2027→function PaketTab() {
+  2028→  const { t } = useLang();
+  2029→  const mounted = useMounted();
+  2030→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  2031→  const qc = useQueryClient();
+  2032→  const { data, isLoading } = useAdminQuery(["admin-paket"], "/api/admin/paket");
+  2033→  const [editingId, setEditingId] = useState<string | null>(null);
+  2034→  const [editName, setEditName] = useState("");
+  2035→  const [editPrice, setEditPrice] = useState("");
+  2036→  const [editOriginalPrice, setEditOriginalPrice] = useState("");
+  2037→  const [editDuration, setEditDuration] = useState("");
+  2038→  const [editFeatures, setEditFeatures] = useState("");
+  2039→
+  2040→  const saveMutation = useMutation({
+  2041→    mutationFn: (payload: any) => fetch("/api/admin/paket", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }),
+  2042→    onSuccess: () => { toast.success("Paket berhasil disimpan"); setEditingId(null); qc.invalidateQueries({ queryKey: ["admin-paket"] }); },
+  2043→    onError: (e: any) => { toast.error("Gagal menyimpan paket"); },
+  2044→  });
+  2045→
+  2046→  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
+  2047→
+  2048→  const pakets = data.pakets || [];
+  2049→  const iconMap: Record<string, any> = { colek: Tag, sundul: TrendingUp, highlight: Zap, spotlight: Crown };
+  2050→  const colorMap: Record<string, string> = {
+  2051→    colek: "border-blue-400 ring-1 ring-blue-200",
+  2052→    sundul: "border-purple-400 ring-1 ring-purple-200",
+  2053→    highlight: "border-orange-400 ring-1 ring-orange-200",
+  2054→    spotlight: "border-amber-400 ring-1 ring-amber-200",
+  2055→  };
+  2056→  const iconColorMap: Record<string, string> = {
+  2057→    colek: "text-blue-500",
+  2058→    sundul: "text-purple-500",
+  2059→    highlight: "text-orange-500",
+  2060→    spotlight: "text-amber-500",
+  2061→  };
+  2062→
+  2063→  const startEdit = (p: any) => {
+  2064→    setEditingId(p.id);
+  2065→    setEditName(p.name);
+  2066→    setEditPrice(String(p.price));
+  2067→    setEditOriginalPrice(String(p.originalPrice || 0));
+  2068→    setEditDuration(String(p.duration));
+  2069→    setEditFeatures((p.features || []).join("\n"));
+  2070→  };
+  2071→
+  2072→  const saveEdit = (p: any) => {
+  2073→    saveMutation.mutate({
+  2074→      id: p.id,
+  2075→      name: editName,
+  2076→      price: Number(editPrice),
+  2077→      originalPrice: Number(editOriginalPrice),
+  2078→      duration: Number(editDuration),
+  2079→      features: editFeatures.split("\n").map((f: string) => f.trim()).filter(Boolean),
+  2080→    });
+  2081→  };
+  2082→
+  2083→  return (
+  2084→    <div className="space-y-4">
+  2085→      <div className="flex items-center justify-between">
+  2086→        <h2 className="text-base font-bold">Paket Iklan</h2>
+  2087→        <p className="text-xs text-muted-foreground">Klik Edit untuk mengubah paket</p>
+  2088→      </div>
+  2089→
+  2090→      {/* paket cards */}
+  2091→      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  2092→        {pakets.map((p: any) => {
+  2093→          const Icon = iconMap[p.key] || Tag;
+  2094→          const isEditing = editingId === p.id;
+  2095→          return (
+  2096→            <div key={p.id} className={cn("rounded-xl border-2 bg-card p-5", colorMap[p.key] || "border-border")}>
+  2097→              <div className="flex items-center justify-between">
+  2098→                <span className="grid size-10 place-items-center rounded-lg bg-secondary">
+  2099→                  <Icon className={cn("size-5", iconColorMap[p.key] || "text-muted-foreground")} />
+  2100→                </span>
+  2101→                {p.active ? <Badge variant="secondary">Aktif</Badge> : <Badge variant="destructive">Nonaktif</Badge>}
+  2102→              </div>
+  2103→
+  2104→              {isEditing ? (
+  2105→                <div className="mt-3 space-y-2">
+  2106→                  <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nama paket" className="w-full rounded border border-border px-2 py-1 text-sm" />
+  2107→                  <input value={editPrice} onChange={(e) => setEditPrice(e.target.value)} type="number" placeholder="Harga jual (Rp)" className="w-full rounded border border-border px-2 py-1 text-sm" />
+  2108→                  <input value={editOriginalPrice} onChange={(e) => setEditOriginalPrice(e.target.value)} type="number" placeholder="Harga coret / asli (Rp) — 0 = tanpa diskon" className="w-full rounded border border-border px-2 py-1 text-sm" />
+  2109→                  <input value={editDuration} onChange={(e) => setEditDuration(e.target.value)} type="number" placeholder="Durasi (hari)" className="w-full rounded border border-border px-2 py-1 text-sm" />
+  2110→                  <textarea value={editFeatures} onChange={(e) => setEditFeatures(e.target.value)} placeholder="Fitur (1 per baris)" rows={4} className="w-full rounded border border-border px-2 py-1 text-xs" />
+  2111→                  <div className="flex gap-2">
+  2112→                    <Button size="sm" className="flex-1 gap-1" onClick={() => saveEdit(p)} disabled={saveMutation.isPending}>
+  2113→                      {saveMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3.5" />} Simpan
+  2114→                    </Button>
+  2115→                    <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Batal</Button>
+  2116→                  </div>
+  2117→                </div>
+  2118→              ) : (
+  2119→                <>
+  2120→                  <p className="mt-3 text-lg font-bold">{p.name}</p>
+  2121→                  <p className="mt-1 text-2xl font-extrabold text-primary">
+  2122→                    {formatRupiahFull(p.price)}
+  2123→                    {p.originalPrice > 0 && p.originalPrice > p.price && (
+  2124→                      <span className="ml-2 text-sm font-medium text-muted-foreground line-through">
+  2125→                        {formatRupiahFull(p.originalPrice)}
+  2126→                      </span>
+  2127→                    )}
+  2128→                    <span className="text-xs font-normal text-muted-foreground">/{p.duration} hari</span>
+  2129→                  </p>
+  2130→                  <ul className="mt-3 space-y-1.5">
+  2131→                    {(p.features || []).map((f: string, i: number) => (
+  2132→                      <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+  2133→                        <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-orange-500" />
+  2134→                        {f}
+  2135→                      </li>
+  2136→                    ))}
+  2137→                  </ul>
+  2138→                  <Button size="sm" variant="outline" className="mt-4 w-full gap-1.5" onClick={() => startEdit(p)}>
+  2139→                    <Edit className="size-3.5" /> Edit Paket
+  2140→                  </Button>
+  2141→                </>
+  2142→              )}
+  2143→            </div>
+  2144→          );
+  2145→        })}
+  2146→      </div>
+  2147→    </div>
+  2148→  );
+  2149→}
+  2150→
+  2151→// ============ TRANSAKSI TAB ============
+  2152→function TransaksiTab() {
+  2153→  const { t } = useLang();
+  2154→  const mounted = useMounted();
+  2155→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  2156→  const { data, isLoading } = useAdminListings();
+  2157→  const [search, setSearch] = useState("");
+  2158→  const [pkgFilter, setPkgFilter] = useState<"all" | "spotlight" | "highlight" | "sundul" | "colek">("all");
+  2159→  const [viewMode, setViewMode] = useState<"grid" | "line">("line");
+  2160→  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
+  2161→
+  2162→  const now = new Date();
+  2163→  const startToday = new Date(now); startToday.setHours(0, 0, 0, 0);
+  2164→  const startWeek = new Date(startToday); const dow = (startWeek.getDay() + 6) % 7; startWeek.setDate(startWeek.getDate() - dow);
+  2165→  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  2166→
+  2167→  const all = data.listings;
+  2168→  const adFee = (l: any) => l.adFee ?? 0;
+  2169→
+  2170→  const daily = all.filter((l: any) => new Date(l.createdAt) >= startToday);
+  2171→  const weekly = all.filter((l: any) => new Date(l.createdAt) >= startWeek);
+  2172→  const monthly = all.filter((l: any) => new Date(l.createdAt) >= startMonth && new Date(l.createdAt) < now);
+  2173→
+  2174→  const sumFee = (list: any[]) => list.reduce((a, l) => a + adFee(l), 0);
+  2175→  const totalAll = sumFee(all);
+  2176→
+  2177→  // Filtered list for table
+  2178→  const filtered = all.filter((l: any) => {
+  2179→    const matchSearch = !search || l.title?.toLowerCase().includes(search.toLowerCase()) || l.seller?.name?.toLowerCase().includes(search.toLowerCase());
+  2180→    const matchPkg = pkgFilter === "all" || l.packageType === pkgFilter;
+  2181→    return matchSearch && matchPkg;
+  2182→  });
+  2183→
+  2184→  const pkgName = (p: string) => p === "spotlight" ? "Titanium" : p === "highlight" ? "Platinum" : p === "sundul" ? "Colek" : p === "colek" ? "Gold" : p;
+  2185→  const pkgColor = (p: string) => p === "spotlight" ? "bg-amber-100 text-amber-700" : p === "highlight" ? "bg-orange-100 text-orange-700" : p === "sundul" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
+  2186→
+  2187→  return (
+  2188→    <div className="space-y-4">
+  2189→      <div className="flex items-center justify-between">
+  2190→        <h2 className="text-base font-bold md:text-lg">Penjualan Iklan</h2>
+  2191→        <span className="text-sm text-muted-foreground">{all.length} transaksi · Total {formatRupiahFull(totalAll)}</span>
+  2192→      </div>
+  2193→
+  2194→      {/* Summary — 3 stat cards */}
+  2195→      <div className="grid grid-cols-3 gap-3">
+  2196→        <div className="rounded-xl border border-border bg-card p-4 text-center">
+  2197→          <p className="text-xs text-muted-foreground md:text-sm">Hari Ini</p>
+  2198→          <p className="mt-1 text-base font-extrabold text-orange-600 md:text-xl">{formatRupiahFull(sumFee(daily))}</p>
+  2199→          <p className="mt-0.5 text-[10px] text-muted-foreground md:text-xs">{daily.length} iklan</p>
+  2200→        </div>
+  2201→        <div className="rounded-xl border border-border bg-card p-4 text-center">
+  2202→          <p className="text-xs text-muted-foreground md:text-sm">Minggu Ini</p>
+  2203→          <p className="mt-1 text-base font-extrabold text-primary md:text-xl">{formatRupiahFull(sumFee(weekly))}</p>
+  2204→          <p className="mt-0.5 text-[10px] text-muted-foreground md:text-xs">{weekly.length} iklan</p>
+  2205→        </div>
+  2206→        <div className="rounded-xl border border-border bg-card p-4 text-center">
+  2207→          <p className="text-xs text-muted-foreground md:text-sm">Bulan Ini</p>
+  2208→          <p className="mt-1 text-base font-extrabold text-orange-600 md:text-xl">{formatRupiahFull(sumFee(monthly))}</p>
+  2209→          <p className="mt-0.5 text-[10px] text-muted-foreground md:text-xs">{monthly.length} iklan</p>
+  2210→        </div>
+  2211→      </div>
+  2212→
+  2213→      {/* Search + Filter */}
+  2214→      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+  2215→        <input
+  2216→          type="text"
+  2217→          value={search}
+  2218→          onChange={(e) => setSearch(e.target.value)}
+  2219→          placeholder="Cari iklan atau penjual..."
+  2220→          className="h-9 flex-1 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+  2221→        />
+  2222→        <div className="flex gap-1.5">
+  2223→          {[
+  2224→            { v: "all", l: "Semua" },
+  2225→            { v: "spotlight", l: "Titanium" },
+  2226→            { v: "highlight", l: "Platinum" },
+  2227→            { v: "sundul", l: "Colek" },
+  2228→            { v: "colek", l: "Gold" },
+  2229→          ].map((f) => (
+  2230→            <button
+  2231→              key={f.v}
+  2232→              onClick={() => setPkgFilter(f.v as any)}
+  2233→              className={cn(
+  2234→                "rounded-full px-3 py-1 text-xs font-medium transition",
+  2235→                pkgFilter === f.v ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:bg-accent"
+  2236→              )}
+  2237→            >
+  2238→              {f.l}
+  2239→            </button>
+  2240→          ))}
+  2241→        </div>
+  2242→      </div>
+  2243→
+  2244→      {/* View Toggle */}
+  2245→      <div className="flex items-center justify-end">
+  2246→        <div className="flex overflow-hidden rounded-lg border border-border">
+  2247→          <button type="button" onClick={() => setViewMode("grid")}
+  2248→            className={cn("grid size-9 place-items-center transition", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  2249→            aria-label="Grid"><LayoutGrid className="size-4" /></button>
+  2250→          <button type="button" onClick={() => setViewMode("line")}
+  2251→            className={cn("grid size-9 place-items-center border-l border-border transition", viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+  2252→            aria-label="Line"><List className="size-4" /></button>
+  2253→        </div>
+  2254→      </div>
+  2255→
+  2256→      {viewMode === "grid" ? (
+  2257→        /* Grid View */
+  2258→        filtered.length === 0 ? (
+  2259→          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+  2260→            <Frown className="size-12 text-muted-foreground" />
+  2261→            <h3 className="mt-3 text-lg font-semibold">Tidak ada data</h3>
+  2262→            <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tidak ada data penjualan untuk filter ini.</p>
+  2263→          </div>
+  2264→        ) : (
+  2265→          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+  2266→            {filtered.map((l: any) => {
+  2267→              const pkg = getPkgBadge(l.packageType);
+  2268→              return (
+  2269→                <div key={l.id} className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-border bg-card transition hover:shadow-lg">
+  2270→                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+  2271→                    {l.images?.[0] ? (
+  2272→                      <img src={l.images[0]} alt={l.title} className="size-full object-cover transition group-hover:scale-105" />
+  2273→                    ) : (
+  2274→                      <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-8" /></div>
+  2275→                    )}
+  2276→                    <span className={cn("absolute right-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold", pkg.bg)}>
+  2277→                      {pkg.name}
+  2278→                    </span>
+  2279→                  </div>
+  2280→                  <div className="flex flex-1 flex-col p-3">
+  2281→                    <p className="text-sm font-bold text-orange-600">{formatRupiahFull(adFee(l))}</p>
+  2282→                    <h3 className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-foreground">{l.title}</h3>
+  2283→                    <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+  2284→                      <MapPin className="size-3 shrink-0" /> {l.city}{l.seller?.name ? ` · ${l.seller.name}` : ""}
+  2285→                    </div>
+  2286→                    <p className="mt-1 text-[10px] text-muted-foreground">
+  2287→                      {l.category?.name} · {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+  2288→                    </p>
+  2289→                    <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+  2290→                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+  2291→                        <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0}
+  2292→                      </span>
+  2293→                    </div>
+  2294→                  </div>
+  2295→                </div>
+  2296→              );
+  2297→            })}
+  2298→          </div>
+  2299→        )
+  2300→      ) : (
+  2301→        /* Table View */
+  2302→        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+  2303→          {filtered.length === 0 ? (
+  2304→            <div className="flex flex-col items-center justify-center py-16 text-center">
+  2305→              <Frown className="size-12 text-muted-foreground" />
+  2306→              <h3 className="mt-3 text-lg font-semibold">Tidak ada data</h3>
+  2307→              <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tidak ada data penjualan untuk filter ini.</p>
+  2308→            </div>
+  2309→          ) : (
+  2310→            <table className="w-full min-w-[700px] text-sm">
+  2311→              <thead>
+  2312→                <tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+  2313→                  <th className="p-2.5 w-10">#</th>
+  2314→                  <th className="p-2.5">Iklan</th>
+  2315→                  <th className="p-2.5">Paket</th>
+  2316→                  <th className="p-2.5">Penjual</th>
+  2317→                  <th className="p-2.5">Kota</th>
+  2318→                  <th className="p-2.5 text-right">Harga Iklan</th>
+  2319→                  <th className="p-2.5">Dipasang</th>
+  2320→                  <th className="p-2.5">Expired</th>
+  2321→                  <th className="p-2.5">Status</th>
+  2322→                  <th className="p-2.5 text-right">Views</th>
+  2323→                </tr>
+  2324→              </thead>
+  2325→              <tbody>
+  2326→                {filtered.map((l: any, idx: number) => {
+  2327→                  const pkg = getPkgBadge(l.packageType);
+  2328→                  const { days: remainingDays, expired } = getRemainingDaysAdmin(l.paymentExpiry);
+  2329→                  return (
+  2330→                    <tr key={l.id} className="border-b border-border transition hover:bg-accent/30">
+  2331→                      <td className="p-2.5 text-xs text-muted-foreground">{idx + 1}</td>
+  2332→                      <td className="p-2.5">
+  2333→                        <div className="flex items-center gap-2">
+  2334→                          <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
+  2335→                            {l.images?.[0] ? (
+  2336→                              <img src={l.images[0]} alt={l.title} className="size-full object-cover" />
+  2337→                            ) : (
+  2338→                              <div className="flex h-full items-center justify-center text-muted-foreground"><ImageIcon className="size-4" /></div>
+  2339→                            )}
+  2340→                          </div>
+  2341→                          <div className="min-w-0">
+  2342→                            <p className="line-clamp-1 max-w-[180px] text-xs font-semibold text-foreground">{l.title}</p>
+  2343→                            <p className="text-[10px] text-muted-foreground">{l.category?.name}</p>
+  2344→                          </div>
+  2345→                        </div>
+  2346→                      </td>
+  2347→                      <td className="p-2.5">
+  2348→                        <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-bold", pkg.bg)}>{pkg.name}</span>
+  2349→                      </td>
+  2350→                      <td className="p-2.5 text-xs">{l.seller?.name || "-"}</td>
+  2351→                      <td className="p-2.5 text-xs">{l.city}</td>
+  2352→                      <td className="p-2.5 text-right text-xs font-bold text-orange-600">{formatRupiahFull(adFee(l))}</td>
+  2353→                      <td className="p-2.5 text-xs text-muted-foreground">
+  2354→                        {new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+  2355→                      </td>
+  2356→                      <td className="p-2.5">
+  2357→                        {l.paymentExpiry && l.paymentStatus === "paid" ? (
+  2358→                          <span className={cn("text-xs",
+  2359→                            expired ? "font-medium text-red-500" : remainingDays <= 3 ? "text-amber-600" : "text-muted-foreground"
+  2360→                          )}>
+  2361→                            {new Date(l.paymentExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+  2362→                          </span>
+  2363→                        ) : (
+  2364→                          <span className="text-xs text-muted-foreground">-</span>
+  2365→                        )}
+  2366→                      </td>
+  2367→                      <td className="p-2.5">
+  2368→                        <div className="flex flex-col gap-0.5">
+  2369→                          <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-bold w-fit",
+  2370→                            l.status === "active" ? "bg-green-50 text-green-600" : l.status === "expired" ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-600"
+  2371→                          )}>
+  2372→                            {l.status === "active" ? "Aktif" : l.status === "expired" ? "Expired" : l.status === "sold" ? "Terjual" : l.status === "draft" ? "Draft" : l.status || "-"}
+  2373→                          </span>
+  2374→                          {l.paymentExpiry && l.paymentStatus === "paid" && (
+  2375→                            <span className={cn("flex w-fit items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold",
+  2376→                              expired ? "bg-red-50 text-red-600" : remainingDays <= 3 ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"
+  2377→                            )}>
+  2378→                              <Timer className="size-2.5" />
+  2379→                              {expired ? "Non Aktif" : remainingDays === 0 ? "Hari ini" : `${remainingDays} hari`}
+  2380→                            </span>
+  2381→                          )}
+  2382→                        </div>
+  2383→                      </td>
+  2384→                      <td className="p-2.5 text-right text-xs text-muted-foreground">{l.views?.toLocaleString("id-ID") || 0}</td>
+  2385→                    </tr>
+  2386→                  );
+  2387→                })}
+  2388→              </tbody>
+  2389→            </table>
+  2390→          )}
+  2391→        </div>
+  2392→      )}
+  2393→
+  2394→      {/* Footer count */}
+  2395→      <p className="text-xs text-muted-foreground">Menampilkan {filtered.length} dari {all.length} transaksi</p>
+  2396→    </div>
+  2397→  );
+  2398→}
+  2399→
+  2400→// ============ LAPORAN TAB ============
+  2401→function LaporanTab() {
+  2402→  const { t } = useLang();
+  2403→  const mounted = useMounted();
+  2404→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  2405→  const { data, isLoading } = useAdminQuery(["admin-stats"], "/api/admin/stats");
+  2406→  if (isLoading) return <SkeletonGrid count={3} />; if (!data) return DB_ERROR_UI;
+  2407→  return (
+  2408→    <div className="space-y-4">
+  2409→      <h2 className="text-base font-bold">Laporan Lengkap</h2>
+  2410→      <div className="rounded-xl border border-border bg-card p-4">
+  2411→        <h3 className="mb-3 text-sm font-bold">Ringkasan Umum</h3>
+  2412→        <div className="space-y-2 text-sm">
+  2413→          <Row label={tr("admTotalUsers")} value={data.totals.users} />
+  2414→          <Row label={tr("admTotalListings")} value={data.totals.listings} />
+  2415→          <Row label={tr("admTotalRevenue")} value={formatRupiahFull(data.totals.omzetAll)} />
+  2416→          <Row label={tr("admNewUsers")} value={data.users.today} />
+  2417→          <Row label={tr("admNewUsersWeek")} value={data.users.week} />
+  2418→          <Row label={tr("admNewUsersMonth")} value={data.users.month} />
+  2419→          <Row label={tr("admNewAdsToday")} value={data.listings.today} />
+  2420→          <Row label={tr("admNewAdsWeek")} value={data.listings.week} />
+  2421→          <Row label={tr("admNewAdsMonth")} value={data.listings.month} />
+  2422→          <Row label={tr("admOmzetToday")} value={formatRupiahFull(data.omzet.today)} />
+  2423→          <Row label={tr("admOmzetWeek")} value={formatRupiahFull(data.omzet.week)} />
+  2424→          <Row label={tr("admOmzetMonth")} value={formatRupiahFull(data.omzet.month)} />
+  2425→        </div>
+  2426→      </div>
+  2427→      <div className="rounded-xl border border-border bg-card p-4">
+  2428→        <h3 className="mb-3 text-sm font-bold">Kategori Terpopuler</h3>
+  2429→        <div className="space-y-1.5 text-sm">
+  2430→          {data.topCategories.map((c: any, i: number) => (
+  2431→            <Row key={i} label={`#${i + 1} ${c.name}`} value={`${c.count} iklan`} />
+  2432→          ))}
+  2433→        </div>
+  2434→      </div>
+  2435→      <Button variant="outline" className="w-full" onClick={() => toast.info("Export laporan segera hadir")}><FileText className="size-4" /> Export PDF/Excel</Button>
+  2436→    </div>
+  2437→  );
+  2438→}
+  2439→
+  2440→// ============ LAPORAN BULANAN TAB (dipisah per bulan) ============
+  2441→function MonthlyReportTab() {
+  2442→  const { t } = useLang();
+  2443→  const mounted = useMounted();
+  2444→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  2445→  const now = new Date();
+  2446→  const [year, setYear] = useState<number>(now.getFullYear());
+  2447→  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  2448→
+  2449→  const { data, isLoading } = useAdminQuery(
+  2450→    ["admin-monthly-report", year],
+  2451→    `/api/admin/monthly-report?year=${year}`,
+  2452→  );
+  2453→
+  2454→  if (isLoading || !data) return isLoading ? <SkeletonGrid count={3} /> : DB_ERROR_UI;
+  2455→
+  2456→  const months: any[] = data.months || [];
+  2457→  const yearTotal = data.yearTotal || { omzet: 0, listings: 0, users: 0 };
+  2458→  const years: number[] = data.years || [year];
+  2459→
+  2460→  // Bulan yang dipilih (untuk drill-down detail).
+  2461→  const selMonthData = selectedMonth ? months.find((m) => m.month === selectedMonth) : null;
+  2462→  const selListings = selectedMonth ? (data.listingsByMonth?.[selectedMonth] || []) : [];
+  2463→  const selUsers = selectedMonth ? (data.usersByMonth?.[selectedMonth] || []) : [];
+  2464→
+  2465→  return (
+  2466→    <div className="space-y-4">
+  2467→      {/* Header + pemilih tahun */}
+  2468→      <div className="flex flex-wrap items-center justify-between gap-3">
+  2469→        <div>
+  2470→          <h2 className="text-base font-bold">{tr("admMonthlyTitle")}</h2>
+  2471→          <p className="text-xs text-muted-foreground">{tr("admMonthlyDesc")}</p>
+  2472→        </div>
+  2473→        <div className="flex items-center gap-2">
+  2474→          <Label className="text-xs text-muted-foreground">{tr("admMonthlyYear")}</Label>
+  2475→          <select
+  2476→            value={year}
+  2477→            onChange={(e) => { setYear(Number(e.target.value)); setSelectedMonth(null); }}
+  2478→            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+  2479→          >
+  2480→            {years.map((y) => (
+  2481→              <option key={y} value={y}>{y}</option>
+  2482→            ))}
+  2483→          </select>
+  2484→        </div>
+  2485→      </div>
+  2486→
+  2487→      {/* Kartu total tahunan */}
+  2488→      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+  2489→        <div className="rounded-xl border border-border bg-card p-4">
+  2490→          <p className="text-xs text-muted-foreground">{tr("admMonthlyTotal")} — {tr("admMonthlyOmzet")}</p>
+  2491→          <p className="mt-1 text-xl font-bold text-orange-600">{formatRupiahFull(yearTotal.omzet)}</p>
+  2492→        </div>
+  2493→        <div className="rounded-xl border border-border bg-card p-4">
+  2494→          <p className="text-xs text-muted-foreground">{tr("admMonthlyTotal")} — {tr("admMonthlyListings")}</p>
+  2495→          <p className="mt-1 text-xl font-bold text-primary">{yearTotal.listings}</p>
+  2496→        </div>
+  2497→        <div className="rounded-xl border border-border bg-card p-4">
+  2498→          <p className="text-xs text-muted-foreground">{tr("admMonthlyTotal")} — {tr("admMonthlyUsers")}</p>
+  2499→          <p className="mt-1 text-xl font-bold text-blue-500">{yearTotal.users}</p>
+  2500→        </div>
+  2501→      </div>
+  2502→
+  2503→      {/* Tabel 12 bulan (dipisah per bulan) */}
+  2504→      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+  2505→        <table className="w-full min-w-[640px] text-sm">
+  2506→          <thead>
+  2507→            <tr className="border-b border-border bg-secondary/50 text-left text-xs font-semibold text-muted-foreground">
+  2508→              <th className="p-3">{tr("admMonthlyMonth")}</th>
+  2509→              <th className="p-3 text-right">{tr("admMonthlyOmzet")}</th>
+  2510→              <th className="p-3 text-right">{tr("admMonthlyListings")}</th>
+  2511→              <th className="p-3 text-right">{tr("admMonthlyUsers")}</th>
+  2512→              <th className="p-3 text-center">Aksi</th>
+  2513→            </tr>
+  2514→          </thead>
+  2515→          <tbody>
+  2516→            {months.map((m) => {
+  2517→              const hasData = m.listings > 0 || m.users > 0;
+  2518→              const isCurrent = now.getMonth() + 1 === m.month && now.getFullYear() === year;
+  2519→              return (
+  2520→                <tr
+  2521→                  key={m.month}
+  2522→                  className={cn(
+  2523→                    "border-b border-border hover:bg-accent/30",
+  2524→                    !hasData && "opacity-50",
+  2525→                    selectedMonth === m.month && "bg-primary/5"
+  2526→                  )}
+  2527→                >
+  2528→                  <td className="p-3 font-medium">
+  2529→                    {m.label}
+  2530→                    {isCurrent && <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">Now</span>}
+  2531→                  </td>
+  2532→                  <td className="p-3 text-right font-bold text-orange-600">{m.omzet > 0 ? formatRupiahFull(m.omzet) : "—"}</td>
+  2533→                  <td className="p-3 text-right">{m.listings > 0 ? m.listings : "—"}</td>
+  2534→                  <td className="p-3 text-right">{m.users > 0 ? m.users : "—"}</td>
+  2535→                  <td className="p-3 text-center">
+  2536→                    {hasData ? (
+  2537→                      <button
+  2538→                        onClick={() => setSelectedMonth(selectedMonth === m.month ? null : m.month)}
+  2539→                        className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20"
+  2540→                      >
+  2541→                        {selectedMonth === m.month ? "Tutup" : tr("admMonthlyDetail")}
+  2542→                      </button>
+  2543→                    ) : (
+  2544→                      <span className="text-xs text-muted-foreground">—</span>
+  2545→                    )}
+  2546→                  </td>
+  2547→                </tr>
+  2548→              );
+  2549→            })}
+  2550→          </tbody>
+  2551→          <tfoot>
+  2552→            <tr className="border-t-2 border-border bg-secondary/30 font-bold">
+  2553→              <td className="p-3">{tr("admMonthlyTotal")}</td>
+  2554→              <td className="p-3 text-right text-orange-600">{formatRupiahFull(yearTotal.omzet)}</td>
+  2555→              <td className="p-3 text-right">{yearTotal.listings}</td>
+  2556→              <td className="p-3 text-right">{yearTotal.users}</td>
+  2557→              <td className="p-3"></td>
+  2558→            </tr>
+  2559→          </tfoot>
+  2560→        </table>
+  2561→      </div>
+  2562→
+  2563→      {/* Drill-down: detail bulan terpilih */}
+  2564→      {selMonthData && (
+  2565→        <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-card p-4 animate-fade-up">
+  2566→          <div className="flex items-center justify-between">
+  2567→            <h3 className="text-sm font-bold">
+  2568→              {tr("admMonthlyDetail")} — {selMonthData.label} {year}
+  2569→            </h3>
+  2570→            <Button variant="outline" size="sm" onClick={() => toast.info("Export bulan ini segera hadir")}>
+  2571→              <FileText className="size-4" /> {tr("admMonthlyExport")}
+  2572→            </Button>
+  2573→          </div>
+  2574→
+  2575→          {/* Ringkasan bulan */}
+  2576→          <div className="grid grid-cols-3 gap-2 text-center">
+  2577→            <div className="rounded-lg bg-orange-50 p-2">
+  2578→              <p className="text-[10px] text-muted-foreground">{tr("admMonthlyOmzet")}</p>
+  2579→              <p className="text-sm font-bold text-orange-600">{formatRupiahFull(selMonthData.omzet)}</p>
+  2580→            </div>
+  2581→            <div className="rounded-lg bg-primary/10 p-2">
+  2582→              <p className="text-[10px] text-muted-foreground">{tr("admMonthlyListings")}</p>
+  2583→              <p className="text-sm font-bold text-primary">{selMonthData.listings}</p>
+  2584→            </div>
+  2585→            <div className="rounded-lg bg-blue-50 p-2">
+  2586→              <p className="text-[10px] text-muted-foreground">{tr("admMonthlyUsers")}</p>
+  2587→              <p className="text-sm font-bold text-blue-500">{selMonthData.users}</p>
+  2588→            </div>
+  2589→          </div>
+  2590→
+  2591→          {/* Rincian per paket */}
+  2592→          {Object.keys(selMonthData.byPackage).length > 0 && (
+  2593→            <div>
+  2594→              <p className="mb-1.5 text-xs font-bold text-muted-foreground">{tr("admMonthlyByPkg")}</p>
+  2595→              <div className="flex flex-wrap gap-2">
+  2596→                {Object.entries(selMonthData.byPackage).map(([pkg, info]: [string, any]) => (
+  2597→                  <span key={pkg} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 py-1 text-xs">
+  2598→                    <Badge variant="outline" className="px-1.5 py-0 text-[10px]">{pkg}</Badge>
+  2599→                    <span className="font-semibold">{info.count} iklan</span>
+  2600→                    <span className="text-orange-600">{formatRupiahFull(info.omzet)}</span>
+  2601→                  </span>
+  2602→                ))}
+  2603→              </div>
+  2604→            </div>
+  2605→          )}
+  2606→
+  2607→          {/* Daftar iklan bulan ini */}
+  2608→          {selListings.length > 0 && (
+  2609→            <div>
+  2610→              <p className="mb-1.5 text-xs font-bold text-muted-foreground">{tr("admMonthlyListings")} ({selListings.length})</p>
+  2611→              <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
+  2612→                <table className="w-full text-xs">
+  2613→                  <thead className="sticky top-0 bg-secondary/80">
+  2614→                    <tr className="text-left text-muted-foreground">
+  2615→                      <th className="p-2">Iklan</th>
+  2616→                      <th className="p-2">Paket</th>
+  2617→                      <th className="p-2 text-right">Harga</th>
+  2618→                      <th className="p-2">Status</th>
+  2619→                      <th className="p-2">Tanggal</th>
+  2620→                    </tr>
+  2621→                  </thead>
+  2622→                  <tbody>
+  2623→                    {selListings.map((l: any) => (
+  2624→                      <tr key={l.id} className="border-t border-border">
+  2625→                        <td className="p-2 font-medium">{l.title}</td>
+  2626→                        <td className="p-2"><Badge variant="outline" className="text-[10px]">{l.packageType}</Badge></td>
+  2627→                        <td className="p-2 text-right">{formatRupiahFull(l.price)}</td>
+  2628→                        <td className="p-2"><Badge className={cn("text-[10px]", l.status === "active" ? "bg-orange-100 text-orange-700" : l.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700")}>{l.status}</Badge></td>
+  2629→                        <td className="p-2 text-muted-foreground">{new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</td>
+  2630→                      </tr>
+  2631→                    ))}
+  2632→                  </tbody>
+  2633→                </table>
+  2634→              </div>
+  2635→            </div>
+  2636→          )}
+  2637→
+  2638→          {/* Daftar user baru bulan ini */}
+  2639→          {selUsers.length > 0 && (
+  2640→            <div>
+  2641→              <p className="mb-1.5 text-xs font-bold text-muted-foreground">{tr("admMonthlyUsers")} ({selUsers.length})</p>
+  2642→              <div className="flex flex-wrap gap-2">
+  2643→                {selUsers.map((u: any) => (
+  2644→                  <span key={u.id} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 py-1 text-xs">
+  2645→                    <span className="font-semibold">{u.name}</span>
+  2646→                    <span className="text-muted-foreground">{u.email}</span>
+  2647→                    {u.role === "admin" && <Badge className="text-[10px]">admin</Badge>}
+  2648→                  </span>
+  2649→                ))}
+  2650→              </div>
+  2651→            </div>
+  2652→          )}
+  2653→        </div>
+  2654→      )}
+  2655→    </div>
+  2656→  );
+  2657→}
+  2658→
+  2659→// ============ AUDIT LOG TAB ============
+  2660→function AuditTab() {
+  2661→  const { t } = useLang();
+  2662→  const mounted = useMounted();
+  2663→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  2664→  const allLogs = [
+  2665→    { id: 1, action: "LOGIN", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail1"), time: tr("admAuditTime1"), icon: Lock, category: "auth" },
+  2666→    { id: 2, action: "IKLAN_APPROVE", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail2"), time: tr("admAuditTime2"), icon: CheckCircle2, category: "iklan" },
+  2667→    { id: 3, action: "PENJUAL_VERIFY", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail3"), time: tr("admAuditTime3"), icon: BadgeCheck, category: "penjual" },
+  2668→    { id: 4, action: "KATEGORI_CREATE", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail4"), time: tr("admAuditTime4"), icon: FolderTree, category: "kategori" },
+  2669→    { id: 5, action: "IKLAN_DELETE", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail5"), time: tr("admAuditTime5"), icon: Trash2, category: "iklan" },
+  2670→    { id: 6, action: "IKLAN_CREATE", user: "budi@gomesin.id", detail: tr("admAuditDetail6"), time: tr("admAuditTime5"), icon: Plus, category: "iklan" },
+  2671→    { id: 7, action: "USER_REGISTER", user: "siti@gomesin.com", detail: tr("admAuditDetail7"), time: tr("admAuditTime6"), icon: Users, category: "user" },
+  2672→    { id: 8, action: "LOGIN", user: "budi@gomesin.id", detail: tr("admAuditDetail8"), time: tr("admAuditTime6"), icon: Lock, category: "auth" },
+  2673→    { id: 9, action: "IKLAN_VIOLATION", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail9"), time: tr("admAuditTime7"), icon: XCircle, category: "iklan" },
+  2674→    { id: 10, action: "BANNER_CREATE", user: "gomesin0711@gmail.com", detail: tr("admAuditDetail10"), time: tr("admAuditTime8"), icon: Image, category: "banner" },
+  2675→  ];
+  2676→  const [search, setSearch] = useState("");
+  2677→  const [filter, setFilter] = useState("all");
+  2678→
+  2679→  const filtered = allLogs.filter((l) => {
+  2680→    const matchSearch = l.action.toLowerCase().includes(search.toLowerCase()) ||
+  2681→      l.detail.toLowerCase().includes(search.toLowerCase()) ||
+  2682→      l.user.toLowerCase().includes(search.toLowerCase());
+  2683→    const matchFilter = filter === "all" || l.category === filter;
+  2684→    return matchSearch && matchFilter;
+  2685→  });
+  2686→
+  2687→  return (
+  2688→    <div className="space-y-3">
+  2689→      <div className="flex items-center justify-between">
+  2690→        <h2 className="text-base font-bold">Audit Log ({filtered.length})</h2>
+  2691→      </div>
+  2692→
+  2693→      {/* Search & Filter */}
+  2694→      <div className="flex flex-col gap-2 sm:flex-row">
+  2695→        <Input
+  2696→          value={search}
+  2697→          onChange={(e) => setSearch(e.target.value)}
+  2698→          placeholder="Cari aktivitas, user, detail..."
+  2699→          className="h-9 sm:flex-1"
+  2700→        />
+  2701→        <select
+  2702→          value={filter}
+  2703→          onChange={(e) => setFilter(e.target.value)}
+  2704→          className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+  2705→        >
+  2706→          <option value="all">Semua Kategori</option>
+  2707→          <option value="auth">Autentikasi</option>
+  2708→          <option value="iklan">Iklan</option>
+  2709→          <option value="penjual">Penjual</option>
+  2710→          <option value="kategori">Kategori</option>
+  2711→          <option value="user">User</option>
+  2712→          <option value="banner">Banner</option>
+  2713→        </select>
+  2714→      </div>
+  2715→
+  2716→      {/* Stats */}
+  2717→      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+  2718→        {[
+  2719→          { label: tr("admAuditTotal"), value: allLogs.length, color: "text-primary" },
+  2720→          { label: tr("admAuditAuth"), value: allLogs.filter(l => l.category === "auth").length, color: "text-blue-500" },
+  2721→          { label: tr("admAuditIklan"), value: allLogs.filter(l => l.category === "iklan").length, color: "text-orange-600" },
+  2722→          { label: tr("admAuditUser"), value: allLogs.filter(l => l.category === "user").length, color: "text-amber-500" },
+  2723→          { label: tr("admAuditPenjual"), value: allLogs.filter(l => l.category === "penjual").length, color: "text-purple-500" },
+  2724→          { label: tr("admAuditBanner"), value: allLogs.filter(l => l.category === "banner").length, color: "text-rose-500" },
+  2725→        ].map((s) => (
+  2726→          <div key={s.label} className="rounded-lg border border-border bg-card p-2 text-center">
+  2727→            <p className={cn("text-lg font-bold", s.color)}>{s.value}</p>
+  2728→            <p className="text-[10px] text-muted-foreground">{s.label}</p>
+  2729→          </div>
+  2730→        ))}
+  2731→      </div>
+  2732→
+  2733→      {/* Log list */}
+  2734→      <div className="space-y-2">
+  2735→        {filtered.map((l) => (
+  2736→          <div key={l.id} className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
+  2737→            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10">
+  2738→              <l.icon className="size-4 text-primary" />
+  2739→            </span>
+  2740→            <div className="min-w-0 flex-1">
+  2741→              <div className="flex items-center justify-between gap-2">
+  2742→                <p className="text-sm font-semibold">{l.action}</p>
+  2743→                <span className="shrink-0 text-[10px] text-muted-foreground">{l.time}</span>
+  2744→              </div>
+  2745→              <p className="text-xs text-muted-foreground">{l.detail}</p>
+  2746→              <p className="text-[10px] text-muted-foreground">by {l.user}</p>
+  2747→            </div>
+  2748→          </div>
+  2749→        ))}
+  2750→        {filtered.length === 0 && (
+  2751→          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+  2752→            Tidak ada log yang cocok. Coba kata kunci atau filter lain.
+  2753→          </div>
+  2754→        )}
+  2755→      </div>
+  2756→    </div>
+  2757→  );
+  2758→}
+  2759→
+  2760→// ============ CHAT TAB (removed) ============
+  2761→function ChatTab_REMOVED() {
+  2762→  const { t } = useLang();
+  2763→  const mounted = useMounted();
+  2764→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  2765→  const [search, setSearch] = useState("");
+  2766→  const [selectedId, setSelectedId] = useState<string | null>(null);
+  2767→
+  2768→  const { data, isLoading } = useAdminQuery(["admin-chat"], "/api/admin/chat");
+  2769→
+  2770→  if (isLoading) return <SkeletonGrid count={4} />;
+  2771→  if (!data) return DB_ERROR_UI;
+  2772→
+  2773→  const conversations: any[] = data?.conversations ?? [];
+  2774→  const stats = data?.summary ?? { totalConversations: 0, totalMessages: 0, totalUnread: 0, activeUsers: 0 };
+  2775→
+  2776→  // Filter by search query (user name, listing title, message preview)
+  2777→  const filtered = conversations.filter((c: any) => {
+  2778→    if (!search) return true;
+  2779→    const q = search.toLowerCase();
+  2780→    return (
+  2781→      (c.userA?.name || "").toLowerCase().includes(q) ||
+  2782→      (c.userB?.name || "").toLowerCase().includes(q) ||
+  2783→      (c.listingTitle || "").toLowerCase().includes(q) ||
+  2784→      (c.lastMessage || "").toLowerCase().includes(q)
+  2785→    );
+  2786→  });
+  2787→
+  2788→  const selected = conversations.find((c: any) => c.id === selectedId);
+  2789→
+  2790→  return (
+  2791→    <div className="space-y-4">
+  2792→      {/* Header */}
+  2793→      <div className="flex items-center gap-3">
+  2794→        <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+  2795→          <MessageCircle className="size-5" />
+  2796→        </span>
+  2797→        <div>
+  2798→          <h2 className="text-lg font-bold">{tr("admChatTitle")}</h2>
+  2799→          <p className="text-xs text-muted-foreground">{tr("admChatDesc")}</p>
+  2800→        </div>
+  2801→      </div>
+  2802→
+  2803→      {/* Stat cards */}
+  2804→      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+  2805→        <ChatStat label={tr("admChatTotalConv")} value={stats.totalConversations} icon={MessageCircle} color="text-blue-500" bg="bg-blue-50" />
+  2806→        <ChatStat label={tr("admChatTotalMsg")} value={stats.totalMessages} icon={Send} color="text-orange-600" bg="bg-orange-50" />
+  2807→        <ChatStat label={tr("admChatUnread")} value={stats.totalUnread} icon={Mail} color="text-amber-500" bg="bg-amber-50" />
+  2808→        <ChatStat label={tr("admChatActiveUsers")} value={stats.activeUsers} icon={Users} color="text-primary" bg="bg-primary/10" />
+  2809→      </div>
+  2810→
+  2811→      {/* Search bar */}
+  2812→      <div className="relative">
+  2813→        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+  2814→        <Input
+  2815→          value={search}
+  2816→          onChange={(e) => setSearch(e.target.value)}
+  2817→          placeholder={tr("admChatSearch")}
+  2818→          className="pl-9"
+  2819→        />
+  2820→      </div>
+  2821→
+  2822→      {/* Two-pane layout */}
+  2823→      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+  2824→        {/* Conversation list */}
+  2825→        <div className="space-y-1 rounded-xl border border-border bg-card p-2 max-h-[600px] overflow-y-auto">
+  2826→          {filtered.length === 0 ? (
+  2827→            <div className="p-6 text-center text-sm text-muted-foreground">{tr("admChatNoConv")}</div>
+  2828→          ) : (
+  2829→            filtered.map((c: any) => {
+  2830→              const active = c.id === selectedId;
+  2831→              const otherUser = c.userA?.id !== c.lastSenderId ? c.userA : c.userB;
+  2832→              return (
+  2833→                <button
+  2834→                  key={c.id}
+  2835→                  onClick={() => setSelectedId(c.id)}
+  2836→                  className={cn(
+  2837→                    "flex w-full flex-col gap-1 rounded-lg p-3 text-left transition",
+  2838→                    active ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+  2839→                  )}
+  2840→                >
+  2841→                  <div className="flex items-center justify-between gap-2">
+  2842→                    <span className="truncate text-sm font-semibold">{otherUser?.name || "—"}</span>
+  2843→                    {c.unreadCount > 0 && (
+  2844→                      <span className={cn(
+  2845→                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold",
+  2846→                        active ? "bg-white/20" : "bg-primary/10 text-primary"
+  2847→                      )}>{c.unreadCount}</span>
+  2848→                    )}
+  2849→                  </div>
+  2850→                  {c.listingTitle && (
+  2851→                    <span className={cn("truncate text-[11px]", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
+  2852→                      🏷️ {c.listingTitle}
+  2853→                    </span>
+  2854→                  )}
+  2855→                  <span className={cn("truncate text-xs", active ? "text-primary-foreground/70" : "text-muted-foreground")}>
+  2856→                    {c.lastMessage || "(no messages)"}
+  2857→                  </span>
+  2858→                  <span className={cn("text-[10px]", active ? "text-primary-foreground/60" : "text-muted-foreground")}>
+  2859→                    {timeAgoShort(c.lastMessageAt)}
+  2860→                  </span>
+  2861→                </button>
+  2862→              );
+  2863→            })
+  2864→          )}
+  2865→        </div>
+  2866→
+  2867→        {/* Chat detail panel */}
+  2868→        {selected ? (
+  2869→          <ChatDetail conversation={selected} />
+  2870→        ) : (
+  2871→          <div className="grid min-h-[400px] place-items-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+  2872→            {tr("admChatSelectConv")}
+  2873→          </div>
+  2874→        )}
+  2875→      </div>
+  2876→
+  2877→      {/* Delete confirmation dialog */}
+  2878→      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) { setDeleteId(null); setDeleteCallback(null); } }}>
+  2879→        <AlertDialogContent>
+  2880→          <AlertDialogHeader>
+  2881→            <AlertDialogTitle>Hapus Iklan?</AlertDialogTitle>
+  2882→            <AlertDialogDescription>
+  2883→              Iklan ini akan dihapus secara permanen dan tidak dapat dikembalikan.
+  2884→            </AlertDialogDescription>
+  2885→          </AlertDialogHeader>
+  2886→          <AlertDialogFooter>
+  2887→            <AlertDialogCancel>Batal</AlertDialogCancel>
+  2888→            <AlertDialogAction
+  2889→              className="bg-destructive text-white hover:bg-destructive/90"
+  2890→              onClick={() => { deleteCallback?.(); setDeleteId(null); setDeleteCallback(null); }}
+  2891→            >
+  2892→              Hapus
+  2893→            </AlertDialogAction>
+  2894→          </AlertDialogFooter>
+  2895→        </AlertDialogContent>
+  2896→      </AlertDialog>
+  2897→    </div>
+  2898→  );
+  2899→}
+  2900→
+  2901→function ChatStat({ label, value, icon: Icon, color, bg }: { label: string; value: number; icon: any; color: string; bg: string }) {
+  2902→  return (
+  2903→    <div className="rounded-xl border border-border bg-card p-3">
+  2904→      <div className="flex items-center justify-between">
+  2905→        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+  2906→        <span className={cn("grid size-7 place-items-center rounded-lg", bg)}>
+  2907→          <Icon className={cn("size-4", color)} />
+  2908→        </span>
+  2909→      </div>
+  2910→      <p className="mt-1 text-xl font-bold">{value}</p>
+  2911→    </div>
+  2912→  );
+  2913→}
+  2914→
+  2915→function ChatDetail({ conversation }: { conversation: any }) {
+  2916→  const { t } = useLang();
+  2917→  const mounted = useMounted();
+  2918→  const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
+  2919→  const scrollRef = useRef<HTMLDivElement>(null);
+  2920→
+  2921→  useEffect(() => {
+  2922→    if (scrollRef.current) {
+  2923→      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  2924→    }
+  2925→  }, [conversation?.messages?.length]);
+  2926→
+  2927→  if (!conversation) return null;
+  2928→  const messages: any[] = conversation.messages ?? [];
+  2929→
+  2930→  return (
+  2931→    <div className="flex h-[600px] flex-col rounded-xl border border-border bg-card">
+  2932→      {/* Header */}
+  2933→      <div className="flex items-center justify-between border-b border-border p-3">
+  2934→        <div className="flex items-center gap-2">
+  2935→          <div className="grid size-9 place-items-center rounded-full bg-primary/10 text-primary">
+  2936→            <Users className="size-4" />
+  2937→          </div>
+  2938→          <div>
+  2939→            <p className="text-sm font-bold">{conversation.userA?.name} ↔ {conversation.userB?.name}</p>
+  2940→            <p className="text-[11px] text-muted-foreground">
+  2941→              {conversation.listingTitle ? `🏷️ ${conversation.listingTitle}` : "Direct message"}
+  2942→            </p>
+  2943→          </div>
+  2944→        </div>
+  2945→        <Badge variant="secondary" className="text-[10px]">{tr("admChatAdminMode")}</Badge>
+  2946→      </div>
+  2947→
+  2948→      {/* Messages */}
+  2949→      <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
+  2950→        {messages.length === 0 ? (
+  2951→          <div className="grid h-full place-items-center text-sm text-muted-foreground">No messages</div>
+  2952→        ) : (
+  2953→          messages.map((m: any, i: number) => {
+  2954→            const isA = m.senderId === conversation.userA?.id;
+  2955→            return (
+  2956→              <div key={i} className={cn("flex", isA ? "justify-start" : "justify-end")}>
+  2957→                <div className={cn(
+  2958→                  "max-w-[75%] rounded-lg px-3 py-2 text-sm",
+  2959→                  isA ? "bg-accent text-foreground" : "bg-primary text-primary-foreground"
+  2960→                )}>
+  2961→                  <p className="whitespace-pre-wrap break-words">{m.content}</p>
+  2962→                  <p className={cn("mt-1 text-[10px]", isA ? "text-muted-foreground" : "text-primary-foreground/70")}>
+  2963→                    {new Date(m.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+  2964→                  </p>
+  2965→                </div>
+  2966→              </div>
+  2967→            );
+  2968→          })
+  2969→        )}
+  2970→      </div>
+  2971→
+  2972→      {/* Footer info */}
+  2973→      <div className="border-t border-border p-3 text-[11px] text-muted-foreground">
+  2974→        {tr("admChatLastActivity")}: {timeAgoShort(conversation.lastMessageAt)} · {messages.length} messages
+  2975→      </div>
+  2976→    </div>
+  2977→  );
+  2978→}
+  2979→
+  2980→function timeAgoShort(dateStr: string): string {
+  2981→  if (!dateStr) return "—";
+  2982→  const diff = Date.now() - new Date(dateStr).getTime();
+  2983→  const sec = Math.floor(diff / 1000);
+  2984→  if (sec < 60) return `${sec}s`;
+  2985→  const min = Math.floor(sec / 60);
+  2986→  if (min < 60) return `${min}m`;
+  2987→  const hr = Math.floor(min / 60);
+  2988→  if (hr < 24) return `${hr}j`;
+  2989→  const day = Math.floor(hr / 24);
+  2990→  if (day < 30) return `${day}h`;
+  2991→  const mo = Math.floor(day / 30);
+  2992→  return `${mo}bl`;
+  2993→}
+  2994→
+  2995→// ============ HELPERS ============
+  2996→function Row({ label, value }: { label: string; value: any }) {
+  2997→  return <div className="flex items-center justify-between"><span className="text-muted-foreground">{label}</span><span className="font-semibold">{value}</span></div>;
+  2998→}
+  2999→function SkeletonGrid({ count = 4 }: { count?: number }) {
+  3000→  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{Array.from({ length: count }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-muted" />)}</div>;
+  3001→}
+  3002→function BadgeCheck({ className }: { className?: string }) {
+  3003→  return <svg className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l3.09 6.26L22 8.27l-5 4.87 1.18 6.88L12 16.77l-6.18 3.25L7 13.14 2 8.27l6.91-1.01L12 1z" /></svg>;
+  3004→}
+  3005→

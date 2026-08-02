@@ -7,6 +7,18 @@ import {
   fallbackUpdateListingBySlug,
   fallbackDeleteListingBySlug,
 } from "@/lib/listing-fallback";
+import seedData from "@/lib/seed-data.json";
+
+function normalizeSeedListing(raw: any): any {
+  return {
+    ...raw,
+    images: Array.isArray(raw.images) ? raw.images : [],
+    specs: typeof raw.specs === "string" ? (() => { try { return JSON.parse(raw.specs); } catch { return {}; } })() : raw.specs || {},
+    price: typeof raw.price === "number" ? raw.price : Number(raw.price),
+    createdAt: raw.createdAt instanceof Date ? raw.createdAt.toISOString() : raw.createdAt,
+    seller: raw.seller ? { ...raw.seller, joinedAt: raw.seller.joinedAt instanceof Date ? raw.seller.joinedAt.toISOString() : raw.seller.joinedAt } : raw.seller,
+  };
+}
 
 // GET all listings (admin, include inactive/violation/unpaid)
 export async function GET(req: NextRequest) {
@@ -38,13 +50,24 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Fallback: read from file-based store (Vercel /tmp/)
+  // Fallback: combine seed data + file-based store (Vercel /tmp/)
   try {
-    let fbListings = await getAllFallbackListings();
+    // 1. Seed data listings (all statuses, not just active)
+    const seedListings = seedData.listings.map(normalizeSeedListing);
+    // 2. File-based store listings (user-posted)
+    const fbListings = await getAllFallbackListings();
+    // 3. Merge: file-based overrides seed (by id)
+    const mergedMap = new Map<string, any>();
+    for (const l of seedListings) mergedMap.set(l.id, l);
+    for (const l of fbListings) mergedMap.set(l.id, l); // file-based takes priority
+    let allListings = Array.from(mergedMap.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    // 4. Filter by status if requested
     if (status) {
-      fbListings = fbListings.filter((l) => l.status === status);
+      allListings = allListings.filter((l) => l.status === status);
     }
-    const withFee = fbListings.map((l) => {
+    const withFee = allListings.map((l) => {
       const parsed = parseListing(l as any);
       const fee = paketMap[parsed.packageType || ""]?.price ?? 0;
       return { ...parsed, adFee: fee };
