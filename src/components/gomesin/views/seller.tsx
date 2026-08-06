@@ -58,7 +58,7 @@ export function SellerView() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-6">
+      <div className="mx-auto max-w-7xl px-2 md:px-4 py-6">
         <div className="mb-4 h-8 w-32 animate-pulse rounded bg-muted" />
         <div className="mb-6 h-32 w-full animate-pulse rounded-xl bg-muted" />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -72,7 +72,7 @@ export function SellerView() {
 
   if (isError || !data || data.listings.length === 0) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-16 text-center">
+      <div className="mx-auto max-w-7xl px-2 md:px-4 py-16 text-center">
         <p className="text-lg font-semibold">{tr("notFound")}</p>
         <p className="mt-1 text-sm text-muted-foreground">Penjual tidak ditemukan atau belum memiliki iklan.</p>
         <Button className="mt-4 bg-orange-500 text-white hover:bg-orange-600" onClick={goBack}>
@@ -113,7 +113,7 @@ export function SellerView() {
   return (
     <div className="animate-fade-up">
       {/* back button + breadcrumb */}
-      <div className="mx-auto max-w-7xl px-4 py-4">
+      <div className="mx-auto max-w-7xl px-2 md:px-4 py-4">
         <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
           <button
             onClick={goBack}
@@ -141,7 +141,7 @@ export function SellerView() {
           />
         </div>
         {/* Logo — ½ below banner (overlap bottom edge, di DEPAN banner) */}
-        <div className="mx-auto flex max-w-7xl items-end gap-3 px-4 sm:gap-4 sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-end gap-3 px-2 sm:gap-4 sm:px-6">
           <div className="relative z-10 -mt-12 shrink-0 sm:-mt-14">
             {userProfile?.logoImage ? (
               <img
@@ -181,7 +181,7 @@ export function SellerView() {
           </div>
         </div>
         {/* Info badges row — below banner, outside */}
-        <div className="mx-auto mt-2 flex max-w-7xl flex-wrap items-center gap-2 px-4 sm:px-6">
+        <div className="mx-auto mt-2 flex max-w-7xl flex-wrap items-center gap-2 px-2 sm:px-6">
           <span className="flex items-center gap-0.5 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
             <Star className="size-3 fill-amber-400 text-amber-400" />
             {rating.toFixed(1)} · {reviewCount} ulasan
@@ -201,7 +201,7 @@ export function SellerView() {
       </div>
 
       {/* Listings — constrained width */}
-      <div className="mx-auto max-w-7xl px-4">
+      <div className="mx-auto max-w-7xl px-2 md:px-4">
 
       {/* Listings grid */}
       <section>

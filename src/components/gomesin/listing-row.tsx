@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Heart, MapPin, BadgeCheck, Eye, ImageIcon } from "lucide-react";
+import { Heart, MapPin, BadgeCheck, Eye, ImageIcon, Trash2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { formatRupiah, formatRupiahFull, timeAgo } from "@/lib/types";
 import type { Listing } from "@/lib/types";
@@ -15,10 +15,12 @@ export function ListingRow({
   listing,
   extraCells,
   onRowClick,
+  showDelete,
 }: {
   listing: Listing;
   extraCells?: React.ReactNode;
   onRowClick?: (listing: Listing) => void;
+  showDelete?: boolean;
 }) {
   const goToDetail = useStore((s) => s.goToDetail);
   const toggleFavorite = useStore((s) => s.toggleFavorite);
@@ -40,6 +42,13 @@ export function ListingRow({
     toast.success(isFav ? tr("removedFromFav") : tr("addedToFav"), {
       duration: 1400,
     });
+  };
+
+  const deleteFav = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(tr("removeFavConfirm"))) return;
+    toggleFavorite(listing.id);
+    toast.success(tr("removedFromFav"), { duration: 1400 });
   };
 
   const img = listing.images?.[0];
@@ -122,17 +131,28 @@ export function ListingRow({
         )}
       </td>
 
-      {/* time + favorite */}
+      {/* time + actions */}
       <td className="p-2 align-top text-right">
         <div className="flex flex-col items-end gap-1">
           <span className="text-[11px] text-muted-foreground">{timeAgo(listing.createdAt, mounted ? lang : "id")}</span>
-          <button
-            onClick={fav}
-            aria-label={isFav ? tr("removeFav") : tr("addFav")}
-            className="grid size-7 place-items-center rounded-full border border-border bg-background text-foreground transition hover:bg-accent"
-          >
-            <Heart className={cn("size-3.5", isFav && "fill-rose-500 text-rose-500")} />
-          </button>
+          <div className="flex items-center gap-1">
+            {showDelete && (
+              <button
+                onClick={deleteFav}
+                aria-label={tr("removeFav")}
+                className="grid size-7 place-items-center rounded-full border border-rose-300 bg-rose-50 text-rose-500 transition hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-950 dark:hover:bg-rose-900"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            )}
+            <button
+              onClick={fav}
+              aria-label={isFav ? tr("removeFav") : tr("addFav")}
+              className="grid size-7 place-items-center rounded-full border border-border bg-background text-foreground transition hover:bg-accent"
+            >
+              <Heart className={cn("size-3.5", isFav && "fill-rose-500 text-rose-500")} />
+            </button>
+          </div>
         </div>
       </td>
       {extraCells}

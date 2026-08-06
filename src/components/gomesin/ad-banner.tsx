@@ -146,7 +146,7 @@ export function AdBanner() {
 
   return (
     <section
-      className="mx-auto max-w-7xl px-4 py-4"
+      className="mx-auto max-w-7xl px-2 md:px-4 py-4"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >

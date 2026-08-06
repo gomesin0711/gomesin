@@ -327,7 +327,7 @@ export function PostAdView() {
   const pkgKeys = ['colek', 'highlight', 'spotlight', 'sundul'];
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 animate-fade-up">
+    <div className="mx-auto max-w-3xl px-2 md:px-4 py-5 md:py-6 animate-fade-up">
       {/* breadcrumb */}
       <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
         <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>

@@ -155,7 +155,9 @@ export function BottomNav() {
           icon={User}
           label={user ? tr("myAccount") : tr("login")}
           active={view === "profile" || view === "login"}
-          onClick={user ? goToProfile : goToLogin}
+          onClick={user ? (view === "profile" ? () => {
+            window.dispatchEvent(new CustomEvent("gomesin:open-drawer"));
+          } : goToProfile) : goToLogin}
         />
       </div>
     </nav>

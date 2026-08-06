@@ -58,7 +58,6 @@ import {
   Camera,
   Menu,
   LayoutGrid,
-  LayoutDashboard,
   List,
   Home,
   Volume2,
@@ -117,7 +116,6 @@ export function ProfileView() {
   const goHome = useStore((s) => s.goHome);
   const goToPost = useStore((s) => s.goToPost);
   const goToLogin = useStore((s) => s.goToLogin);
-  const goToDashboard = useStore((s) => s.goToDashboard);
   const goToAdmin = useStore((s) => s.goToAdmin);
   const goToEdit = useStore((s) => s.goToEdit);
   const user = useStore((s) => s.user);
@@ -294,6 +292,13 @@ export function ProfileView() {
     setPrevStorePanel(storeProfilePanel);
     setPanel(storeProfilePanel as PanelType);
   }
+
+  // Listen for custom event from bottom nav to open hamburger drawer
+  useEffect(() => {
+    const handler = () => setDrawerOpen(true);
+    window.addEventListener("gomesin:open-drawer", handler);
+    return () => window.removeEventListener("gomesin:open-drawer", handler);
+  }, []);
 
   const closePanel = () => {
     setPanel(null);
@@ -930,10 +935,9 @@ export function ProfileView() {
               </div>
             )}
             <nav className="px-1.5 py-1">
-              <p className="px-2.5 pb-0.5 pt-1.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/50">Iklan & Transaksi</p>
+              <div className="my-2 border-t border-border" />
               {[
                 ...(user?.role === "admin" ? [{ icon: ShieldCheck, label: tr("adminPanel"), action: () => { goToAdmin(); setDrawerOpen(false); }, navigate: true, key: "admin" }] : []),
-                { icon: LayoutDashboard, label: "Dashboard", action: () => { goToDashboard(); setPanel(null); setDrawerOpen(false); }, navigate: true, key: "dashboard" },
                 { icon: Tag, label: tr("profMyAds"), action: () => { setPanel("iklan-saya"); setDrawerOpen(false); }, navigate: false, key: "iklan-saya" },
                 { icon: Heart, label: tr("myFavorites"), action: () => { setPanel("favorit-saya"); setDrawerOpen(false); }, navigate: false, key: "favorit-saya" },
                 { icon: MessageSquare, label: tr("messages"), action: () => { setPanel("pesan"); setDrawerOpen(false); }, navigate: false, key: "pesan" },
@@ -945,19 +949,19 @@ export function ProfileView() {
                     key={i}
                     onClick={m.action}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
-                      isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition",
+                      isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent hover:text-foreground"
                     )}
                   >
-                    <m.icon className="size-3.5 shrink-0" />
+                    <m.icon className="size-4 shrink-0" />
                     <span className="truncate">{m.label}</span>
                     {m.key === "pesan" && unreadCount > 0 && (
-                      <span className="ml-auto rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">{unreadCount}</span>
+                      <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{unreadCount}</span>
                     )}
                   </button>
                 );
               })}
-              <p className="px-2.5 pb-0.5 pt-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/50">Akun & Keamanan</p>
+              <div className="my-2 border-t border-border" />
               {[
                 { icon: Bell, label: tr("notifications"), action: () => { setPanel("notifikasi"); setDrawerOpen(false); }, key: "notifikasi" },
                 { icon: Lock, label: tr("security"), action: () => { setPanel("keamanan"); setDrawerOpen(false); }, key: "keamanan" },
@@ -969,31 +973,31 @@ export function ProfileView() {
                     key={i}
                     onClick={m.action}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
-                      isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition",
+                      isActive ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent hover:text-foreground"
                     )}
                   >
-                    <m.icon className="size-3.5 shrink-0" />
+                    <m.icon className="size-4 shrink-0" />
                     <span className="truncate">{m.label}</span>
                   </button>
                 );
               })}
-              <p className="px-2.5 pb-0.5 pt-2 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/50">Bantuan</p>
+              <div className="my-2 border-t border-border" />
               <button
                 onClick={() => { setPanel("bantuan"); setDrawerOpen(false); }}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
-                  panel === "bantuan" ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent"
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition",
+                  panel === "bantuan" ? "bg-primary font-semibold text-primary-foreground" : "text-foreground/80 hover:bg-accent hover:text-foreground"
                 )}
               >
-                <HelpCircle className="size-3.5 shrink-0" />
+                <HelpCircle className="size-4 shrink-0" />
                 <span className="truncate">{tr("help")}</span>
               </button>
               <button
                 onClick={() => { setDrawerOpen(false); if (user) { logout(); toast.success(tr("profLogoutSuccess")); goHome(); } else { goToLogin(); } }}
-                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-destructive transition hover:bg-destructive/5"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-destructive transition hover:bg-destructive/5"
               >
-                <LogOut className="size-3.5 shrink-0" />
+                <LogOut className="size-4 shrink-0" />
                 <span className="truncate">{user ? tr("logout") : tr("loginRegister")}</span>
               </button>
             </nav>
@@ -1002,7 +1006,7 @@ export function ProfileView() {
       )}
 
       {/* ===== MAIN CONTENT (next to permanent sidebar on desktop) ===== */}
-      <main className={cn("min-w-0 flex-1 px-4 py-4 md:px-6 md:py-6", panel === "pesan" && "max-md:px-0 max-md:pt-2 max-md:pb-0")}>
+      <main className={cn("min-w-0 flex-1 px-2 py-4 md:px-6 md:py-6", panel === "pesan" && "max-md:px-0 max-md:pt-2 max-md:pb-0")}>
         {/* breadcrumb — hidden on mobile when Pesan (cleaner chat view) */}
         <div className={cn("mb-4 flex items-center gap-1 text-xs text-muted-foreground", panel === "pesan" && "max-md:hidden")}>
           <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
@@ -1633,25 +1637,31 @@ export function ProfileView() {
                 : myListings;
               return (
                 <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-8">
+                  {/* Title */}
+                  <div>
+                    <h2 className="text-lg font-bold sm:text-xl">Riwayat Pembayaran</h2>
+                    <p className="text-xs text-muted-foreground sm:text-sm">Catatan pembayaran iklan Anda</p>
+                  </div>
+
                   {/* Summary — 3 stat cards */}
-                  <div className="grid grid-cols-3 gap-3 md:gap-5">
-                    <div className="rounded-xl border border-border bg-card p-4 text-center md:p-6">
-                      <p className="text-xs text-muted-foreground md:text-base">Total Bayar</p>
-                      <p className="mt-1 text-lg font-extrabold text-primary md:text-3xl">Rp {totalAdFee.toLocaleString("id-ID")}</p>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-5">
+                    <div className="rounded-xl border border-border bg-card p-3 text-center sm:p-6">
+                      <p className="text-[10px] text-muted-foreground sm:text-base">Total Bayar</p>
+                      <p className="mt-0.5 text-sm font-extrabold text-primary sm:text-3xl">Rp {totalAdFee.toLocaleString("id-ID")}</p>
                     </div>
-                    <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center md:p-6">
-                      <p className="text-xs text-orange-700 md:text-base">Lunas</p>
-                      <p className="mt-1 text-lg font-extrabold text-orange-700 md:text-3xl">{paidCount}</p>
+                    <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-center sm:p-6">
+                      <p className="text-[10px] text-orange-700 sm:text-base">Lunas</p>
+                      <p className="mt-0.5 text-sm font-extrabold text-orange-700 sm:text-3xl">{paidCount}</p>
                     </div>
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center md:p-6">
-                      <p className="text-xs text-amber-700 md:text-base">Pending</p>
-                      <p className="mt-1 text-lg font-extrabold text-amber-700 md:text-3xl">{pendingCount}</p>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center sm:p-6">
+                      <p className="text-[10px] text-amber-700 sm:text-base">Pending</p>
+                      <p className="mt-0.5 text-sm font-extrabold text-amber-700 sm:text-3xl">{pendingCount}</p>
                     </div>
                   </div>
 
                   {/* Filter tabs + view toggle */}
                   {myAdsCount > 0 && (
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap gap-2">
                         {[
                           { v: "all", l: `Semua (${myAdsCount})` },
@@ -1689,7 +1699,7 @@ export function ProfileView() {
                   <div>
                     {myAdsCount > 0 ? (
                       payViewMode === "grid" ? (
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {filtered.map((l: any) => {
                           let imgs: string[] = [];
                           try { imgs = Array.isArray(l.images) ? l.images : JSON.parse(l.images || "[]"); } catch {}

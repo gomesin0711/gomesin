@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, MapPin, ImageIcon, Eye, Sparkles, Zap, User } from "lucide-react";
+import { Heart, MapPin, ImageIcon, Eye, Sparkles, Zap, User, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useStore } from "@/lib/store";
 import { formatRupiah, formatRupiahFull, timeAgo } from "@/lib/types";
@@ -11,7 +11,7 @@ import { useLang, translations as i18nTranslations, categoryName, listingTitle }
 import { useMounted } from "@/lib/use-mounted";
 import { proxyUrl } from "@/lib/image";
 
-export function ListingCard({ listing, spotlight = false }: { listing: Listing; spotlight?: boolean }) {
+export function ListingCard({ listing, spotlight = false, showDelete }: { listing: Listing; spotlight?: boolean; showDelete?: boolean }) {
   const goToDetail = useStore((s) => s.goToDetail);
   const goToSeller = useStore((s) => s.goToSeller);
   const toggleFavorite = useStore((s) => s.toggleFavorite);
@@ -35,6 +35,13 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
     toast.success(isFav ? tr("removedFromFav") : tr("addedToFav"), {
       duration: 1400,
     });
+  };
+
+  const deleteFav = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(tr("removeFavConfirm"))) return;
+    toggleFavorite(listing.id);
+    toast.success(tr("removedFromFav"), { duration: 1400 });
   };
 
   const openSeller = (e: React.MouseEvent) => {
@@ -98,6 +105,15 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
             <Eye className="size-3" />
             {listing.views?.toLocaleString("id-ID") || 0}
           </span>
+          {showDelete && (
+            <button
+              onClick={deleteFav}
+              aria-label={tr("removeFav")}
+              className="absolute bottom-2 right-2 grid size-8 place-items-center rounded-full bg-rose-500 text-white shadow backdrop-blur transition hover:bg-rose-600"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          )}
           <button
             onClick={fav}
             aria-label={isFav ? tr("removeFav") : tr("addFav")}
@@ -130,6 +146,15 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
             <Eye className="size-3" />
             {listing.views?.toLocaleString("id-ID") || 0}
           </span>
+          {showDelete && (
+            <button
+              onClick={deleteFav}
+              aria-label={tr("removeFav")}
+              className="absolute bottom-2 right-2 grid size-8 place-items-center rounded-full bg-rose-500 text-white shadow backdrop-blur transition hover:bg-rose-600"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          )}
           <button
             onClick={fav}
             aria-label={isFav ? tr("removeFav") : tr("addFav")}
@@ -194,6 +219,15 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
             <Eye className="size-3" />
             {listing.views?.toLocaleString("id-ID") || 0}
           </span>
+          {showDelete && (
+            <button
+              onClick={deleteFav}
+              aria-label={tr("removeFav")}
+              className="absolute bottom-2 right-2 grid size-8 place-items-center rounded-full bg-rose-500 text-white shadow backdrop-blur transition hover:bg-rose-600"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          )}
         </div>
       )}
 
@@ -229,6 +263,11 @@ export function ListingCard({ listing, spotlight = false }: { listing: Listing; 
         )}>
           {listingTitle(listing, mounted ? lang : "id")}
         </h3>
+        {listing.category?.name && (
+          <span className="inline-flex w-fit items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+            {categoryName(listing.category.name, mounted ? lang : "id")}
+          </span>
+        )}
         <div className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
           <MapPin className="size-3.5 shrink-0" />
           <span className="truncate">{listing.city}</span>

@@ -73,7 +73,7 @@ export function AdminView({ initialTab }: { initialTab?: Tab }) {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center">
+      <div className="mx-auto max-w-md px-2 md:px-4 py-20 text-center">
         <Lock className="mx-auto size-12 text-destructive" />
         <h2 className="mt-4 text-xl font-bold">Akses Ditolak</h2>
         <p className="mt-2 text-sm text-muted-foreground">Silakan masuk dengan akun admin.</p>
@@ -84,7 +84,7 @@ export function AdminView({ initialTab }: { initialTab?: Tab }) {
   }
   if (user.role !== "admin") {
     return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center">
+      <div className="mx-auto max-w-md px-2 md:px-4 py-20 text-center">
         <ShieldCheck className="mx-auto size-12 text-destructive" />
         <h2 className="mt-4 text-xl font-bold">Bukan Admin</h2>
         <p className="mt-2 text-sm text-muted-foreground">Akun Anda tidak memiliki akses admin.</p>
@@ -109,7 +109,7 @@ export function AdminView({ initialTab }: { initialTab?: Tab }) {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 animate-fade-up">
+    <div className="mx-auto max-w-6xl px-2 md:px-4 py-4 md:py-6 animate-fade-up">
       {/* breadcrumb */}
       <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
         <button onClick={goHome} className="hover:text-primary">Beranda</button>

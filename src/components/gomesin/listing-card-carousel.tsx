@@ -8,14 +8,14 @@ import type { Listing } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { proxyUrl } from "@/lib/image";
-import { useLang, translations as i18nTranslations } from "@/lib/i18n";
+import { useLang, translations as i18nTranslations, categoryName } from "@/lib/i18n";
 import { useMounted } from "@/lib/use-mounted";
 
 export function ListingCardCarousel({ listing }: { listing: Listing }) {
   const goToDetail = useStore((s) => s.goToDetail);
   const toggleFavorite = useStore((s) => s.toggleFavorite);
   const isFav = useStore((s) => s.favorites.includes(listing.id));
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const mounted = useMounted();
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
 
@@ -180,6 +180,11 @@ export function ListingCardCarousel({ listing }: { listing: Listing }) {
         <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-foreground">
           {listing.title}
         </h3>
+        {listing.category?.name && (
+          <span className="inline-flex w-fit items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+            {categoryName(listing.category.name, mounted ? lang : "id")}
+          </span>
+        )}
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <MapPin className="size-3 shrink-0" />
           <span className="truncate">{listing.city}</span>

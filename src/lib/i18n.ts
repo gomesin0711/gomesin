@@ -298,6 +298,7 @@ export const translations = {
     removedFromFav: "Dihapus dari favorit",
     addFav: "Tambah ke favorit",
     removeFav: "Hapus dari favorit",
+    removeFavConfirm: "Hapus iklan ini dari favorit?",
     // chat widget
     chatGreeting: "Halo! Saya {name}. Iklan \"{title}\" masih tersedia. Ada yang bisa saya bantu?",
     chatOnline: "Online sekarang",
@@ -1067,6 +1068,7 @@ export const translations = {
     removedFromFav: "Removed from favorites",
     addFav: "Add to favorites",
     removeFav: "Remove from favorites",
+    removeFavConfirm: "Remove this ad from favorites?",
     chatGreeting: "Hello! I'm {name}. The ad \"{title}\" is still available. How can I help?",
     chatOnline: "Online now",
     chatAI: "Gomesin AI Assistant",
@@ -1831,6 +1833,7 @@ export const translations = {
     removedFromFav: "已从收藏移除",
     addFav: "添加到收藏",
     removeFav: "从收藏移除",
+    removeFavConfirm: "确定从收藏中移除此广告？",
     // chat widget
     chatGreeting: "您好！我是 {name}。广告「{title}」还有货。有什么可以帮您？",
     chatOnline: "在线中",

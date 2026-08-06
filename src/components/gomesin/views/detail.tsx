@@ -101,7 +101,7 @@ export function DetailView() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-6">
+      <div className="mx-auto max-w-7xl px-2 md:px-4 py-6">
         <div className="mb-4 aspect-[16/9] w-full animate-pulse rounded-xl bg-muted" />
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
           <div className="space-y-4">
@@ -116,7 +116,7 @@ export function DetailView() {
 
   if (isError || !data) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-16 text-center">
+      <div className="mx-auto max-w-7xl px-2 md:px-4 py-16 text-center">
         <p className="text-lg font-semibold">{tr("notFound")}</p>
         <Button className="mt-4" onClick={goBack}>
           <ChevronLeft className="size-4" /> {tr("back")}
@@ -155,7 +155,7 @@ export function DetailView() {
   const specsEntries = Object.entries(listingSpecs(l, mounted ? lang : "id"));
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-4 animate-fade-up">
+    <div className="mx-auto max-w-7xl px-2 md:px-4 py-4 animate-fade-up">
       {/* back button + breadcrumb */}
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
         <button

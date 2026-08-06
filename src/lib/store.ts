@@ -363,6 +363,11 @@ export const useStore = create<NavState>()(
       name: "gomesin-store",
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
+        view: s.view,
+        slug: s.slug,
+        filters: s.filters,
+        profilePanel: s.profilePanel,
+        sellerId: s.sellerId,
         favorites: s.favorites,
         favoritesSeenCount: s.favoritesSeenCount,
         recents: s.recents,

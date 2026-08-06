@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { useLang } from "@/lib/i18n";
 import { translations as i18nTranslations } from "@/lib/i18n";
@@ -56,12 +56,44 @@ export function AppShell() {
     }
   }, []);
 
-  // scroll to top on view change
+  // scroll to top on view change (but not on initial load after refresh)
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window === "undefined") return;
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      // Restore scroll position after refresh
+      const saved = sessionStorage.getItem("gomesin-scroll");
+      if (saved) {
+        const pos = parseInt(saved, 10);
+        if (!isNaN(pos) && pos > 0) {
+          // Use requestAnimationFrame to ensure DOM is rendered
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: pos });
+            sessionStorage.removeItem("gomesin-scroll");
+          });
+          return;
+        }
+      }
+      return;
     }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [view]);
+
+  // Save scroll position before page unload/refresh
+  useEffect(() => {
+    const saveScroll = () => {
+      sessionStorage.setItem("gomesin-scroll", String(window.scrollY));
+    };
+    window.addEventListener("beforeunload", saveScroll);
+    // Also save on visibilitychange (mobile tab switch)
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") saveScroll();
+    });
+    return () => {
+      window.removeEventListener("beforeunload", saveScroll);
+    };
+  }, []);
 
   // Handle browser back button — sync with Zustand store
   useEffect(() => {
@@ -91,7 +123,7 @@ export function AppShell() {
             {/* mobile sidebar toggle */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="sticky top-16 z-20 flex w-full items-center gap-2 border-b border-border bg-card px-4 py-2 text-sm font-medium text-primary md:hidden"
+              className="sticky top-16 z-20 flex w-full items-center gap-2 border-b border-border bg-card px-2 md:px-4 py-2 text-sm font-medium text-primary md:hidden"
             >
               <ShieldCheck className="size-4" />
               {tr("adminMenu")}

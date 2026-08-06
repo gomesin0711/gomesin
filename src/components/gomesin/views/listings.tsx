@@ -268,7 +268,7 @@ export function ListingsView() {
   const total = data?.total ?? 0;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 animate-fade-up">
+    <div className="mx-auto max-w-7xl px-2 md:px-4 py-4 md:py-6 animate-fade-up">
       {/* breadcrumb / title */}
       <div className="mb-4">
         <h1 className="text-xl font-bold sm:text-2xl">

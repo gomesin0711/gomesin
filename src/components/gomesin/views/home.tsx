@@ -356,7 +356,7 @@ export function HomeView() {
       {/* HERO */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-orange-600 text-primary-foreground">
         <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white_1px,transparent_1px)] [background-size:28px_28px]" />
-        <div className="relative mx-auto max-w-7xl px-4 py-12 sm:py-16">
+        <div className="relative mx-auto max-w-7xl px-2 md:px-4 py-8 md:py-16">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur">
               <Sparkles className="size-3.5" /> {tr("badge")}
@@ -417,7 +417,7 @@ export function HomeView() {
       </div>
 
       {/* JELAJAHI KATEGORI — all categories with listing counts */}
-      <section className="mx-auto max-w-7xl px-4 pt-6">
+      <section className="mx-auto max-w-7xl px-2 md:px-4 pt-5 md:pt-6">
         <div className="mb-4 flex items-end justify-between">
           <div className="flex items-center gap-2">
             <LayoutGrid className="size-5 text-primary" />
@@ -452,7 +452,7 @@ export function HomeView() {
       </section>
 
       {/* MAIN CONTENT */}
-      <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
+      <div className="mx-auto max-w-7xl px-2 md:px-4 py-4 md:py-6 space-y-4 md:space-y-6">
           {/* FEATURED — sliding carousel like Terdahsyat */}
           <section>
             <div className="mb-4 flex items-end justify-between">

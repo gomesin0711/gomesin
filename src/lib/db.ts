@@ -1,39 +1,15 @@
-import { PrismaClient } from '@prisma/client'
+/*
+ * Database client — Supabase when configured, otherwise Prisma (SQLite).
+ *
+ * All API routes import { db } from here.
+ */
+import { db as supabaseDb, isDbAvailable as supabaseAvailable } from '@/lib/supabase-db'
+import { db as prismaDb, isDbAvailable as prismaAvailable } from '@/lib/prisma-db'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+const _useSupabase = !!(
+  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
 
-let _db: PrismaClient | null | undefined = undefined
-
-function getDb(): PrismaClient | null {
-  if (_db !== undefined) return _db
-  if (!process.env.DATABASE_URL) {
-    _db = null
-    return null
-  }
-  try {
-    _db = globalForPrisma.prisma ?? new PrismaClient({
-      log: ['error'],
-    })
-    if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = _db
-  } catch {
-    _db = null
-  }
-  return _db
-}
-
-// Lazy proxy — only instantiates PrismaClient on first actual query
-export const db = new Proxy({} as PrismaClient, {
-  get(_target, prop) {
-    const client = getDb()
-    if (!client) throw new Error('Database not available')
-    const value = (client as any)[prop]
-    if (typeof value === 'function') return value.bind(client)
-    return value
-  },
-})
-
-export function isDbAvailable(): boolean {
-  return getDb() !== null
-}
+export const db = _useSupabase ? supabaseDb : prismaDb
+export const isDbAvailable = _useSupabase ? supabaseAvailable : prismaAvailable

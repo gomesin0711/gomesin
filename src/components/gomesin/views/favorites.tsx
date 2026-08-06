@@ -66,31 +66,18 @@ export function FavoritesView() {
   const hasStale = favIds.length > validCount;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 animate-fade-up">
-      <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
-        <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>
-        <ChevronRight className="size-3" />
-        <span className="text-foreground">{tr("favCrumb")}</span>
-      </div>
-
+    <div className="mx-auto max-w-7xl px-2 md:px-4 py-4 md:py-6 animate-fade-up">
       <div className="mb-5 flex items-center gap-2">
-        <Heart className="size-6 fill-rose-500 text-rose-500" />
-        <h1 className="text-2xl font-bold">{tr("favTitle")}</h1>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-secondary px-2.5 py-0.5 text-sm font-semibold text-muted-foreground">{validCount}</span>
-          <div className="flex overflow-hidden rounded-lg border border-border">
-            <button type="button" onClick={() => setViewMode("grid")}
-              className={cn("grid size-8 place-items-center transition", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
-              aria-label="Grid"><LayoutGrid className="size-4" /></button>
-            <button type="button" onClick={() => setViewMode("line")}
-              className={cn("grid size-8 place-items-center border-l border-border transition", viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
-              aria-label="Line"><List className="size-4" /></button>
-          </div>
-          {validCount > 0 && (
-            <Button variant="ghost" size="sm" className="ml-auto gap-1.5 text-destructive hover:bg-destructive/5" onClick={clearAll}>
-              <Trash2 className="size-4" /> {tr("clearAll")}
-            </Button>
-          )}
+        <Heart className="size-5 fill-rose-500 text-rose-500 shrink-0" />
+        <h1 className="text-lg font-bold whitespace-nowrap">{tr("favTitle")}</h1>
+        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-muted-foreground">{validCount}</span>
+        <div className="ml-auto flex overflow-hidden rounded-lg border border-border">
+          <button type="button" onClick={() => setViewMode("grid")}
+            className={cn("grid size-8 place-items-center transition", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+            aria-label="Grid"><LayoutGrid className="size-4" /></button>
+          <button type="button" onClick={() => setViewMode("line")}
+            className={cn("grid size-8 place-items-center border-l border-border transition", viewMode === "line" ? "bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent")}
+            aria-label="Line"><List className="size-4" /></button>
         </div>
       </div>
 
@@ -131,7 +118,7 @@ export function FavoritesView() {
           )}
           {viewMode === "grid" ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {listings.map((l) => <ListingCard key={l.id} listing={l} />)}
+              {listings.map((l) => <ListingCard key={l.id} listing={l} showDelete />)}
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border bg-card">
@@ -145,7 +132,7 @@ export function FavoritesView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {listings.map((l) => <ListingRow key={l.id} listing={l} />)}
+                  {listings.map((l) => <ListingRow key={l.id} listing={l} showDelete />)}
                 </tbody>
               </table>
             </div>

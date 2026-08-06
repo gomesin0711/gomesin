@@ -317,7 +317,7 @@ export function Header() {
       {/* ===== MOBILE (below md) ===== */}
       <div className="md:hidden">
         {/* Row 1: Logo (left) + Favorit & Location (top-right, aligned with logo) */}
-        <div className="flex h-14 items-center gap-1 overflow-hidden px-3">
+        <div className="flex h-14 items-center gap-1 overflow-hidden px-2">
           <Logo />
           <div className="ml-auto flex items-center gap-0.5">
             <Popover open={langOpenMobile} onOpenChange={setLangOpenMobile}>
@@ -377,7 +377,7 @@ export function Header() {
 
         {/* Row 2: Search (below logo, full width) — hidden on Akun Saya (profile) */}
         {currentView !== "profile" && (
-        <div className="px-3 pb-2">
+        <div className="px-2 pb-2">
           <form onSubmit={submitSearch} className="relative">
             <Input
               value={q}

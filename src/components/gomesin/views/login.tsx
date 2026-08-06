@@ -153,7 +153,7 @@ export function LoginView() {
   return (
     <div className="animate-fade-up">
       {/* ===== MOBILE: compact single column ===== */}
-      <div className="flex min-h-[calc(100vh-4rem)] flex-col px-4 py-6 md:hidden">
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col px-2 py-4 md:hidden">
         <button
           onClick={goBack}
           className="mb-4 inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-primary"

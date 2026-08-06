@@ -208,7 +208,7 @@ export function EditAdView() {
 
   if (loadingListing || !listingData?.listing) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-6">
+      <div className="mx-auto max-w-3xl px-2 md:px-4 py-6">
         <div className="space-y-4">
           <div className="h-8 w-48 animate-pulse rounded bg-muted" />
           <div className="h-40 animate-pulse rounded-xl bg-muted" />
@@ -236,7 +236,7 @@ export function EditAdView() {
   const l = listingData.listing;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 animate-fade-up">
+    <div className="mx-auto max-w-5xl px-2 md:px-4 py-5 md:py-6 animate-fade-up">
       {/* breadcrumb */}
       <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
         <button onClick={goHome} className="hover:text-primary">{tr("home2")}</button>

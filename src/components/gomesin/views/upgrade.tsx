@@ -43,7 +43,7 @@ export function UpgradeView() {
 
   if (isError || !listing) {
     return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center">
+      <div className="mx-auto max-w-md px-2 md:px-4 py-20 text-center">
         <p className="text-sm text-muted-foreground">Iklan tidak ditemukan.</p>
         <Button className="mt-4" onClick={goToDashboard}>Kembali ke Dashboard</Button>
       </div>
