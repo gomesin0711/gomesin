@@ -525,9 +525,12 @@ function createDelegate(model: string) {
       if (!raw.id) {
         raw.id = randomUUID().replace(/-/g, '').slice(0, 25)
       }
-      // Generate createdAt if missing
-      if (!raw.createdAt) {
-        raw.createdAt = new Date().toISOString()
+      // Generate timestamp defaults only for columns the table actually has
+      const dateCols = DATE_COLS[table] ?? []
+      for (const col of dateCols) {
+        if (!raw[col] && (col.includes('created') || col.includes('joined'))) {
+          raw[col] = new Date().toISOString()
+        }
       }
       const insertData = prepInsertData(raw, table)
       const sel = buildSelectString(model, { select, include })
