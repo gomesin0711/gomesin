@@ -136,6 +136,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Judul wajib diisi untuk menyimpan dulu." }, { status: 400 });
     }
 
+    // Ensure required fields have defaults for draft mode / Supabase NOT NULL columns
+    const safeCity = city || "Jakarta";
+    const safeProvince = province || "DKI Jakarta";
+    const safeDescription = description || "";
+    const safePrice = price || "0";
+
     // Fetch the actual user from DB to get their latest name + phone
     // (more reliable than client-sent values which may be stale).
     let dbUser = null;
@@ -163,8 +169,8 @@ export async function POST(req: NextRequest) {
         data: {
           name: finalName,
           phone: finalPhone,
-          city: city,
-          province: province,
+          city: safeCity,
+          province: safeProvince,
           verified: false,
           rating: 5.0,
           reviewCount: 0,
@@ -193,6 +199,10 @@ export async function POST(req: NextRequest) {
       const firstCat = await db.category.findFirst({ orderBy: { sortOrder: "asc" } });
       finalCategoryId = firstCat?.id;
     }
+    // If still no category (DB empty), use a placeholder — won't break the insert.
+    if (!finalCategoryId) {
+      finalCategoryId = "__no_category__";
+    }
 
     // If payment method provided, mark as pending. Otherwise pending.
     const isPaid = !!paymentMethod;
@@ -208,14 +218,14 @@ export async function POST(req: NextRequest) {
       data: {
         title,
         slug,
-        description,
-        price: BigInt(Math.floor(Number(price) || 0)),
+        description: safeDescription,
+        price: BigInt(Math.floor(Number(safePrice) || 0)),
         priceType: priceType || "fixed",
         condition: condition || "bekas",
         brand: brand || null,
         yearProduced: yearProduced ? parseInt(yearProduced, 10) : null,
-        city,
-        province,
+        city: safeCity,
+        province: safeProvince,
         images: JSON.stringify(localImages),
         specs: JSON.stringify(specs || {}),
         packageType: pkgKey,

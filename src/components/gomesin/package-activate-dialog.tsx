@@ -13,6 +13,7 @@ import { useLang, translations as i18nTranslations, listingTitle } from "@/lib/i
 import { useMounted } from "@/lib/use-mounted";
 import { compressImage } from "@/lib/image";
 import { shareImageToWhatsApp } from "@/lib/share-image";
+import { useChatSocket } from "@/lib/use-chat-socket";
 import { useStore } from "@/lib/store";
 
 type PackageKey = "simpan" | "colek" | "sundul" | "highlight" | "spotlight";
@@ -106,6 +107,7 @@ export function PackageActivateDialog({
   const tr = mounted ? t : (key: any) => (i18nTranslations.id as any)[key] ?? key;
   const queryClient = useQueryClient();
   const user = useStore((s) => s.user);
+  const { sendMessage } = useChatSocket();
 
   // Fetch paket pricing from DB (admin can edit)
   const { data: paketData } = useQuery({
@@ -210,6 +212,63 @@ export function PackageActivateDialog({
   const qrisAmount = selectedPkg.price > 0 && uniqueCode !== null
     ? selectedPkg.price + uniqueCode
     : selectedPkg.price;
+
+  // Kirim bukti pembayaran ke chat admin (in-app) via socket.
+  const sendProofToChat = async (proofImageBase64: string, methodLabel: string) => {
+    if (!user?.id) return;
+    try {
+      const adminRes = await fetch("/api/admin/info");
+      if (!adminRes.ok) return;
+      const { admin } = await adminRes.json() as { admin: { id: string; name: string } };
+      const chatCaption =
+        `*Bukti Pembayaran Upgrade Iklan Gomesin*\n\n` +
+        `Paket: ${selectedPkg.name}\n` +
+        `Jumlah: ${formatRupiahFull(qrisAmount)}\n` +
+        `Metode: ${methodLabel}\n` +
+        `Judul Iklan: ${listingTitle(listing, mounted ? lang : "id")}\n` +
+        `User: ${user.name || "-"} (${user.email || "-"})\n\n` +
+        `Bukti pembayaran terlampir. Mohon diverifikasi.`;
+
+      // Upload proof image to external host first
+      let proofUrl: string | null = null;
+      try {
+        const upRes = await fetch("/api/upload-proof", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: proofImageBase64 }),
+        });
+        if (upRes.ok) {
+          const upData = await upRes.json();
+          proofUrl = upData.url || null;
+        }
+      } catch { /* non-fatal */ }
+
+      const ack = await sendMessage({
+        senderId: user.id,
+        receiverId: admin.id,
+        content: chatCaption,
+        image: proofUrl || proofImageBase64,
+        listingTitle: `Bukti Pembayaran — ${listingTitle(listing, mounted ? lang : "id")}`,
+      });
+
+      if (!ack?.ok) {
+        // Fallback ke REST POST /api/messages.
+        await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            senderId: user.id,
+            receiverId: admin.id,
+            content: chatCaption,
+            image: proofUrl || proofImageBase64,
+            listingTitle: `Bukti Pembayaran — ${listingTitle(listing, mounted ? lang : "id")}`,
+          }),
+        });
+      }
+    } catch (chatErr) {
+      console.error("Gagal kirim bukti ke chat admin:", chatErr);
+    }
+  };
 
   const handleSubmit = async () => {
     if (needsPayment && !paymentMethod) {
@@ -616,6 +675,9 @@ export function PackageActivateDialog({
                         if (result.status === "shared") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
                         else if (result.status === "opened") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
+
+                        // Kirim bukti juga ke chat admin (in-app)
+                        sendProofToChat(proofImage, "QRIS").catch(() => {});
                       } catch {
                         toast.error("Gagal mengirim bukti");
                       } finally {
@@ -787,6 +849,9 @@ export function PackageActivateDialog({
                         if (result.status === "shared") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
                         else if (result.status === "opened") toast.success(`Paket ${selectedPkg.name} berhasil dibayar, mohon ditunggu verifikasi, Makasih!`);
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
+
+                        // Kirim bukti juga ke chat admin (in-app)
+                        sendProofToChat(proofImage, "Transfer BCA").catch(() => {});
                       } catch { toast.error("Gagal mengirim bukti"); }
                       finally { setUploadingProof(false); }
                       setTimeout(async () => { await doSubmit(); setBcaModal(false); setProofImage(""); }, 500);

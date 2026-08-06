@@ -218,7 +218,7 @@ export function ProfileView() {
       return res.json();
     },
     enabled: !!user?.id,
-    staleTime: Infinity, // Socket invalidates on new message / read receipt.
+    staleTime: 30_000, // 30s — refetch on mount after navigating away.
   });
   const conversations: any[] = messagesData?.conversations ?? [];
   const unreadCount = conversations.reduce((a: number, c: any) => a + (c.unread || 0), 0);
@@ -439,8 +439,9 @@ export function ProfileView() {
       // Find the conversation this message belongs to (by partnerId + listingTitle).
       const isMine = msg.senderId === user.id;
       const partnerId = isMine ? msg.receiverId : msg.senderId;
+      // Match by partnerId only (API groups all messages to/from same partner in one conversation).
       const conv = conversations.find(
-        (c: any) => c.partnerId === partnerId && (c.listingTitle || null) === (msg.listingTitle || null)
+        (c: any) => c.partnerId === partnerId
       );
       // Refresh conversation list so last message preview + unread count update.
       queryClient.invalidateQueries({ queryKey: ["messages"] });
