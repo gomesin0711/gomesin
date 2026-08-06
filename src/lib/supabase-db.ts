@@ -16,6 +16,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { randomUUID } from 'crypto'
 
 // ─── Supabase Client ────────────────────────────────────────────────────────
 
@@ -520,6 +521,14 @@ function createDelegate(model: string) {
     async create(args: { data: Record<string, any>; include?: any; select?: any }) {
       const client = getClient()
       const { data: raw, select, include } = args
+      // Generate id if missing (Supabase tables may lack Prisma's @default(cuid()))
+      if (!raw.id) {
+        raw.id = randomUUID().replace(/-/g, '').slice(0, 25)
+      }
+      // Generate createdAt if missing
+      if (!raw.createdAt) {
+        raw.createdAt = new Date().toISOString()
+      }
       const insertData = prepInsertData(raw, table)
       const sel = buildSelectString(model, { select, include })
 
