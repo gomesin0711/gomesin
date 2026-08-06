@@ -1,25 +1,23 @@
 "use client";
 
 /**
- * useChatSocket — singleton socket.io manager for realtime chat.
+ * useChatSocket — real-time chat manager.
  *
- * Connects to the chat-service mini-service on port 3003 via the gateway
- * (path "/", XTransformPort=3003 query param). Caddy forwards based on the
- * query param.
+ * TWO TRANSPORTS:
+ *   1. Supabase Realtime (production / when NEXT_PUBLIC_SUPABASE_URL is set)
+ *      → listens to postgres_changes on the Message table.
+ *      → sending via REST POST /api/messages.
+ *   2. Socket.IO (local dev — when no Supabase URL)
+ *      → connects to chat-service mini-service on port 3003.
  *
- * Exposes:
- *   - useChatSocket(): returns the singleton socket + connection status.
- *   - emit helpers: sendMessage, markRead, startTyping, stopTyping.
- *   - subscribe(event, cb): register a listener; auto-cleanup on unmount.
- *
- * The socket is created lazily on first use and authenticated via
- * `user:join` with the current user id (read from the zustand store).
- * When the user changes (login/logout), we re-join.
+ * The hook interface is IDENTICAL regardless of transport.
+ * Components don't need to know which transport is active.
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { io, type Socket } from "socket.io-client";
 import { useStore } from "@/lib/store";
+import { createClient } from "@supabase/supabase-js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
 // Types — mirror the chat-service protocol
@@ -56,20 +54,108 @@ type MessageSendPayload = {
 };
 
 // ---------------------------------------------------------------------------
-// Singleton socket — one per browser tab
+// Detect transport mode
 // ---------------------------------------------------------------------------
-let socketRef: Socket | null = null;
-let joinedUserId: string | null = null;
+const SUPABASE_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_SUPABASE_URL || "") : "";
+const SUPABASE_KEY = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "") : "";
+const USE_SUPABASE_RT = !!(SUPABASE_URL && SUPABASE_KEY);
+
+// ---------------------------------------------------------------------------
+// Listener registry (shared across transports)
+// ---------------------------------------------------------------------------
 const listeners: Record<string, Set<(payload: any) => void>> = {};
 
-function getSocket(): Socket {
+function dispatch(event: string, payload: any) {
+  const set = listeners[event];
+  if (set) set.forEach((cb) => cb(payload));
+}
+
+// ---------------------------------------------------------------------------
+// Supabase Realtime transport
+// ---------------------------------------------------------------------------
+let supabaseClient: ReturnType<typeof createClient> | null = null;
+let realtimeChannel: RealtimeChannel | null = null;
+let realtimeJoined = false;
+
+function getSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+  supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+  return supabaseClient;
+}
+
+function subscribeSupabaseRealtime(userId: string) {
+  if (realtimeJoined) return;
+  const client = getSupabaseClient();
+
+  realtimeChannel = client
+    .channel("chat-realtime")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "Message",
+      },
+      (payload) => {
+        const newMsg = payload.new as any;
+        if (!newMsg) return;
+        // Only dispatch if the message involves our user
+        if (newMsg.senderId !== userId && newMsg.receiverId !== userId) return;
+
+        const isMine = newMsg.senderId === userId;
+        const chatMsg: ChatMessage = {
+          id: newMsg.id,
+          senderId: newMsg.senderId,
+          receiverId: newMsg.receiverId,
+          content: newMsg.content || "",
+          image: newMsg.image || null,
+          listingId: newMsg.listingId || null,
+          listingTitle: newMsg.listingTitle || null,
+          createdAt: typeof newMsg.createdAt === "string" ? newMsg.createdAt : new Date(newMsg.createdAt).toISOString(),
+          sent: isMine,
+          read: newMsg.read || false,
+        };
+        dispatch("message:new", chatMsg);
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "Message",
+        filter: `receiverId=eq.${userId}`,
+      },
+      (payload) => {
+        const updated = payload.new as any;
+        if (updated?.read === true) {
+          dispatch("message:read-update", { partnerId: updated.senderId });
+        }
+      }
+    )
+    .subscribe();
+
+  realtimeJoined = true;
+}
+
+function unsubscribeSupabaseRealtime() {
+  if (realtimeChannel) {
+    getSupabaseClient().removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+  realtimeJoined = false;
+}
+
+// ---------------------------------------------------------------------------
+// Socket.IO transport (local dev only)
+// ---------------------------------------------------------------------------
+let socketRef: any = null;
+let socketJoinedUserId: string | null = null;
+
+async function getSocketIO(): Promise<any> {
   if (socketRef) return socketRef;
 
-  // Deteksi environment:
-  // - DEV langsung (localhost:3000): gateway Caddy TIDAK ada di port 3000,
-  //   jadi XTransformPort tidak berfungsi → connect LANGSUNG ke localhost:3003.
-  // - PROD / preview via gateway (port 81 / domain): pakai relative path
-  //   "/?XTransformPort=3003" agar Caddy forward ke chat-service port 3003.
+  const { io } = await import("socket.io-client");
   const loc = typeof window !== "undefined" ? window.location : null;
   const isDevDirect =
     loc &&
@@ -86,26 +172,19 @@ function getSocket(): Socket {
     timeout: 10000,
   };
   if (!isDevDirect) {
-    // Via gateway Caddy — XTransformPort di query supaya di-forward ke 3003.
     socketOpts.query = { XTransformPort: "3003" };
   }
 
   const socket = io(socketUrl, socketOpts);
 
-  // Wire internal dispatchers — fan out to all registered listeners.
-  const dispatch = (event: string, payload: any) => {
-    const set = listeners[event];
-    if (set) set.forEach((cb) => cb(payload));
-  };
-
+  // Wire internal dispatchers
   socket.on("message:new", (p: ChatMessage) => dispatch("message:new", p));
   socket.on("message:read-update", (p: ReadUpdate) => dispatch("message:read-update", p));
   socket.on("typing:update", (p: TypingUpdate) => dispatch("typing:update", p));
 
   socket.on("connect", () => {
-    // Re-join after reconnect if we have a user.
-    if (joinedUserId) {
-      socket.emit("user:join", { userId: joinedUserId });
+    if (socketJoinedUserId) {
+      socket.emit("user:join", { userId: socketJoinedUserId });
     }
   });
 
@@ -120,39 +199,50 @@ export function useChatSocket() {
   const user = useStore((s) => s.user);
   const [connected, setConnected] = useState(false);
   const subscriptionsRef = useRef<Array<() => void>>([]);
+  const hasSubscribedRef = useRef(false);
 
-  // Lazily create the socket once.
-  const socket = typeof window !== "undefined" ? getSocket() : null;
-
-  // Track connection status.
+  // ------- Supabase Realtime transport -------
   useEffect(() => {
-    if (!socket) return;
-    const onConn = () => {
-      // Defer to avoid synchronous setState inside event handler.
-      Promise.resolve().then(() => setConnected(true));
-    };
-    const onDisc = () => {
-      Promise.resolve().then(() => setConnected(false));
-    };
-    socket.on("connect", onConn);
-    socket.on("disconnect", onDisc);
-    if (socket.connected) Promise.resolve().then(() => setConnected(true));
-    return () => {
-      socket.off("connect", onConn);
-      socket.off("disconnect", onDisc);
-    };
-  }, [socket]);
-
-  // Join the user's room whenever the logged-in user changes.
+    if (!USE_SUPABASE_RT || !user?.id) return;
+    subscribeSupabaseRealtime(user.id);
+    if (!hasSubscribedRef.current) {
+      hasSubscribedRef.current = true;
+      // Defer setState out of the synchronous effect body
+      const id = setTimeout(() => setConnected(true), 0);
+      return () => clearTimeout(id);
+    }
+  }, [user?.id]);
+  // ------- Socket.IO transport (local dev) -------
   useEffect(() => {
-    if (!socket || !user?.id) return;
-    joinedUserId = user.id;
-    socket.emit("user:join", { userId: user.id });
+    if (USE_SUPABASE_RT) return; // Skip if Supabase is active
+
+    let socket: any = null;
+    let mounted = true;
+
+    (async () => {
+      socket = await getSocketIO();
+      if (!mounted) return;
+
+      const onConn = () => Promise.resolve().then(() => setConnected(true));
+      const onDisc = () => Promise.resolve().then(() => setConnected(false));
+      socket.on("connect", onConn);
+      socket.on("disconnect", onDisc);
+      if (socket.connected) Promise.resolve().then(() => setConnected(true));
+
+      if (user?.id) {
+        socketJoinedUserId = user.id;
+        socket.emit("user:join", { userId: user.id });
+      }
+    })();
+
     return () => {
-      // On logout, we keep the socket alive but leave the user room.
-      // (Socket.io rooms auto-cleanup on disconnect.)
+      mounted = false;
+      if (socket) {
+        socket.off("connect");
+        socket.off("disconnect");
+      }
     };
-  }, [socket, user?.id]);
+  }, [USE_SUPABASE_RT, user?.id]);
 
   // Cleanup all subscriptions on unmount.
   useEffect(() => {
@@ -163,43 +253,103 @@ export function useChatSocket() {
   }, []);
 
   // -----------------------------------------------------------------------
-  // emit helpers
+  // sendMessage — ALWAYS uses REST (works for both transports)
   // -----------------------------------------------------------------------
   const sendMessage = useCallback(
-    (payload: MessageSendPayload): Promise<{ ok: boolean; message?: ChatMessage; error?: string }> => {
-      return new Promise((resolve) => {
-        if (!socket || !socket.connected) {
-          resolve({ ok: false, error: "Socket not connected" });
-          return;
+    async (payload: MessageSendPayload): Promise<{ ok: boolean; message?: ChatMessage; error?: string }> => {
+      // Supabase Realtime: always use REST (the realtime channel handles delivery)
+      if (USE_SUPABASE_RT) {
+        try {
+          const res = await fetch("/api/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (res.ok && data.ok) {
+            return { ok: true, message: data.message };
+          }
+          return { ok: false, error: data.error || "REST POST failed" };
+        } catch (e: any) {
+          return { ok: false, error: e.message };
         }
-        socket.emit("message:send", payload, (ack: any) => resolve(ack || { ok: false, error: "No ack" }));
-      });
+      }
+
+      // Socket.IO transport: try socket first, fallback to REST
+      const socket = socketRef;
+      if (socket?.connected) {
+        return new Promise((resolve) => {
+          socket.emit("message:send", payload, (ack: any) =>
+            resolve(ack || { ok: false, error: "No ack" })
+          );
+        });
+      }
+
+      // Fallback to REST
+      try {
+        const res = await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          return { ok: true, message: data.message };
+        }
+        return { ok: false, error: data.error || "REST POST failed" };
+      } catch (e: any) {
+        return { ok: false, error: e.message };
+      }
     },
-    [socket]
+    []
   );
 
+  // -----------------------------------------------------------------------
+  // markRead — REST PATCH (works for both transports)
+  // -----------------------------------------------------------------------
   const markRead = useCallback(
-    (userId: string, partnerId: string) => {
-      if (!socket || !socket.connected) return;
-      socket.emit("message:read", { userId, partnerId });
+    async (userId: string, partnerId: string) => {
+      if (USE_SUPABASE_RT) {
+        // REST-based read — Supabase Realtime will broadcast the UPDATE
+        fetch("/api/messages", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, partnerId }),
+        }).catch(() => {});
+        return;
+      }
+      // Socket.IO
+      const socket = socketRef;
+      if (socket?.connected) {
+        socket.emit("message:read", { userId, partnerId });
+      }
     },
-    [socket]
+    []
   );
 
+  // -----------------------------------------------------------------------
+  // typing — Socket.IO only (not critical for production)
+  // -----------------------------------------------------------------------
   const startTyping = useCallback(
     (senderId: string, receiverId: string) => {
-      if (!socket || !socket.connected) return;
-      socket.emit("typing:start", { senderId, receiverId });
+      if (USE_SUPABASE_RT) return; // Not supported via Supabase Realtime
+      const socket = socketRef;
+      if (socket?.connected) {
+        socket.emit("typing:start", { senderId, receiverId });
+      }
     },
-    [socket]
+    []
   );
 
   const stopTyping = useCallback(
     (senderId: string, receiverId: string) => {
-      if (!socket || !socket.connected) return;
-      socket.emit("typing:stop", { senderId, receiverId });
+      if (USE_SUPABASE_RT) return;
+      const socket = socketRef;
+      if (socket?.connected) {
+        socket.emit("typing:stop", { senderId, receiverId });
+      }
     },
-    [socket]
+    []
   );
 
   // -----------------------------------------------------------------------
@@ -219,7 +369,7 @@ export function useChatSocket() {
   );
 
   return {
-    socket,
+    socket: USE_SUPABASE_RT ? null : socketRef,
     connected,
     sendMessage,
     markRead,
