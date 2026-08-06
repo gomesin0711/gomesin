@@ -1,23 +1,27 @@
 /**
- * Prisma-based database client — fallback when Supabase isn't configured.
- *
- * Provides the same model-based interface as supabase-db.ts
- * so all API routes work identically.
+ * Prisma/SQLite fallback — used when Supabase is not configured.
  */
 import { PrismaClient } from '@prisma/client'
 
-const _prisma = new PrismaClient()
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+
+const prisma = globalForPrisma.prisma || new PrismaClient()
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 export const db: Record<string, any> = {
-  listing: _prisma.listing,
-  category: _prisma.category,
-  seller:   _prisma.seller,
-  user:     _prisma.user,
-  message:  _prisma.message,
-  paket:    _prisma.paket,
-  favorite: _prisma.favorite,
+  listing: prisma.listing,
+  user: prisma.user,
+  message: prisma.message,
+  seller: prisma.seller,
+  category: prisma.category,
+  paket: prisma.paket,
 }
 
-export function isDbAvailable(): boolean {
-  return true
+export const isDbAvailable = async () => {
+  try {
+    await prisma.$queryRaw`SELECT 1`
+    return true
+  } catch {
+    return false
+  }
 }

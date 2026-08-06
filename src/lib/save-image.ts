@@ -1,12 +1,26 @@
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, access } from "fs/promises";
 import { join } from "path";
 import { randomUUID } from "crypto";
 
 const IMAGE_DIR = join(process.cwd(), "public", "listing-images");
 
-// Ensure directory exists
-async function ensureDir() {
-  await mkdir(IMAGE_DIR, { recursive: true });
+// Detect if filesystem is writable (Vercel serverless is read-only except /tmp)
+let _fsWritable: boolean | null = null;
+async function isFsWritable() {
+  if (_fsWritable !== null) return _fsWritable;
+  try {
+    await access(IMAGE_DIR);
+    await mkdir(IMAGE_DIR, { recursive: true });
+    // Try a write test
+    const testFile = join(IMAGE_DIR, `.write-test-${Date.now()}`);
+    await writeFile(testFile, "test");
+    const { unlink } = await import("fs/promises");
+    await unlink(testFile);
+    _fsWritable = true;
+  } catch {
+    _fsWritable = false;
+  }
+  return _fsWritable;
 }
 
 /**
@@ -14,6 +28,7 @@ async function ensureDir() {
  * Returns the public path like "/listing-images/abc123.jpg".
  * If the input is already a local path (starts with "/"), returns it as-is.
  * If the input is an external URL, downloads and saves locally.
+ * On read-only filesystems (Vercel), keeps the original input (base64 or URL).
  */
 export async function saveImageToLocal(input: string): Promise<string> {
   if (!input) return "";
@@ -23,13 +38,16 @@ export async function saveImageToLocal(input: string): Promise<string> {
     return input;
   }
 
+  const writable = await isFsWritable();
+
   // Base64 data URL: "data:image/jpeg;base64,/9j/4AAQ..."
   if (input.startsWith("data:")) {
-    await ensureDir();
+    if (!writable) return input; // Vercel: keep base64 as-is
+    await mkdir(IMAGE_DIR, { recursive: true });
     const match = input.match(/^data:(image\/\w+);base64,(.+)$/);
-    if (!match) return input; // fallback: return as-is if can't parse
+    if (!match) return input;
 
-    const mime = match[1]; // e.g. "image/jpeg"
+    const mime = match[1];
     const base64 = match[2];
     const ext = mimeToExt(mime);
     const filename = `${randomUUID().slice(0, 12)}.${ext}`;
@@ -41,30 +59,9 @@ export async function saveImageToLocal(input: string): Promise<string> {
     return `/listing-images/${filename}`;
   }
 
-  // External URL (https://...): download and save
+  // External URL (https://...): keep as-is (already hosted)
   if (input.startsWith("https://") || input.startsWith("http://")) {
-    await ensureDir();
-    try {
-      const res = await fetch(input, {
-        headers: { "User-Agent": "GomesinBot/1.0", Accept: "image/*" },
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) return input; // fallback: keep external URL
-
-      const contentType = res.headers.get("content-type") || "image/jpeg";
-      const ext = mimeToExt(contentType);
-      const filename = `${randomUUID().slice(0, 12)}.${ext}`;
-      const filepath = join(IMAGE_DIR, filename);
-
-      const arrayBuffer = await res.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      await writeFile(filepath, buffer);
-
-      return `/listing-images/${filename}`;
-    } catch {
-      // If download fails, return a placeholder to avoid broken images
-      return "/listing-images/placeholder.jpg";
-    }
+    return input;
   }
 
   // Unknown format — return as-is
@@ -84,5 +81,5 @@ function mimeToExt(mime: string): string {
   if (mime.includes("png")) return "png";
   if (mime.includes("webp")) return "webp";
   if (mime.includes("gif")) return "gif";
-  return "jpg"; // default to jpg
+  return "jpg";
 }

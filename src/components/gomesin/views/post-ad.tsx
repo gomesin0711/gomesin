@@ -239,7 +239,7 @@ export function PostAdView() {
         const codeRes = await fetch("/api/listings/unique-code", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user?.id, packageType: selectedPackage }),
+          body: JSON.stringify({}),
         });
         if (codeRes.ok) {
           const codeData = await codeRes.json();
@@ -976,7 +976,7 @@ export function PostAdView() {
                         else if (result.status === "cancelled") { setUploadingProof(false); return; }
 
                         // 2) Kirim bukti pembayaran + gambar ke CHAT ADMIN (in-app) via socket.
-                        //    Jika user belum login atau admin tidak ditemukan, lewati (non-fatal).
+                        //    Upload gambar dulu ke external host agar tidak kirim base64 besar.
                         if (user?.id) {
                           try {
                             const adminRes = await fetch("/api/admin/info");
@@ -992,16 +992,30 @@ export function PostAdView() {
                                 `User: ${user.name || "-"} (${user.email || "-"})\n\n` +
                                 `Bukti pembayaran terlampir. Mohon diverifikasi agar iklan segera aktif.`;
 
+                              // Upload proof image to external host first
+                              let proofUrl: string | null = null;
+                              try {
+                                const upRes = await fetch("/api/upload-proof", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ image: proofImage }),
+                                });
+                                if (upRes.ok) {
+                                  const upData = await upRes.json();
+                                  proofUrl = upData.url || null;
+                                }
+                              } catch { /* non-fatal */ }
+
                               const ack = await sendMessage({
                                 senderId: user.id,
                                 receiverId: admin.id,
                                 content: chatCaption,
-                                image: proofImage, // base64 data URL — gambar bukti
+                                image: proofUrl || proofImage, // URL jika berhasil upload, fallback base64
                                 listingTitle: `Bukti Pembayaran — ${title}`,
                               });
 
                               if (!ack?.ok) {
-                                // Fallback ke REST POST /api/messages (tetap tersimpan di DB).
+                                // Fallback ke REST POST /api/messages.
                                 await fetch("/api/messages", {
                                   method: "POST",
                                   headers: { "Content-Type": "application/json" },
@@ -1009,7 +1023,7 @@ export function PostAdView() {
                                     senderId: user.id,
                                     receiverId: admin.id,
                                     content: chatCaption,
-                                    image: proofImage,
+                                    image: proofUrl || proofImage,
                                     listingTitle: `Bukti Pembayaran — ${title}`,
                                   }),
                                 });

@@ -1312,52 +1312,26 @@ export function ProfileView() {
                               backgroundSize: "20px 20px",
                             }}
                           >
-                            {/* Listing as a chat bubble (left-aligned, from partner) */}
-                            {conv.listingTitle && (
-                              <div className="flex justify-start">
-                                <div className="max-w-[75%] overflow-hidden rounded-lg rounded-tl-sm bg-white shadow-sm">
-                                  {conv.listingImage ? (
-                                    <img src={conv.listingImage} alt={conv.listingTitle} className="max-h-44 w-full object-cover" />
-                                  ) : (
-                                    <div className="flex h-20 items-center justify-center bg-muted text-muted-foreground">
-                                      <Tag className="size-6" />
-                                    </div>
-                                  )}
-                                  <div className="p-2">
-                                    <p className="truncate text-xs font-semibold text-foreground">{conv.listingTitle}</p>
-                                    {conv.listingPrice != null && (
-                                      <p className="text-xs font-bold text-[#075E54]">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                             {/* Chat messages */}
                             {convo.map((c, i) => {
-                              // Date separator: show when day changes between messages
+                              // Detect emoji-only messages (render big, WhatsApp-style)
+                              const isEmojiOnly = !!c.content && c.content.trim().length > 0 && /^[\s\p{Extended_Pictographic}\u200d\ufe0f]+$/u.test(c.content.trim()) && c.content.trim().length <= 12;
                               const msgDate = c.createdAt ? new Date(c.createdAt) : new Date();
                               const prevDate = i > 0 && convo[i - 1].createdAt ? new Date(convo[i - 1].createdAt!) : null;
                               const showDateSep = !prevDate || msgDate.toDateString() !== prevDate.toDateString();
                               const dateLabel = (() => {
                                 const now = new Date();
                                 const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+                                const yesterday = new Date(today);
+                                yesterday.setDate(yesterday.getDate() - 1);
                                 const msgDay = new Date(msgDate.getFullYear(), msgDate.getMonth(), msgDate.getDate());
                                 if (msgDay.getTime() === today.getTime()) return tr("chatToday");
                                 if (msgDay.getTime() === yesterday.getTime()) return tr("chatYesterday");
                                 return msgDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
                               })();
                               const msgTime = msgDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-                              // Detect emoji-only messages (render big, WhatsApp-style)
-                              const isEmojiOnly = !!c.content && c.content.trim().length > 0 && /^[\s\p{Extended_Pictographic}\u200d\ufe0f]+$/u.test(c.content.trim()) && c.content.trim().length <= 12;
                               return (
-                              <div key={i}>
-                                {showDateSep && (
-                                  <div className="flex justify-center py-1.5">
-                                    <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">{dateLabel}</span>
-                                  </div>
-                                )}
-                              <div className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                              <div key={i}>{showDateSep && (<div className="flex justify-center py-1.5"><span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">{dateLabel}</span></div>)}<div className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
                                 <div
                                   onContextMenu={(e) => { e.preventDefault(); setMsgMenu({ visible: true, x: e.clientX, y: e.clientY, msgIndex: i }); }}
                                   onTouchStart={(e) => handleMsgLongPressStart(e, i)}
@@ -1407,8 +1381,7 @@ export function ProfileView() {
                                     {c.role === "user" && <span className="ml-1 text-blue-500">✓✓</span>}
                                   </span>
                                 </div>
-                              </div>
-                              </div>
+                              </div></div>
                               );
                             })}
                             {chatSending && (

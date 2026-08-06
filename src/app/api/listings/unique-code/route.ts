@@ -1,46 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db } from "lib/db";
 
 // POST /api/listings/unique-code
-// Generate a unique 3-digit payment code that changes on every call.
-// Uniqueness: must not collide with uniqueCode of any UNPAID listing.
-// Code is NOT stored — it's ephemeral, regenerated each time.
-//
-// Body: { userId: string, packageType: string }
-// Returns: { uniqueCode: number }
+// Generate an EPHEMERAL 3-digit payment code (1-999).
+// - Changes every time (not stored in DB).
+// - Checked only against unpaid listings to avoid duplicates.
+// - If all 999 are used by unpaid listings, wraps around.
 export async function POST(req: NextRequest) {
   try {
-    const { userId, packageType } = await req.json();
+    const body = await req.json();
+    // Body not required — code is ephemeral
 
-    if (!userId || !packageType) {
-      return NextResponse.json({ error: "userId dan packageType wajib" }, { status: 400 });
-    }
-
-    // Collect all uniqueCodes from listings that are still unpaid (active payments)
+    // Fetch all unique codes from UNPAID listings only.
     const unpaidListings = await db.listing.findMany({
-      where: {
-        paymentStatus: "unpaid",
-        uniqueCode: { not: null },
-      },
+      where: { paymentStatus: "unpaid", uniqueCode: { not: null } },
       select: { uniqueCode: true },
     });
     const usedSet = new Set(unpaidListings.map((l: any) => l.uniqueCode));
 
-    // Generate a random 3-digit code (1-999) that's not in usedSet
+    // Build available list and pick random
     const available: number[] = [];
     for (let i = 1; i <= 999; i++) {
       if (!usedSet.has(i)) available.push(i);
     }
-
-    if (available.length === 0) {
-      return NextResponse.json({ error: "Semua kode unik terpakai" }, { status: 500 });
-    }
-
-    const code = available[Math.floor(Math.random() * available.length)];
+    const code = available.length > 0
+      ? available[Math.floor(Math.random() * available.length)]
+      : Math.floor(Math.random() * 999) + 1;
 
     return NextResponse.json({ uniqueCode: code });
   } catch (e: any) {
     console.error("unique-code API error:", e);
-    return NextResponse.json({ error: "Gagal generate kode unik" }, { status: 500 });
+    // Fallback: random 3-digit code
+    const fallback = Math.floor(Math.random() * 999) + 1;
+    return NextResponse.json({ uniqueCode: fallback });
   }
 }
