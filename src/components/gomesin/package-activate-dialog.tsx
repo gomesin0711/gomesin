@@ -185,19 +185,21 @@ export function PackageActivateDialog({
 
   // Button label: selalu "Upgrade" (dialog hanya dibuka untuk iklan aktif).
   const buttonLabel = "Upgrade";
-  // Kode unik: fetch dari API (stored in DB, unik per user, tidak berubah).
+  // Kode unik: fetch dari API (ephemeral, berubah tiap buka dialog/refresh).
   const [uniqueCode, setUniqueCode] = useState<number | null>(null);
   const currentUserId = useStore((s) => s.user?.id);
+  const view = useStore((s) => s.view);
 
+  // Generate kode unik baru setiap: dialog buka, ganti paket, pindah halaman
   useEffect(() => {
-    if (!open || !listing.id || selectedPkg.price <= 0 || !currentUserId) return;
+    if (!open || selectedPkg.price <= 0 || !currentUserId) return;
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/listings/unique-code", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ listingId: listing.id, userId: currentUserId, packageType: selectedPackage }),
+          body: JSON.stringify({ userId: currentUserId, packageType: selectedPackage }),
         });
         if (res.ok && !cancelled) {
           const data = await res.json();
@@ -206,7 +208,7 @@ export function PackageActivateDialog({
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
-  }, [open, listing.id, currentUserId, selectedPackage, selectedPkg.price]);
+  }, [open, view, currentUserId, selectedPackage, selectedPkg.price]);
 
   const qrisAmount = selectedPkg.price > 0 && uniqueCode !== null
     ? selectedPkg.price + uniqueCode

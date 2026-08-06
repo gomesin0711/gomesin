@@ -223,7 +223,7 @@ export function ProfileView() {
   const conversations: any[] = messagesData?.conversations ?? [];
   const unreadCount = conversations.reduce((a: number, c: any) => a + (c.unread || 0), 0);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
-  const [chatMessages, setChatMessages] = useState<{ [key: number]: { role: "user" | "assistant"; content: string; image?: string; animation?: string }[] }>({});
+  const [chatMessages, setChatMessages] = useState<{ [key: number]: { role: "user" | "assistant"; content: string; image?: string; animation?: string; createdAt?: string }[] }>({});
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -424,6 +424,7 @@ export function ProfileView() {
         role: m.sent ? ("user" as const) : ("assistant" as const),
         content: m.content,
         image: m.image || undefined,
+        createdAt: m.createdAt || undefined,
       }));
       setChatMessages((prev) => ({ ...prev, [convId as any]: history }));
     } else if (dbCount === 0 && localCount === 0) {
@@ -476,7 +477,7 @@ export function ProfileView() {
           }
           return {
             ...prev,
-            [conv.id as any]: [...existing, { role: isMine ? "user" : "assistant", content: msg.content, image: msg.image || undefined }],
+            [conv.id as any]: [...existing, { role: isMine ? "user" : "assistant", content: msg.content, image: msg.image || undefined, createdAt: msg.createdAt || new Date().toISOString() }],
           };
         });
         // Auto-mark incoming as read since the chat is open.
@@ -520,7 +521,7 @@ export function ProfileView() {
     setShowEmoji(false);
     // Optimistic: show immediately.
     const history = chatMessages[activeChatId as any] || [];
-    const next = [...history, { role: "user" as const, content: content || (image ? "📷 Gambar" : ""), image: image || undefined }];
+    const next = [...history, { role: "user" as const, content: content || (image ? "📷 Gambar" : ""), image: image || undefined, createdAt: new Date().toISOString() }];
     setChatMessages((prev) => ({ ...prev, [activeChatId as any]: next }));
     setChatSending(true);
 
@@ -731,7 +732,7 @@ export function ProfileView() {
     if (!conv) return;
     setShowGifs(false);
     const history = chatMessages[activeChatId as any] || [];
-    const next = [...history, { role: "user" as const, content: sticker.emoji, animation: sticker.animation }];
+    const next = [...history, { role: "user" as const, content: sticker.emoji, animation: sticker.animation, createdAt: new Date().toISOString() }];
     setChatMessages((prev) => ({ ...prev, [activeChatId as any]: next }));
     setChatSending(true);
     try {
@@ -1311,9 +1312,6 @@ export function ProfileView() {
                               backgroundSize: "20px 20px",
                             }}
                           >
-                            <div className="flex justify-center py-1">
-                              <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">Hari ini</span>
-                            </div>
                             {/* Listing as a chat bubble (left-aligned, from partner) */}
                             {conv.listingTitle && (
                               <div className="flex justify-start">
@@ -1330,19 +1328,36 @@ export function ProfileView() {
                                     {conv.listingPrice != null && (
                                       <p className="text-xs font-bold text-[#075E54]">Rp {conv.listingPrice.toLocaleString("id-ID")}</p>
                                     )}
-                                    <span className="mt-0.5 block text-right text-[9px] text-muted-foreground/60">
-                                      {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                                    </span>
                                   </div>
                                 </div>
                               </div>
                             )}
                             {/* Chat messages */}
                             {convo.map((c, i) => {
+                              // Date separator: show when day changes between messages
+                              const msgDate = c.createdAt ? new Date(c.createdAt) : new Date();
+                              const prevDate = i > 0 && convo[i - 1].createdAt ? new Date(convo[i - 1].createdAt!) : null;
+                              const showDateSep = !prevDate || msgDate.toDateString() !== prevDate.toDateString();
+                              const dateLabel = (() => {
+                                const now = new Date();
+                                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+                                const msgDay = new Date(msgDate.getFullYear(), msgDate.getMonth(), msgDate.getDate());
+                                if (msgDay.getTime() === today.getTime()) return tr("chatToday");
+                                if (msgDay.getTime() === yesterday.getTime()) return tr("chatYesterday");
+                                return msgDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+                              })();
+                              const msgTime = msgDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
                               // Detect emoji-only messages (render big, WhatsApp-style)
                               const isEmojiOnly = !!c.content && c.content.trim().length > 0 && /^[\s\p{Extended_Pictographic}\u200d\ufe0f]+$/u.test(c.content.trim()) && c.content.trim().length <= 12;
                               return (
-                              <div key={i} className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                              <div key={i}>
+                                {showDateSep && (
+                                  <div className="flex justify-center py-1.5">
+                                    <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">{dateLabel}</span>
+                                  </div>
+                                )}
+                              <div className={c.role === "user" ? "flex justify-end" : "flex justify-start"}>
                                 <div
                                   onContextMenu={(e) => { e.preventDefault(); setMsgMenu({ visible: true, x: e.clientX, y: e.clientY, msgIndex: i }); }}
                                   onTouchStart={(e) => handleMsgLongPressStart(e, i)}
@@ -1388,10 +1403,11 @@ export function ProfileView() {
                                     "block text-right text-[9px] text-muted-foreground/60",
                                     isEmojiOnly ? "mt-1" : "mt-0.5"
                                   )}>
-                                    {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                                    {msgTime}
                                     {c.role === "user" && <span className="ml-1 text-blue-500">✓✓</span>}
                                   </span>
                                 </div>
+                              </div>
                               </div>
                               );
                             })}

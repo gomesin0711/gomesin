@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { useChatSocket, type ChatMessage } from "@/lib/use-chat-socket";
 import { compressImage } from "@/lib/image";
 
-type Msg = { id?: string; role: "user" | "assistant"; content: string; image?: string | null; time?: string };
+type Msg = { id?: string; role: "user" | "assistant"; content: string; image?: string | null; time?: string; createdAt?: string };
 
 // ===== Context menu position =====
 type MenuState = {
@@ -93,6 +93,7 @@ export function ChatWidget({
           content: m.content,
           image: m.image || null,
           time: new Date(m.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          createdAt: m.createdAt,
         }));
         setMessages(dbMsgs);
         if (currentUser) markRead(currentUser.id, ownerId!);
@@ -116,7 +117,7 @@ export function ChatWidget({
         if (last && last.role === (msg.sent ? "user" : "assistant") && last.content === msg.content && last.time === time) {
           return prev;
         }
-        return [...prev, { id: msg.id, role: msg.sent ? "user" : "assistant", content: msg.content, image: (msg as any).image || null, time }];
+        return [...prev, { id: msg.id, role: msg.sent ? "user" : "assistant", content: msg.content, image: (msg as any).image || null, time, createdAt: msg.createdAt }];
       });
       if (!msg.sent) {
         markRead(currentUser.id, ownerId);
@@ -162,8 +163,9 @@ export function ChatWidget({
     if (currentUser.id === ownerId) { toast.info(tr("chatOwnListing")); return; }
 
     setInput("");
-    const now = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-    setMessages(prev => [...prev, { role: "user", content, time: now }]);
+    const isoNow = new Date().toISOString();
+    const now = new Date(isoNow).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    setMessages(prev => [...prev, { role: "user", content, time: now, createdAt: isoNow }]);
     setSending(true);
 
     try {
@@ -258,8 +260,9 @@ export function ChatWidget({
     try {
       for (const file of Array.from(files)) {
         const compressed = await compressImage(file);
-        const now = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-        const localMsg: Msg = { role: "user", content: "📷 Foto", image: compressed, time: now };
+        const isoNow = new Date().toISOString();
+        const now = new Date(isoNow).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+        const localMsg: Msg = { role: "user", content: "📷 Foto", image: compressed, time: now, createdAt: isoNow };
         setMessages((prev) => [...prev, localMsg]);
         try {
           const ack = await sendMessage({
@@ -340,41 +343,63 @@ export function ChatWidget({
               <p className="mt-2 text-xs text-muted-foreground">Belum ada pesan. Mulai chat dengan penjual.</p>
             </div>
           )}
-          {messages.length > 0 && (
-            <div className="flex justify-center py-1">
-              <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">Hari ini</span>
-            </div>
-          )}
-          {messages.map((m, i) => (
-            <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-              <div className={cn("flex flex-col gap-0.5", m.role === "user" ? "items-end" : "items-start")}>
-                <div
-                  data-msg-index={i}
-                  onContextMenu={(e) => handleContextMenu(e, i)}
-                  onTouchStart={() => handleTouchStart(i)}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchMove={handleTouchEnd}
-                  className={cn(
-                    "max-w-[85%] cursor-pointer rounded-2xl px-3 py-2 text-sm shadow-sm transition select-none",
-                    m.role === "user" ? "rounded-br-sm bg-primary text-primary-foreground" : "rounded-bl-sm bg-white text-foreground",
-                    selectedMsg === i && "ring-2 ring-blue-400 ring-offset-1"
-                  )}
-                >
-                  {m.image && (
-                    <img src={m.image} alt="" className="mb-1.5 max-h-48 w-auto rounded-lg object-contain" />
-                  )}
-                  {m.content && !m.image && m.content}
-                  {m.content && m.image && (
-                    <span className="text-xs opacity-70">{m.content}</span>
-                  )}
-                  {!m.content && !m.image && ""}
-                  {m.time && (
-                    <span className="ml-2 inline-block text-[9px] opacity-60">{m.time}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+          {messages.length > 0 && (() => {
+            const formatDateLabel = (d: Date) => {
+              const now = new Date();
+              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+              const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+              if (msgDay.getTime() === today.getTime()) return tr("chatToday");
+              if (msgDay.getTime() === yesterday.getTime()) return tr("chatYesterday");
+              return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+            };
+            return (
+              <>
+              {messages.map((m, i) => {
+                const msgDate = m.createdAt ? new Date(m.createdAt) : new Date();
+                const prevDate = i > 0 && messages[i - 1].createdAt ? new Date(messages[i - 1].createdAt!) : null;
+                const showDateSep = !prevDate || msgDate.toDateString() !== prevDate.toDateString();
+                return (
+                  <div key={i}>
+                    {showDateSep && (
+                      <div className="flex justify-center py-1.5">
+                        <span className="rounded-full bg-white/80 px-3 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">{formatDateLabel(msgDate)}</span>
+                      </div>
+                    )}
+                    <div className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                      <div className={cn("flex flex-col gap-0.5", m.role === "user" ? "items-end" : "items-start")}>
+                        <div
+                          data-msg-index={i}
+                          onContextMenu={(e) => handleContextMenu(e, i)}
+                          onTouchStart={() => handleTouchStart(i)}
+                          onTouchEnd={handleTouchEnd}
+                          onTouchMove={handleTouchEnd}
+                          className={cn(
+                            "max-w-[85%] cursor-pointer rounded-2xl px-3 py-2 text-sm shadow-sm transition select-none",
+                            m.role === "user" ? "rounded-br-sm bg-primary text-primary-foreground" : "rounded-bl-sm bg-white text-foreground",
+                            selectedMsg === i && "ring-2 ring-blue-400 ring-offset-1"
+                          )}
+                        >
+                          {m.image && (
+                            <img src={m.image} alt="" className="mb-1.5 max-h-48 w-auto rounded-lg object-contain" />
+                          )}
+                          {m.content && !m.image && m.content}
+                          {m.content && m.image && (
+                            <span className="text-xs opacity-70">{m.content}</span>
+                          )}
+                          {!m.content && !m.image && ""}
+                          {m.time && (
+                            <span className="ml-2 inline-block text-[9px] opacity-60">{m.time}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              </>
+            );
+          })()}
           {sending && (
             <div className="flex justify-end">
               <div className="rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground shadow-sm">

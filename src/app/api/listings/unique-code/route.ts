@@ -2,59 +2,41 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // POST /api/listings/unique-code
-// Generate & store a unique payment code (3 digits) for a listing.
-// The code is GLOBALLY UNIQUE — no two listings share the same code.
-// Once assigned, it NEVER changes (stored in DB uniqueCode field).
+// Generate a unique 3-digit payment code that changes on every call.
+// Uniqueness: must not collide with uniqueCode of any UNPAID listing.
+// Code is NOT stored — it's ephemeral, regenerated each time.
 //
-// Body: { listingId?: string, userId: string, packageType: string }
-// Returns: { uniqueCode: number, amount: number }
+// Body: { userId: string, packageType: string }
+// Returns: { uniqueCode: number }
 export async function POST(req: NextRequest) {
   try {
-    const { listingId, userId, packageType } = await req.json();
+    const { userId, packageType } = await req.json();
 
     if (!userId || !packageType) {
       return NextResponse.json({ error: "userId dan packageType wajib" }, { status: 400 });
     }
 
-    // If listing already has uniqueCode, return it (don't change).
-    if (listingId) {
-      const existing = await db.listing.findUnique({
-        where: { id: listingId },
-        select: { uniqueCode: true },
-      });
-      if (existing?.uniqueCode !== null && existing?.uniqueCode !== undefined) {
-        return NextResponse.json({ uniqueCode: existing.uniqueCode });
-      }
-    }
-
-    // Find all uniqueCodes already used by ALL users (global uniqueness).
-    const usedCodes = await db.listing.findMany({
-      where: { uniqueCode: { not: null } },
+    // Collect all uniqueCodes from listings that are still unpaid (active payments)
+    const unpaidListings = await db.listing.findMany({
+      where: {
+        paymentStatus: "unpaid",
+        uniqueCode: { not: null },
+      },
       select: { uniqueCode: true },
     });
-    const usedSet = new Set(usedCodes.map((l) => l.uniqueCode));
+    const usedSet = new Set(unpaidListings.map((l: any) => l.uniqueCode));
 
-    // Find a code from 1-999 that's not used by ANY listing (globally unique).
-    let code: number | null = null;
+    // Generate a random 3-digit code (1-999) that's not in usedSet
+    const available: number[] = [];
     for (let i = 1; i <= 999; i++) {
-      if (!usedSet.has(i)) {
-        code = i;
-        break;
-      }
+      if (!usedSet.has(i)) available.push(i);
     }
 
-    // If all 1-999 are used, wrap around.
-    if (code === null) {
-      code = Math.floor(Math.random() * 999) + 1;
+    if (available.length === 0) {
+      return NextResponse.json({ error: "Semua kode unik terpakai" }, { status: 500 });
     }
 
-    // Store the code in the listing if listingId is provided.
-    if (listingId) {
-      await db.listing.update({
-        where: { id: listingId },
-        data: { uniqueCode: code },
-      });
-    }
+    const code = available[Math.floor(Math.random() * available.length)];
 
     return NextResponse.json({ uniqueCode: code });
   } catch (e: any) {

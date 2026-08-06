@@ -234,24 +234,21 @@ export function PostAdView() {
     const pk = paketMap[selectedPackage];
     const pkgPrice = pk?.price ?? 0;
     if (pkgPrice > 0 && selectedPackage !== "simpan") {
-      // Kode unik: fetch dari API (unik per user, stored in DB, tidak berubah).
-      // Hanya generate jika belum ada (qrisAmount === 0).
-      if (qrisAmount === 0) {
-        try {
-          const codeRes = await fetch("/api/listings/unique-code", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: user?.id, packageType: selectedPackage }),
-          });
-          if (codeRes.ok) {
-            const codeData = await codeRes.json();
-            setQrisAmount(pkgPrice + codeData.uniqueCode);
-          } else {
-            setQrisAmount(pkgPrice);
-          }
-        } catch {
+      // Kode unik: fetch dari API (ephemeral, berubah tiap kali).
+      try {
+        const codeRes = await fetch("/api/listings/unique-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user?.id, packageType: selectedPackage }),
+        });
+        if (codeRes.ok) {
+          const codeData = await codeRes.json();
+          setQrisAmount(pkgPrice + codeData.uniqueCode);
+        } else {
           setQrisAmount(pkgPrice);
         }
+      } catch {
+        setQrisAmount(pkgPrice);
       }
       setQrisModal(true);
       return;

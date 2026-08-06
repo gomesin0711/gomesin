@@ -302,6 +302,8 @@ export const translations = {
     // chat widget
     chatGreeting: "Halo! Saya {name}. Iklan \"{title}\" masih tersedia. Ada yang bisa saya bantu?",
     chatOnline: "Online sekarang",
+    chatToday: "Hari ini",
+    chatYesterday: "Kemarin",
     chatAI: "Asisten AI Gomesin",
     chatAbout: "Tentang iklan:",
     chatPlaceholder: "Tulis pesan...",
@@ -1071,6 +1073,8 @@ export const translations = {
     removeFavConfirm: "Remove this ad from favorites?",
     chatGreeting: "Hello! I'm {name}. The ad \"{title}\" is still available. How can I help?",
     chatOnline: "Online now",
+    chatToday: "Today",
+    chatYesterday: "Yesterday",
     chatAI: "Gomesin AI Assistant",
     chatAbout: "About ad:",
     chatPlaceholder: "Type a message...",
@@ -1837,6 +1841,8 @@ export const translations = {
     // chat widget
     chatGreeting: "您好！我是 {name}。广告「{title}」还有货。有什么可以帮您？",
     chatOnline: "在线中",
+    chatToday: "今天",
+    chatYesterday: "昨天",
     chatAI: "Gomesin AI 助手",
     chatAbout: "关于广告：",
     chatPlaceholder: "输入消息...",
