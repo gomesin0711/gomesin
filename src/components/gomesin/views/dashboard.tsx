@@ -102,6 +102,17 @@ async function toggleSold(slug: string, isSold: boolean) {
   return data;
 }
 
+async function toggleActive(slug: string, isActive: boolean) {
+  const res = await fetch(`/api/listings/${slug}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: isActive ? "draft" : "active" }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Gagal mengubah status");
+  return data;
+}
+
 export function DashboardView() {
   const goToDetail = useStore((s) => s.goToDetail);
   const goToEdit = useStore((s) => s.goToEdit);
@@ -143,6 +154,18 @@ export function DashboardView() {
     mutationFn: ({ slug, isSold }: { slug: string; isSold: boolean }) => toggleSold(slug, isSold),
     onSuccess: (_, vars) => {
       toast.success(vars.isSold ? "Status terjual dibatalkan" : "Iklan ditandai terjual");
+      queryClient.invalidateQueries({ queryKey: ["dashboard-listings", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["listings"] });
+    },
+    onError: (e: any) => {
+      toast.error(e.message || "Gagal mengubah status");
+    },
+  });
+
+  const activeMutation = useMutation({
+    mutationFn: ({ slug, isActive }: { slug: string; isActive: boolean }) => toggleActive(slug, isActive),
+    onSuccess: (_, vars) => {
+      toast.success(vars.isActive ? "Iklan dinonaktifkan" : "Iklan diaktifkan kembali");
       queryClient.invalidateQueries({ queryKey: ["dashboard-listings", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
     },
@@ -370,40 +393,59 @@ export function DashboardView() {
             </div>
           )}
 
-          {/* bottom: views + edit on row 1, terjual + hapus on row 2 (mobile) */}
+          {/* bottom: action buttons */}
           <div className="mt-auto pt-2 border-t border-border">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-1.5">
               <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                 <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0} dilihat
               </span>
+            </div>
+            <div className="grid grid-cols-4 gap-1">
+              {/* Edit */}
               <button
                 onClick={(e) => { e.stopPropagation(); goToEdit(l.slug); }}
-                className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-semibold text-foreground transition hover:bg-primary hover:text-white hover:border-primary"
+                className="flex items-center justify-center gap-1 rounded-md border border-border bg-background py-2 text-[10px] font-semibold text-foreground transition hover:bg-primary hover:text-white hover:border-primary"
               >
-                <Edit className="size-3" /> Edit
+                <Edit className="size-3" />
               </button>
-            </div>
-            <div className="mt-1.5 flex w-full gap-1">
-              {(l.status === "active" || isSold) && (
+              {/* Terjual / Batal */}
+              {(l.status === "active" || isSold || l.status === "draft") && (
                 <button
                   onClick={(e) => { e.stopPropagation(); soldMutation.mutate({ slug: l.slug, isSold }); }}
-                  disabled={soldMutation.isPending}
+                  disabled={soldMutation.isPending || activeMutation.isPending}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-1 rounded-md border py-1.5 text-[10px] font-semibold transition",
+                    "flex items-center justify-center gap-1 rounded-md border py-2 text-[10px] font-semibold transition",
                     isSold
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                      ? "border-emerald-400 bg-emerald-500 text-white hover:bg-emerald-600"
                       : "border-emerald-300 bg-background text-emerald-700 hover:bg-emerald-50"
                   )}
                 >
                   {soldMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <BadgeCheck className="size-3" />}
-                  {isSold ? "Batal" : "Terjual"}
+                  <span className="hidden sm:inline">{isSold ? "Batal" : "Terjual"}</span>
                 </button>
               )}
+              {/* Nonaktifkan / Aktifkan */}
+              {(l.status === "active" || l.status === "draft" || l.status === "sold") && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); activeMutation.mutate({ slug: l.slug, isActive: l.status === "active" }); }}
+                  disabled={activeMutation.isPending || soldMutation.isPending}
+                  className={cn(
+                    "flex items-center justify-center gap-1 rounded-md border py-2 text-[10px] font-semibold transition",
+                    l.status === "active"
+                      ? "border-amber-300 bg-amber-500 text-white hover:bg-amber-600"
+                      : "border-blue-300 bg-background text-blue-700 hover:bg-blue-50"
+                  )}
+                >
+                  {activeMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
+                  <span className="hidden sm:inline">{l.status === "active" ? "Pause" : "Aktif"}</span>
+                </button>
+              )}
+              {/* Hapus */}
               <button
                 onClick={(e) => { e.stopPropagation(); handleDelete(l.slug); }}
-                className="flex flex-1 items-center justify-center gap-1 rounded-md border border-destructive/30 bg-background py-1.5 text-[10px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"
+                className="flex items-center justify-center gap-1 rounded-md border border-destructive/30 bg-background py-2 text-[10px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"
               >
-                <Trash2 className="size-3" /> Hapus
+                <Trash2 className="size-3" />
               </button>
             </div>
           </div>
@@ -515,32 +557,32 @@ export function DashboardView() {
             )}
           </div>
 
-          {/* bottom: views + edit on row 1, terjual + hapus on row 2 */}
+          {/* bottom: action buttons */}
           <div className="mt-auto flex flex-col gap-1.5 pt-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0} dilihat
-                </span>
-                <span>·</span>
-                <span>{timeAgo(l.createdAt, mounted ? lang : "id")}</span>
-              </div>
+            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-0.5">
+                <Eye className="size-3" /> {l.views?.toLocaleString("id-ID") || 0} dilihat
+              </span>
+              <span>·</span>
+              <span>{timeAgo(l.createdAt, mounted ? lang : "id")}</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1">
+              {/* Edit */}
               <button
                 onClick={(e) => { e.stopPropagation(); goToEdit(l.slug); }}
-                className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-semibold text-foreground transition hover:bg-primary hover:text-white hover:border-primary"
+                className="flex items-center justify-center gap-1 rounded-md border border-border bg-background py-1.5 text-[10px] font-semibold text-foreground transition hover:bg-primary hover:text-white hover:border-primary"
               >
-                <Edit className="size-3" /> Edit
+                <Edit className="size-3" />
               </button>
-            </div>
-            <div className="flex w-full gap-1">
-              {(l.status === "active" || isSold) && (
+              {/* Terjual / Batal */}
+              {(l.status === "active" || isSold || l.status === "draft") && (
                 <button
                   onClick={(e) => { e.stopPropagation(); soldMutation.mutate({ slug: l.slug, isSold }); }}
-                  disabled={soldMutation.isPending}
+                  disabled={soldMutation.isPending || activeMutation.isPending}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-1 rounded-md border py-1.5 text-[10px] font-semibold transition",
+                    "flex items-center justify-center gap-1 rounded-md border py-1.5 text-[10px] font-semibold transition",
                     isSold
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                      ? "border-emerald-400 bg-emerald-500 text-white hover:bg-emerald-600"
                       : "border-emerald-300 bg-background text-emerald-700 hover:bg-emerald-50"
                   )}
                 >
@@ -548,11 +590,28 @@ export function DashboardView() {
                   {isSold ? "Batal" : "Terjual"}
                 </button>
               )}
+              {/* Nonaktifkan / Aktifkan */}
+              {(l.status === "active" || l.status === "draft" || l.status === "sold") && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); activeMutation.mutate({ slug: l.slug, isActive: l.status === "active" }); }}
+                  disabled={activeMutation.isPending || soldMutation.isPending}
+                  className={cn(
+                    "flex items-center justify-center gap-1 rounded-md border py-1.5 text-[10px] font-semibold transition",
+                    l.status === "active"
+                      ? "border-amber-300 bg-amber-500 text-white hover:bg-amber-600"
+                      : "border-blue-300 bg-background text-blue-700 hover:bg-blue-50"
+                  )}
+                >
+                  {activeMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
+                  {l.status === "active" ? "Pause" : "Aktif"}
+                </button>
+              )}
+              {/* Hapus */}
               <button
                 onClick={(e) => { e.stopPropagation(); handleDelete(l.slug); }}
-                className="flex flex-1 items-center justify-center gap-1 rounded-md border border-destructive/30 bg-background py-1.5 text-[10px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"
+                className="flex items-center justify-center gap-1 rounded-md border border-destructive/30 bg-background py-1.5 text-[10px] font-semibold text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive"
               >
-                <Trash2 className="size-3" /> Hapus
+                <Trash2 className="size-3" />
               </button>
             </div>
           </div>

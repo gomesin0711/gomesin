@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { parseListing } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 // GET listings owned by a specific user or seller (for "My Ads" dashboard & seller page)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -11,7 +13,7 @@ export async function GET(req: NextRequest) {
   if (!userId && !sellerId) {
     return NextResponse.json(
       { error: "User ID atau Seller ID wajib diisi." },
-      { status: 400 }
+      { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
 
@@ -35,5 +37,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     listings: listings.map(parseListing),
     total: listings.length,
+  }, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
   });
 }
