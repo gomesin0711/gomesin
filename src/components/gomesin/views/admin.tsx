@@ -304,6 +304,7 @@ function IklanTab() {
   const [activeTab, setActiveTab] = useState<AdminPkgTabKey>("all");
   const [viewMode, setViewMode] = useState<"grid" | "line">("grid");
   const [search, setSearch] = useState("");
+  const [delId, setDelId] = useState<string | null>(null);
   const del = useMutation({
     mutationFn: (id: string) => fetch("/api/admin/listings", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }),
     onSuccess: () => { toast.success(tr("admDeleted")); qc.invalidateQueries({ queryKey: ["admin-listings"] }); },
@@ -444,7 +445,7 @@ function IklanTab() {
               )} title="Pelanggaran">
                 <XCircle className="size-3" />
               </button>
-              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}>
+              <button onClick={() => setDelId(l.id)} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}>
                 <Trash2 className="size-3" />
               </button>
             </div>
@@ -505,7 +506,7 @@ function IklanTab() {
               <button onClick={() => setViolation.mutate({ id: l.id, flag: !l.violationFlag, reason: tr("admViolationReason") })} className={cn("grid size-7 place-items-center rounded-md border transition",
                 l.violationFlag ? "border-red-500 bg-red-500 text-white" : "border-red-300 bg-background text-red-600 hover:bg-red-500 hover:text-white hover:border-red-500"
               )} title="Pelanggaran"><XCircle className="size-3" /></button>
-              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}><Trash2 className="size-3" /></button>
+              <button onClick={() => setDelId(l.id)} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}><Trash2 className="size-3" /></button>
             </div>
           </div>
         </div>
@@ -667,9 +668,25 @@ function IklanTab() {
           </div>
         </div>
       )}
+      {/* Delete confirmation */}
+      <AlertDialog open={!!delId} onOpenChange={(o) => { if (!o) setDelId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr("admDelete")}</AlertDialogTitle>
+            <AlertDialogDescription>Yakin ingin menghapus iklan ini? Tindakan tidak bisa dibatalkan.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={() => { if (delId) { del.mutate(delId); setDelId(null); } }}>
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
 
 // ============ IKLAN BARU TAB (unpaid / pending verification) ============
 function IklanBaruTab() {
@@ -1054,7 +1071,7 @@ function IklanExpiredTab() {
               <button onClick={() => renew.mutate({ id: l.id, days: 30 })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-orange-600 transition hover:bg-orange-500 hover:text-white hover:border-orange-500" title="Perpanjang 30 hari">
                 <RefreshCw className="size-3" />
               </button>
-              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}>
+              <button onClick={() => setDelId(l.id)} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}>
                 <Trash2 className="size-3" />
               </button>
             </div>
@@ -1097,7 +1114,7 @@ function IklanExpiredTab() {
             <span className="text-[10px] text-muted-foreground">{l.seller?.name}</span>
             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
               <button onClick={() => renew.mutate({ id: l.id, days: 30 })} className="grid size-7 place-items-center rounded-md border border-border bg-background text-orange-600 transition hover:bg-orange-500 hover:text-white hover:border-orange-500" title="Perpanjang 30 hari"><RefreshCw className="size-3" /></button>
-              <button onClick={() => { setDeleteId(l.id); setDeleteCallback(() => del.mutate(l.id)); }} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}><Trash2 className="size-3" /></button>
+              <button onClick={() => setDelId(l.id)} className="grid size-7 place-items-center rounded-md border border-destructive/30 bg-background text-destructive transition hover:bg-destructive hover:text-white hover:border-destructive" title={tr("admDelete")}><Trash2 className="size-3" /></button>
             </div>
           </div>
         </div>
